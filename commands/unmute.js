@@ -5,14 +5,14 @@ const { opsGuild, opsLogChannelId, caseLogChannelId, guildList } = require('../c
 
 module.exports = {
 	data: new SlashCommandBuilder()
-		.setName('ban')
-		.setDescription('Bans a user')
+		.setName('unmute')
+		.setDescription('Unmutes a user')
 		.setDMPermission(false)
-		.setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
+		.setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
 		.addStringOption((option) =>
 			option
 				.setName('user')
-				.setDescription('The Discord ID of the user to ban')
+				.setDescription('The Discord ID of the user to unmute')
 				.setRequired(true)
 				.setMinLength(18)
 				.setMaxLength(18)
@@ -44,45 +44,58 @@ module.exports = {
 					if (guild === undefined) {
 						servers.set(guildId, 'Error getting server');
 					} else {
-						if (!guild.members.me.permissions.has(PermissionFlagsBits.BanMembers)) {
+						if (!guild.members.me.permissions.has(PermissionFlagsBits.ModerateMembers)) {
 							servers.set(guild.name, 'No permission');
 							continue;
 						}
 
 						try {
-							await guild.members.ban(user);
-							servers.set(guild.name, 'Success');
-							successCount++;
-						} catch (error) {
-							servers.set(guild.name, 'Error banning member');
+							const member = await guild.members.fetch(user);
 
-							logger.logMessage(
-								`Error banning ${userId} in ${guild.name}!\n\`\`\`\n${error}\n\`\`\``
-							);
+							try {
+								await member.timeout(0);
+								servers.set(guild.name, 'Success');
+								successCount++;
+							} catch (error) {
+								servers.set(guild.name, 'Error removing timeout of member');
+
+								logger.logMessage(
+									`Error removing timeout of ${userId} in ${guild.name}!\n\`\`\`\n${error}\n\`\`\``
+								);
+							}
+						} catch (error) {
+							if (error.code === 10007) {
+								servers.set(guild.name, 'Not in server');
+							} else {
+								servers.set(guild.name, 'Error getting member');
+								logger.logMessage(
+									`Error fetching member ${user}} in ${guild.name}!\n\`\`\`\n${error}\n\`\`\``
+								);
+							}
 						}
 					}
 				}
 
 				if (successCount === 0) {
 					await interaction.editReply(
-						`Failed to ban ${user.displayName} from any MLE servers. See case log for details`
+						`Failed to unmute ${user.displayName} in any MLE servers. See case log for details`
 					);
 				} else {
 					await interaction.editReply(
-						`Successfully banned ${user.displayName} frorm ${successCount} MLE server${
+						`Successfully unmuted ${user.displayName} in ${successCount} MLE server${
 							successCount === 1 ? '' : 's'
 						}. See case log for details`
 					);
 				}
 
-				caseLogger.logBan(user, interaction.user, servers);
+				caseLogger.logunMute(user, interaction.user, servers);
 			})
 			.catch(async function (error) {
 				if (error.code === 10013) {
 					await interaction.editReply(`Failed to find user with ID ${userId}`);
 				} else {
 					await interaction.editReply('An unknown error occurred');
-					logger.logMessage(`Unknown error banning ${userId}!\n\`\`\`\n${error}\n\`\`\``);
+					logger.logMessage(`Unknown error unmuting ${userId}!\n\`\`\`\n${error}\n\`\`\``);
 				}
 			});
 	}

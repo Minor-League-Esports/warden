@@ -44,6 +44,11 @@ module.exports = {
 					if (guild === undefined) {
 						servers.set(guildId, 'Error getting server');
 					} else {
+						if (!guild.members.me.permissions.has(PermissionFlagsBits.BanMembers)) {
+							servers.set(guild.name, 'No permission');
+							continue;
+						}
+
 						try {
 							await guild.members.unban(user);
 							servers.set(guild.name, 'Success');
@@ -52,11 +57,7 @@ module.exports = {
 							if (error.code === 10026) {
 								servers.set(guild.name, 'Not banned');
 							} else {
-								if (error.code === 50013) {
-									servers.set(guild.name, 'Error unbanning member, no permission');
-								} else {
-									servers.set(guild.name, 'Error unbanning member');
-								}
+								servers.set(guild.name, 'Error unbanning member');
 
 								logger.logMessage(
 									`Error unbanning ${userId} in ${guild.name}!\n\`\`\`\n${error}\n\`\`\``
@@ -78,7 +79,7 @@ module.exports = {
 					);
 				}
 
-				caseLogger.logBan(user, interaction.user, servers);
+				caseLogger.logUnban(user, interaction.user, servers);
 			})
 			.catch(async function (error) {
 				if (error.code === 10013) {
