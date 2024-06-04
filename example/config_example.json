@@ -1,6 +1,9 @@
 {
-	"token": "[your token]",
-	"clientId": "[bot ID]",
-	"guildId": "[guild ID (for guild-level command deployments)]",
-	"logChannelId": "[log channel]"
+	"token": "[your bot token]",
+	"clientId": "[bot's client id]",
+	"guildId": "[guild for local command deployment]",
+	"opsGuild": "[staff server to run commands from]",
+	"opsLogChannelId": "[bot log channel, for errors]",
+	"caseLogChannelId": "[log channel for case logs]",
+	"guildList": ["[list of mle guilds the bot is in]", "[another guild]"]
 }
