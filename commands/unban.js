@@ -88,31 +88,7 @@ module.exports = {
 						}. See case log for details`
 					);
 
-					// If it succeeded, send a notice to user
-					const embed = createEmbed();
-					await user
-						.send({ embeds: [embed] })
-						.then(async function () {
-							// Try to send the notice
-							await interaction.followUp(`Successfully sent unban notice to ${user.displayName}`);
-							// Log it
-							caseLogger.logBan(user, interaction.user, servers, 'True');
-						})
-						.catch(async function (error) {
-							// Send failed
-							if (error.code === 50007) {
-								await interaction.followUp(
-									`Failed to send unban notice to ${user.displayName}\nUser has DMs disabled or the bot is blocked`
-								);
-							} else {
-								await interaction.followUp(
-									`Failed to send unban notice to ${user.displayName}, reason unknown`
-								);
-								logger.logMessage(`Error messaging ${user}!\n\`\`\`\n${error}\n\`\`\``);
-							}
-							// Log it
-							caseLogger.logBan(user, interaction.user, servers, 'False');
-						});
+					caseLogger.logUnban(user, interaction.user, servers);
 				}
 			})
 			.catch(async function (error) {
@@ -125,9 +101,3 @@ module.exports = {
 			});
 	}
 };
-
-return new EmbedBuilder()
-	.setColor('#00ff00')
-	.setTitle(`You have been unbanned`)
-	.setTimestamp()
-	.setDescription(`You have been unbanned from MLE`);

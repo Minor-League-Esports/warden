@@ -15,13 +15,13 @@ class CaseLogger {
 		this._channel.send({ embeds: [embed] });
 	}
 
-	logBan(user, moderator, serverMap, success) {
-		const embed = this.createBanEmbed(user, moderator, serverMap, success);
+	logBan(user, moderator, serverMap) {
+		const embed = this.createBanEmbed(user, moderator, serverMap);
 		this._channel.send({ embeds: [embed] });
 	}
 
-	logUnban(user, moderator, serverMap, success) {
-		const embed = this.createUnbanEmbed(user, moderator, serverMap, success);
+	logUnban(user, moderator, serverMap) {
+		const embed = this.createUnbanEmbed(user, moderator, serverMap);
 		this._channel.send({ embeds: [embed] });
 	}
 
@@ -61,7 +61,7 @@ class CaseLogger {
 			);
 	}
 
-	createBanEmbed(user, moderator, serverMap, success) {
+	createBanEmbed(user, moderator, serverMap) {
 		return new EmbedBuilder()
 			.setColor('#ff0000')
 			.setTitle(`${user.displayName} | Ban`)
@@ -71,12 +71,11 @@ class CaseLogger {
 			.addFields(
 				{ name: 'User', value: `<@${user.id}>`, inline: true },
 				{ name: 'Moderator', value: `<@${moderator.id}>`, inline: true },
-				{ name: 'DM Success', value: success, inline: true },
 				{ name: 'Servers', value: this.getServerMapText(serverMap) }
 			);
 	}
 
-	createUnbanEmbed(user, moderator, serverMap, success) {
+	createUnbanEmbed(user, moderator, serverMap) {
 		return new EmbedBuilder()
 			.setColor('#00ff00')
 			.setTitle(`${user.displayName} | Unban`)
@@ -86,7 +85,6 @@ class CaseLogger {
 			.addFields(
 				{ name: 'User', value: `<@${user.id}>`, inline: true },
 				{ name: 'Moderator', value: `<@${moderator.id}>`, inline: true },
-				{ name: 'DM Success', value: success, inline: true },
 				{ name: 'Servers', value: this.getServerMapText(serverMap) }
 			);
 	}
