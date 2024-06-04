@@ -1,6 +1,6 @@
 const { Events } = require('discord.js');
 const { Logger } = require('../util/Logger.js');
-const { logChannelId } = require('../config.json');
+const { opsLogChannelId } = require('../config.json');
 
 module.exports = {
 	name: Events.InteractionCreate,
@@ -18,7 +18,7 @@ module.exports = {
 			await command.execute(interaction);
 		} catch (error) {
 			console.error(error);
-			const logChannel = await interaction.client.channels.fetch(logChannelId);
+			const logChannel = await interaction.client.channels.fetch(opsLogChannelId);
 			const logger = new Logger(logChannel);
 			logger.logMessage('A command encountered an error!');
 			logger.logMessage(`Interaction: \n\`\`\`\n${interaction.toString()}\n\`\`\``);
