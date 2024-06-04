@@ -31,7 +31,7 @@ class CaseLogger {
 	}
 
 	createMuteEmbed(user, moderator, serverMap, days, success) {
-		const muteEmbed = new EmbedBuilder()
+		return new EmbedBuilder()
 			.setColor('#ff761b')
 			.setTitle(`${user.displayName} | Mute`)
 			.setFooter({ text: `ID: ${user.id}` })
@@ -44,11 +44,10 @@ class CaseLogger {
 				{ name: 'DM Success', value: success, inline: true },
 				{ name: 'Servers', value: this.getServerMapText(serverMap) }
 			);
-		return muteEmbed;
 	}
 
 	createUnmuteEmbed(user, moderator, serverMap, success) {
-		const unmuteEmbed = new EmbedBuilder()
+		return new EmbedBuilder()
 			.setColor('#00ff00')
 			.setTitle(`${user.displayName} | Unmute`)
 			.setFooter({ text: `ID: ${user.id}` })
@@ -60,11 +59,10 @@ class CaseLogger {
 				{ name: 'DM Success', value: success, inline: true },
 				{ name: 'Servers', value: this.getServerMapText(serverMap) }
 			);
-		return unmuteEmbed;
 	}
 
 	createBanEmbed(user, moderator, serverMap, success) {
-		const banEmbed = new EmbedBuilder()
+		return new EmbedBuilder()
 			.setColor('#ff0000')
 			.setTitle(`${user.displayName} | Ban`)
 			.setFooter({ text: `ID: ${user.id}` })
@@ -76,11 +74,10 @@ class CaseLogger {
 				{ name: 'DM Success', value: success, inline: true },
 				{ name: 'Servers', value: this.getServerMapText(serverMap) }
 			);
-		return banEmbed;
 	}
 
 	createUnbanEmbed(user, moderator, serverMap, success) {
-		const unbanEmbed = new EmbedBuilder()
+		return new EmbedBuilder()
 			.setColor('#00ff00')
 			.setTitle(`${user.displayName} | Unban`)
 			.setFooter({ text: `ID: ${user.id}` })
@@ -92,11 +89,10 @@ class CaseLogger {
 				{ name: 'DM Success', value: success, inline: true },
 				{ name: 'Servers', value: this.getServerMapText(serverMap) }
 			);
-		return unbanEmbed;
 	}
 
 	createWarnEmbed(user, moderator, warnText, success) {
-		const warnEmbed = new EmbedBuilder()
+		return new EmbedBuilder()
 			.setColor('#ffe240')
 			.setTitle(`${user.displayName} | Warn`)
 			.setFooter({ text: `ID: ${user.id}` })
@@ -108,7 +104,6 @@ class CaseLogger {
 				{ name: 'DM Success', value: success, inline: true },
 				{ name: 'Warn Text', value: warnText }
 			);
-		return warnEmbed;
 	}
 
 	getServerMapText(serverMap) {

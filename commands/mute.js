@@ -31,11 +31,13 @@ module.exports = {
 	async execute(interaction) {
 		await interaction.deferReply();
 
+		// Force usage of staff server for commands
 		if (interaction.guild.id != opsGuild) {
 			await interaction.editReply('This command must be run from the MLE Staff server');
 			return;
 		}
 
+		// Set up loggers
 		const logChannel = await interaction.client.channels.fetch(opsLogChannelId);
 		const logger = new Logger(logChannel);
 		const caseLogChannel = await interaction.client.channels.fetch(caseLogChannelId);
@@ -110,9 +112,9 @@ module.exports = {
 					);
 
 					// If it succeeded, send a notice to user
-					const muteEmbed = createMuteEmbed(days);
+					const embed = createEmbed(days);
 					await user
-						.send({ embeds: [muteEmbed] })
+						.send({ embeds: [embed] })
 						.then(async function () {
 							// Try to send the notice
 							await interaction.followUp(`Successfully sent mute notice to ${user.displayName}`);
@@ -147,11 +149,10 @@ module.exports = {
 	}
 };
 
-function createMuteEmbed(days) {
-	const embed = new EmbedBuilder()
+function createEmbed(days) {
+	return new EmbedBuilder()
 		.setColor('#ff0000')
 		.setTitle(`You have been muted`)
 		.setTimestamp()
 		.setDescription(`You have been muted in MLE for ${days} days`);
-	return embed;
 }

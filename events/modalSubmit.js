@@ -22,7 +22,7 @@ module.exports = {
 					const caseLogger = new CaseLogger(caseLogChannel);
 
 					const warnText = interaction.fields.getTextInputValue('warnText');
-					const warnEmbed = createWarnEmbed(warnText);
+					const warnEmbed = createEmbed(warnText);
 
 					user
 						.send({ embeds: [warnEmbed] })
@@ -55,11 +55,10 @@ module.exports = {
 	}
 };
 
-function createWarnEmbed(warnText) {
-	const embed = new EmbedBuilder()
+function createEmbed(warnText) {
+	return new EmbedBuilder()
 		.setColor('#ff0000')
 		.setTitle(`You have been warned`)
 		.setTimestamp()
 		.setDescription(`You have been warned in MLE for the following reason: \n\n${warnText}`);
-	return embed;
 }
