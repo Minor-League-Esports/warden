@@ -19,15 +19,15 @@ RUN pnpm install
 COPY --chown=node:node . .
 
 # Setup config.json
-RUN cp example/config_example.json config.json
-RUN sed -i "s|<TOKEN>|token|g" ./config.json
-RUN sed -i "s|<CLIENT ID>|clientid|g" ./config.json
-RUN sed -i "s|<GUILD ID>|guildid|g" ./config.json
-RUN sed -i "s|<OPS GUILD>|opsguild|g" ./config.json
-RUN sed -i "s|<OPS CHANNEL>|opschannel|g" ./config.json
-RUN sed -i "s|<CASE CHANNEL>|casechannel|g" ./config.json
-RUN sed -i "s|<GUILD LIST>|\"server 1\", \"server 2\", \"server 3\"|g" ./config.json
-RUN cat config.json
+# RUN cp example/config_example.json config.json
+# RUN sed -i "s|<TOKEN>|token|g" ./config.json
+# RUN sed -i "s|<CLIENT ID>|clientid|g" ./config.json
+# RUN sed -i "s|<GUILD ID>|guildid|g" ./config.json
+# RUN sed -i "s|<OPS GUILD>|opsguild|g" ./config.json
+# RUN sed -i "s|<OPS CHANNEL>|opschannel|g" ./config.json
+# RUN sed -i "s|<CASE CHANNEL>|casechannel|g" ./config.json
+# RUN sed -i "s|<GUILD LIST>|\"server 1\", \"server 2\", \"server 3\"|g" ./config.json
+# RUN cat config.json
 
 # Start the bot
 CMD ["node", "index.js"]
