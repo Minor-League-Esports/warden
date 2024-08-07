@@ -29,8 +29,8 @@ module.exports = {
 			.setCustomId('userId')
 			.setLabel('User ID')
 			.setStyle(TextInputStyle.Short)
-			.setMinLength(18)
-			.setMaxLength(18)
+			.setMinLength(17)
+			.setMaxLength(19)
 			.setPlaceholder('Discord ID');
 
 		// Build warning text input

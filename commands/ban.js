@@ -14,8 +14,8 @@ module.exports = {
 				.setName('user')
 				.setDescription('The Discord ID of the user to ban')
 				.setRequired(true)
-				.setMinLength(18)
-				.setMaxLength(18)
+				.setMinLength(17)
+				.setMaxLength(19)
 		),
 	async execute(interaction) {
 		await interaction.deferReply();
