@@ -87,9 +87,8 @@ module.exports = {
 							successCount === 1 ? '' : 's'
 						}. See case log for details`
 					);
-
-					caseLogger.logUnban(user, interaction.user, servers);
 				}
+				caseLogger.logUnban(user, interaction.user, servers);
 			})
 			.catch(async function (error) {
 				if (error.code === 10013) {
