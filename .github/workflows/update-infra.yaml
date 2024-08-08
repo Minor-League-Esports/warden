@@ -22,7 +22,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/${{github.event.repository.name}}:${{ github.sha }}
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/mle-${{github.event.repository.name}}:${{ github.sha }}
 
       - name: Check our infrastructure repository
         uses: actions/checkout@v4
