@@ -35,7 +35,7 @@ jobs:
       - name: Update and push infra
         run: |
           cd infrastructure
-          echo ${{steps.build_and_push.outputs.digest}} > ${{github.repository}}/image-digest
+          echo ${{steps.build_and_push.outputs.digest}} > ${{github.event.repository.name}}/image-digest
 
           git config --global user.email ""
           git config --global user.name "MLEDBAutomoton"
