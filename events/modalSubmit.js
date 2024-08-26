@@ -43,6 +43,7 @@ module.exports = {
 									`Failed to warn ${user.displayName}\nUser has DMs disabled or the bot is blocked`
 								);
 							} else {
+								console.error(error);
 								await interaction.editReply(`Failed to warn ${user.displayName}, reason unknown`);
 								logger.logMessage(`Error messaging ${user}!\n\`\`\`\n${error}\n\`\`\``);
 							}
@@ -56,6 +57,7 @@ module.exports = {
 					if (error.code === 10013) {
 						await interaction.editReply(`Failed to find user with ID ${userId}`);
 					} else {
+						console.error(error);
 						await interaction.editReply('An unknown error occurred');
 						logger.logMessage(`Unknown error warning ${userId}!\n\`\`\`\n${error}\n\`\`\``);
 					}

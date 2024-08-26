@@ -62,6 +62,7 @@ module.exports = {
 							servers.set(guild.name, 'Success');
 							successCount++;
 						} catch (error) {
+							console.error(error);
 							// Ban failed
 							servers.set(guild.name, 'Error banning member');
 
@@ -91,6 +92,7 @@ module.exports = {
 				if (error.code === 10013) {
 					await interaction.editReply(`Failed to find user with ID ${userId}`);
 				} else {
+					console.error(error);
 					await interaction.editReply('An unknown error occurred');
 					logger.logMessage(`Unknown error banning ${userId}!\n\`\`\`\n${error}\n\`\`\``);
 				}

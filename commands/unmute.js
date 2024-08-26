@@ -67,6 +67,7 @@ module.exports = {
 								successCount++;
 							} catch (error) {
 								// Failed to timeout member
+								console.error(error);
 								servers.set(guild.name, 'Error removing timeout from member');
 
 								logger.logMessage(
@@ -78,6 +79,7 @@ module.exports = {
 							if (error.code === 10007) {
 								servers.set(guild.name, 'Not in server');
 							} else {
+								console.error(error);
 								servers.set(guild.name, 'Error getting member');
 								logger.logMessage(
 									`Error fetching member ${user}} in ${guild.name}!\n\`\`\`\n${error}\n\`\`\``
@@ -116,6 +118,7 @@ module.exports = {
 									`Failed to send unmute notice to ${user.displayName}\nUser has DMs disabled or the bot is blocked`
 								);
 							} else {
+								console.error(error);
 								await interaction.followUp(
 									`Failed to send unmute notice to ${user.displayName}, reason unknown`
 								);
@@ -130,6 +133,7 @@ module.exports = {
 				if (error.code === 10013) {
 					await interaction.editReply(`Failed to find user with ID ${userId}`);
 				} else {
+					console.error(error);
 					await interaction.editReply('An unknown error occurred');
 					logger.logMessage(`Unknown error unmuting ${userId}!\n\`\`\`\n${error}\n\`\`\``);
 				}

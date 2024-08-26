@@ -66,6 +66,7 @@ module.exports = {
 							if (error.code === 10026) {
 								servers.set(guild.name, 'Not banned');
 							} else {
+								console.error(error);
 								servers.set(guild.name, 'Error unbanning member');
 
 								logger.logMessage(
@@ -94,6 +95,7 @@ module.exports = {
 				if (error.code === 10013) {
 					await interaction.editReply(`Failed to find user with ID ${userId}`);
 				} else {
+					console.error(error);
 					await interaction.editReply('An unknown error occurred');
 					logger.logMessage(`Unknown error unbanning ${userId}!\n\`\`\`\n${error}\n\`\`\``);
 				}
