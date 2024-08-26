@@ -14,15 +14,15 @@ module.exports = {
 			// Fetch the user
 			const userId = interaction.fields.getTextInputValue('userId');
 
+			// Set up loggers
+			const logChannel = await interaction.client.channels.fetch(opsLogChannelId);
+			const logger = new Logger(logChannel);
+			const caseLogChannel = await interaction.client.channels.fetch(caseLogChannelId);
+			const caseLogger = new CaseLogger(caseLogChannel);
+
 			interaction.client.users
 				.fetch(userId)
 				.then(async function (user) {
-					// Set up loggers
-					const logChannel = await interaction.client.channels.fetch(opsLogChannelId);
-					const logger = new Logger(logChannel);
-					const caseLogChannel = await interaction.client.channels.fetch(caseLogChannelId);
-					const caseLogger = new CaseLogger(caseLogChannel);
-
 					// Create embed
 					const warnText = interaction.fields.getTextInputValue('warnText');
 					const warnEmbed = createEmbed(warnText);
