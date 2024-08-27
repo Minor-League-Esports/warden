@@ -35,7 +35,7 @@ jobs:
       - name: Update and push infra
         run: |
           cd infrastructure
-          mkdir -p projects/${{github.event.repository.name}}/image-digest
+          mkdir -p projects/${{github.event.repository.name}}
           echo ${{steps.build_and_push.outputs.digest}} > projects/${{github.event.repository.name}}/image-digest
 
           git config --global user.email ""
