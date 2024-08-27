@@ -32,17 +32,56 @@ jobs:
           ref: main
           path: infrastructure
 
-      - name: Update and push infra
+      - name: Set up Git
+        run: |
+          git config --global user.email ""
+          git config --global user.name "MLEDBAutomoton"
+
+      - name: Get current branch name
+        id: get_branch
+        run: echo "BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Create or update feature branch
+        run: |
+          cd infrastructure
+          mkdir -p projects/${{github.event.repository.name}}
+          git fetch origin
+
+          export REPO_NAME="${{github.event.repository.name}}"
+          export LOCAL_BRANCH="${{steps.get_branch.outputs.BRANCH_NAME}}"
+          export INFRA_BRANCH="${REPO_NAME}/${LOCAL_BRANCH}"
+          
+          if git ls-remote --exit-code --heads origin $INFRA_BRANCH; then
+            git checkout $INFRA_BRANCH
+            git pull origin $INFRA_BRANCH
+          else
+            git checkout -b $INFRA_BRANCH
+          fi
+
+      - name: Update infrastructure
         run: |
           cd infrastructure
           mkdir -p projects/${{github.event.repository.name}}
           echo ${{steps.build_and_push.outputs.digest}} > projects/${{github.event.repository.name}}/image-digest
-
-          git config --global user.email ""
-          git config --global user.name "MLEDBAutomoton"
-          
           git add .
           git commit -m "[Automated ${{github.repository}}] ${{github.sha}}"
-          git push
-          
 
+          export REPO_NAME="${{github.event.repository.name}}"
+          export LOCAL_BRANCH="${{steps.get_branch.outputs.BRANCH_NAME}}"
+          export INFRA_BRANCH="${REPO_NAME}/${LOCAL_BRANCH}"
+          git push -u origin $INFRA_BRANCH
+
+      - name: Create PR if not exists
+        env:
+          GITHUB_TOKEN: ${{ secrets.CLONE_PAT }}
+        run: |
+          cd infrastructure
+          REPO_NAME="${{github.event.repository.name}}"
+          LOCAL_BRANCH="${{steps.get_branch.outputs.BRANCH_NAME}}"
+          INFRA_BRANCH="${REPO_NAME}/${LOCAL_BRANCH}"
+          PR_EXISTS=$(gh pr list --head $INFRA_BRANCH --json number --jq length)
+          if [ "$PR_EXISTS" -eq "0" ]; then
+            gh pr create --title "Update ${{github.event.repository.name}} infrastructure" --body "Automated update for ${{github.event.repository.name}} with commit ${{github.sha}}" --head $INFRA_BRANCH --base main
+          else
+            echo "PR already exists. Skipping PR creation."
+          fi
