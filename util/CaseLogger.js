@@ -112,7 +112,7 @@ class CaseLogger {
 
 	getServerMapText(serverMap) {
 		let returnString = '';
-		serverMap.forEach(function (value, key) {
+		serverMap.forEach((value, key) => {
 			returnString += `${key}: ${value}\n`;
 		});
 		return returnString;

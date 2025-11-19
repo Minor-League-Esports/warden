@@ -34,7 +34,7 @@ module.exports = {
 					// Try to send
 					user
 						.send({ embeds: [warnEmbed] })
-						.then(async function () {
+						.then(async () => {
 							// Warn success
 							await interaction.editReply({
 								content: `Successfully warned ${user.displayName}`,
