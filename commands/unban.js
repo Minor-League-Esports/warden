@@ -1,5 +1,4 @@
 const {
-	EmbedBuilder,
 	SlashCommandBuilder,
 	PermissionFlagsBits,
 	InteractionContextType,
@@ -32,9 +31,9 @@ module.exports = {
 
 		// Force usage of staff server for commands
 		if (interaction.guild.id != opsGuild) {
-			await interaction.editReply(
-				'This command must be run from the MLE Staff server',
-			);
+			await interaction.editReply({
+				content: 'This command must be run from the MLE Staff server',
+			});
 			return;
 		}
 
@@ -50,11 +49,11 @@ module.exports = {
 		const userId = interaction.options.getString('user');
 		interaction.client.users
 			.fetch(userId)
-			.then(async function (user) {
+			.then(async (user) => {
 				// User exists, begin processing
 				const guildCache = interaction.client.guilds.cache;
 
-				let servers = new Map();
+				const servers = new Map();
 				let successCount = 0;
 
 				// Loop through all servers
@@ -95,26 +94,28 @@ module.exports = {
 
 				// Check if it succeeded in any servers
 				if (successCount === 0) {
-					await interaction.editReply(
-						`Failed to unban ${user.displayName} from any MLE servers. See case log for details`,
-					);
+					await interaction.editReply({
+						content: `Failed to unban ${user.displayName} from any MLE servers. See case log for details`,
+					});
 				} else {
-					await interaction.editReply(
-						`Successfully unbanned ${
+					await interaction.editReply({
+						content: `Successfully unbanned ${
 							user.displayName
 						} from ${successCount} MLE server${
 							successCount === 1 ? '' : 's'
 						}. See case log for details`,
-					);
+					});
 				}
 				caseLogger.logUnban(user, interaction.user, servers);
 			})
-			.catch(async function (error) {
+			.catch(async (error) => {
 				if (error.code === 10013) {
-					await interaction.editReply(`Failed to find user with ID ${userId}`);
+					await interaction.editReply({
+						content: `Failed to find user with ID ${userId}`,
+					});
 				} else {
 					console.error(error);
-					await interaction.editReply('An unknown error occurred');
+					await interaction.editReply({ content: 'An unknown error occurred' });
 					logger.logMessage(
 						`Unknown error unbanning ${userId}!\n\`\`\`\n${error}\n\`\`\``,
 					);

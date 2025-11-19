@@ -32,9 +32,9 @@ module.exports = {
 
 		// Force usage of staff server for commands
 		if (interaction.guild.id != opsGuild) {
-			await interaction.editReply(
-				'This command must be run from the MLE Staff server',
-			);
+			await interaction.editReply({
+				content: 'This command must be run from the MLE Staff server',
+			});
 			return;
 		}
 
@@ -50,11 +50,11 @@ module.exports = {
 		const userId = interaction.options.getString('user');
 		interaction.client.users
 			.fetch(userId)
-			.then(async function (user) {
+			.then(async (user) => {
 				// User exists, begin processing
 				const guildCache = interaction.client.guilds.cache;
 
-				let servers = new Map();
+				const servers = new Map();
 				let successCount = 0;
 
 				// Loop through all servers
@@ -109,41 +109,41 @@ module.exports = {
 
 				// Check if it succeeded in any servers
 				if (successCount === 0) {
-					await interaction.editReply(
-						`Failed to unmute ${user.displayName} in any MLE servers. See case log for details`,
-					);
+					await interaction.editReply({
+						content: `Failed to unmute ${user.displayName} in any MLE servers. See case log for details`,
+					});
 				} else {
-					await interaction.editReply(
-						`Successfully unmuted ${
+					await interaction.editReply({
+						content: `Successfully unmuted ${
 							user.displayName
 						} in ${successCount} MLE server${
 							successCount === 1 ? '' : 's'
 						}. See case log for details`,
-					);
+					});
 
 					// If it succeeded, send a notice to user
 					const embed = createEmbed();
 					await user
 						.send({ embeds: [embed] })
-						.then(async function () {
+						.then(async () => {
 							// Try to send the notice
-							await interaction.followUp(
-								`Successfully sent unmute notice to ${user.displayName}`,
-							);
+							await interaction.followUp({
+								content: `Successfully sent unmute notice to ${user.displayName}`,
+							});
 							// Log it
 							caseLogger.logUnmute(user, interaction.user, servers, 'True');
 						})
-						.catch(async function (error) {
+						.catch(async (error) => {
 							// Send failed
 							if (error.code === 50007) {
-								await interaction.followUp(
-									`Failed to send unmute notice to ${user.displayName}\nUser has DMs disabled or the bot is blocked`,
-								);
+								await interaction.followUp({
+									content: `Failed to send unmute notice to ${user.displayName}\nUser has DMs disabled or the bot is blocked`,
+								});
 							} else {
 								console.error(error);
-								await interaction.followUp(
-									`Failed to send unmute notice to ${user.displayName}, reason unknown`,
-								);
+								await interaction.followUp({
+									content: `Failed to send unmute notice to ${user.displayName}, reason unknown`,
+								});
 								logger.logMessage(
 									`Error messaging ${user}!\n\`\`\`\n${error}\n\`\`\``,
 								);
@@ -153,12 +153,14 @@ module.exports = {
 						});
 				}
 			})
-			.catch(async function (error) {
+			.catch(async (error) => {
 				if (error.code === 10013) {
-					await interaction.editReply(`Failed to find user with ID ${userId}`);
+					await interaction.editReply({
+						content: `Failed to find user with ID ${userId}`,
+					});
 				} else {
 					console.error(error);
-					await interaction.editReply('An unknown error occurred');
+					await interaction.editReply({ content: 'An unknown error occurred' });
 					logger.logMessage(
 						`Unknown error unmuting ${userId}!\n\`\`\`\n${error}\n\`\`\``,
 					);
@@ -170,7 +172,7 @@ module.exports = {
 function createEmbed() {
 	return new EmbedBuilder()
 		.setColor('#00ff00')
-		.setTitle(`You have been unmuted`)
+		.setTitle('You have been unmuted')
 		.setTimestamp()
-		.setDescription(`You have been unmuted in MLE`);
+		.setDescription('You have been unmuted in MLE');
 }
