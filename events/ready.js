@@ -11,5 +11,5 @@ module.exports = {
 		const logChannel = await client.channels.fetch(opsLogChannelId);
 		const logger = new Logger(logChannel);
 		logger.logMessage('Bot is ready');
-	}
+	},
 };

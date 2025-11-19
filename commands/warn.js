@@ -4,7 +4,7 @@ const {
 	TextInputBuilder,
 	TextInputStyle,
 	SlashCommandBuilder,
-	PermissionFlagsBits
+	PermissionFlagsBits,
 } = require('discord.js');
 const { opsGuild } = require('../config.json');
 
@@ -17,12 +17,16 @@ module.exports = {
 	async execute(interaction) {
 		// Force usage of staff server for commands
 		if (interaction.guild.id != opsGuild) {
-			await interaction.reply('This command must be run from the MLE Staff server');
+			await interaction.reply(
+				'This command must be run from the MLE Staff server',
+			);
 			return;
 		}
 
 		// Build modal
-		const modal = new ModalBuilder().setCustomId('warnModal').setTitle('Warn a User');
+		const modal = new ModalBuilder()
+			.setCustomId('warnModal')
+			.setTitle('Warn a User');
 
 		// Build user ID input
 		const userIdInput = new TextInputBuilder()
@@ -51,5 +55,5 @@ module.exports = {
 
 		// Show modal
 		await interaction.showModal(modal);
-	}
+	},
 };

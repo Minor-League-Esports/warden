@@ -6,7 +6,13 @@ class CaseLogger {
 	}
 
 	logMute(user, moderator, serverMap, days, success) {
-		const embed = this.createMuteEmbed(user, moderator, serverMap, days, success);
+		const embed = this.createMuteEmbed(
+			user,
+			moderator,
+			serverMap,
+			days,
+			success,
+		);
 		this._channel.send({ embeds: [embed] });
 	}
 
@@ -42,7 +48,7 @@ class CaseLogger {
 				{ name: 'Moderator', value: `<@${moderator.id}>`, inline: true },
 				{ name: 'Length', value: `${days} days`, inline: true },
 				{ name: 'DM Success', value: success, inline: true },
-				{ name: 'Servers', value: this.getServerMapText(serverMap) }
+				{ name: 'Servers', value: this.getServerMapText(serverMap) },
 			);
 	}
 
@@ -57,7 +63,7 @@ class CaseLogger {
 				{ name: 'User', value: `<@${user.id}>`, inline: true },
 				{ name: 'Moderator', value: `<@${moderator.id}>`, inline: true },
 				{ name: 'DM Success', value: success, inline: true },
-				{ name: 'Servers', value: this.getServerMapText(serverMap) }
+				{ name: 'Servers', value: this.getServerMapText(serverMap) },
 			);
 	}
 
@@ -71,7 +77,7 @@ class CaseLogger {
 			.addFields(
 				{ name: 'User', value: `<@${user.id}>`, inline: true },
 				{ name: 'Moderator', value: `<@${moderator.id}>`, inline: true },
-				{ name: 'Servers', value: this.getServerMapText(serverMap) }
+				{ name: 'Servers', value: this.getServerMapText(serverMap) },
 			);
 	}
 
@@ -85,7 +91,7 @@ class CaseLogger {
 			.addFields(
 				{ name: 'User', value: `<@${user.id}>`, inline: true },
 				{ name: 'Moderator', value: `<@${moderator.id}>`, inline: true },
-				{ name: 'Servers', value: this.getServerMapText(serverMap) }
+				{ name: 'Servers', value: this.getServerMapText(serverMap) },
 			);
 	}
 
@@ -100,7 +106,7 @@ class CaseLogger {
 				{ name: 'User', value: `<@${user.id}>`, inline: true },
 				{ name: 'Moderator', value: `<@${moderator.id}>`, inline: true },
 				{ name: 'DM Success', value: success, inline: true },
-				{ name: 'Warn Text', value: warnText }
+				{ name: 'Warn Text', value: warnText },
 			);
 	}
 
@@ -114,5 +120,5 @@ class CaseLogger {
 }
 
 module.exports = {
-	CaseLogger
+	CaseLogger,
 };

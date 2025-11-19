@@ -1,7 +1,16 @@
-const { EmbedBuilder, SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const {
+	EmbedBuilder,
+	SlashCommandBuilder,
+	PermissionFlagsBits,
+} = require('discord.js');
 const { Logger } = require('../util/Logger.js');
 const { CaseLogger } = require('../util/CaseLogger.js');
-const { opsGuild, opsLogChannelId, caseLogChannelId, guildList } = require('../config.json');
+const {
+	opsGuild,
+	opsLogChannelId,
+	caseLogChannelId,
+	guildList,
+} = require('../config.json');
 
 module.exports = {
 	data: new SlashCommandBuilder()
@@ -15,7 +24,7 @@ module.exports = {
 				.setDescription('The Discord ID of the user to mute')
 				.setRequired(true)
 				.setMinLength(17)
-				.setMaxLength(19)
+				.setMaxLength(19),
 		)
 		.addIntegerOption((option) =>
 			option
@@ -25,22 +34,26 @@ module.exports = {
 				.setChoices(
 					{ name: '7 days', value: 7 },
 					{ name: '14 days', value: 14 },
-					{ name: '28 days', value: 28 }
-				)
+					{ name: '28 days', value: 28 },
+				),
 		),
 	async execute(interaction) {
 		await interaction.deferReply();
 
 		// Force usage of staff server for commands
 		if (interaction.guild.id != opsGuild) {
-			await interaction.editReply('This command must be run from the MLE Staff server');
+			await interaction.editReply(
+				'This command must be run from the MLE Staff server',
+			);
 			return;
 		}
 
 		// Set up loggers
 		const logChannel = await interaction.client.channels.fetch(opsLogChannelId);
 		const logger = new Logger(logChannel);
-		const caseLogChannel = await interaction.client.channels.fetch(caseLogChannelId);
+		const caseLogChannel = await interaction.client.channels.fetch(
+			caseLogChannelId,
+		);
 		const caseLogger = new CaseLogger(caseLogChannel);
 
 		// Fetch the user
@@ -63,7 +76,11 @@ module.exports = {
 						servers.set(guildId, 'Error getting server');
 					} else {
 						// Check for permission
-						if (!guild.members.me.permissions.has(PermissionFlagsBits.ModerateMembers)) {
+						if (
+							!guild.members.me.permissions.has(
+								PermissionFlagsBits.ModerateMembers,
+							)
+						) {
 							servers.set(guild.name, 'No permission');
 							continue;
 						}
@@ -83,7 +100,7 @@ module.exports = {
 								servers.set(guild.name, 'Error timing out member');
 
 								logger.logMessage(
-									`Error timing out ${userId} in ${guild.name}!\n\`\`\`\n${error}\n\`\`\``
+									`Error timing out ${userId} in ${guild.name}!\n\`\`\`\n${error}\n\`\`\``,
 								);
 							}
 						} catch (error) {
@@ -94,7 +111,7 @@ module.exports = {
 								console.error(error);
 								servers.set(guild.name, 'Error getting member');
 								logger.logMessage(
-									`Error fetching member ${user}} in ${guild.name}!\n\`\`\`\n${error}\n\`\`\``
+									`Error fetching member ${user}} in ${guild.name}!\n\`\`\`\n${error}\n\`\`\``,
 								);
 							}
 						}
@@ -104,13 +121,15 @@ module.exports = {
 				// Check if it succeeded in any servers
 				if (successCount === 0) {
 					await interaction.editReply(
-						`Failed to mute ${user.displayName} in any MLE servers. See case log for details`
+						`Failed to mute ${user.displayName} in any MLE servers. See case log for details`,
 					);
 				} else {
 					await interaction.editReply(
-						`Successfully muted ${user.displayName} in ${successCount} MLE server${
+						`Successfully muted ${
+							user.displayName
+						} in ${successCount} MLE server${
 							successCount === 1 ? '' : 's'
-						}. See case log for details`
+						}. See case log for details`,
 					);
 
 					// If it succeeded, send a notice to user
@@ -119,7 +138,9 @@ module.exports = {
 						.send({ embeds: [embed] })
 						.then(async function () {
 							// Try to send the notice
-							await interaction.followUp(`Successfully sent mute notice to ${user.displayName}`);
+							await interaction.followUp(
+								`Successfully sent mute notice to ${user.displayName}`,
+							);
 							// Log it
 							caseLogger.logMute(user, interaction.user, servers, days, 'True');
 						})
@@ -127,17 +148,25 @@ module.exports = {
 							// Send failed
 							if (error.code === 50007) {
 								await interaction.followUp(
-									`Failed to send mute notice to ${user.displayName}\nUser has DMs disabled or the bot is blocked`
+									`Failed to send mute notice to ${user.displayName}\nUser has DMs disabled or the bot is blocked`,
 								);
 							} else {
 								console.error(error);
 								await interaction.followUp(
-									`Failed to send mute notice to ${user.displayName}, reason unknown`
+									`Failed to send mute notice to ${user.displayName}, reason unknown`,
 								);
-								logger.logMessage(`Error messaging ${user}!\n\`\`\`\n${error}\n\`\`\``);
+								logger.logMessage(
+									`Error messaging ${user}!\n\`\`\`\n${error}\n\`\`\``,
+								);
 							}
 							// Log it
-							caseLogger.logMute(user, interaction.user, servers, days, 'False');
+							caseLogger.logMute(
+								user,
+								interaction.user,
+								servers,
+								days,
+								'False',
+							);
 						});
 				}
 			})
@@ -147,10 +176,12 @@ module.exports = {
 				} else {
 					console.error(error);
 					await interaction.editReply('An unknown error occurred');
-					logger.logMessage(`Unknown error muting ${userId}!\n\`\`\`\n${error}\n\`\`\``);
+					logger.logMessage(
+						`Unknown error muting ${userId}!\n\`\`\`\n${error}\n\`\`\``,
+					);
 				}
 			});
-	}
+	},
 };
 
 function createEmbed(days) {

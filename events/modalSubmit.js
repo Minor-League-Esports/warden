@@ -15,9 +15,13 @@ module.exports = {
 			const userId = interaction.fields.getTextInputValue('userId');
 
 			// Set up loggers
-			const logChannel = await interaction.client.channels.fetch(opsLogChannelId);
+			const logChannel = await interaction.client.channels.fetch(
+				opsLogChannelId,
+			);
 			const logger = new Logger(logChannel);
-			const caseLogChannel = await interaction.client.channels.fetch(caseLogChannelId);
+			const caseLogChannel = await interaction.client.channels.fetch(
+				caseLogChannelId,
+			);
 			const caseLogger = new CaseLogger(caseLogChannel);
 
 			interaction.client.users
@@ -32,7 +36,9 @@ module.exports = {
 						.send({ embeds: [warnEmbed] })
 						.then(async function () {
 							// Warn success
-							await interaction.editReply(`Successfully warned ${user.displayName}`);
+							await interaction.editReply(
+								`Successfully warned ${user.displayName}`,
+							);
 							// Log it
 							caseLogger.logWarn(user, interaction.user, warnText, 'True');
 						})
@@ -40,12 +46,16 @@ module.exports = {
 							// Warn failed
 							if (error.code === 50007) {
 								await interaction.editReply(
-									`Failed to warn ${user.displayName}\nUser has DMs disabled or the bot is blocked`
+									`Failed to warn ${user.displayName}\nUser has DMs disabled or the bot is blocked`,
 								);
 							} else {
 								console.error(error);
-								await interaction.editReply(`Failed to warn ${user.displayName}, reason unknown`);
-								logger.logMessage(`Error messaging ${user}!\n\`\`\`\n${error}\n\`\`\``);
+								await interaction.editReply(
+									`Failed to warn ${user.displayName}, reason unknown`,
+								);
+								logger.logMessage(
+									`Error messaging ${user}!\n\`\`\`\n${error}\n\`\`\``,
+								);
 							}
 
 							// Log it
@@ -55,15 +65,19 @@ module.exports = {
 				.catch(async function (error) {
 					// Failed to fetch user
 					if (error.code === 10013) {
-						await interaction.editReply(`Failed to find user with ID ${userId}`);
+						await interaction.editReply(
+							`Failed to find user with ID ${userId}`,
+						);
 					} else {
 						console.error(error);
 						await interaction.editReply('An unknown error occurred');
-						logger.logMessage(`Unknown error warning ${userId}!\n\`\`\`\n${error}\n\`\`\``);
+						logger.logMessage(
+							`Unknown error warning ${userId}!\n\`\`\`\n${error}\n\`\`\``,
+						);
 					}
 				});
 		}
-	}
+	},
 };
 
 function createEmbed(warnText) {
@@ -71,5 +85,7 @@ function createEmbed(warnText) {
 		.setColor('#ff0000')
 		.setTitle(`You have been warned`)
 		.setTimestamp()
-		.setDescription(`You have been warned in MLE for the following reason: \n\n${warnText}`);
+		.setDescription(
+			`You have been warned in MLE for the following reason: \n\n${warnText}`,
+		);
 }
