@@ -1,6 +1,7 @@
 const {
 	EmbedBuilder,
 	SlashCommandBuilder,
+	InteractionContextType,
 	PermissionFlagsBits,
 } = require('discord.js');
 const { Logger } = require('../util/Logger.js');
@@ -16,7 +17,7 @@ module.exports = {
 	data: new SlashCommandBuilder()
 		.setName('mute')
 		.setDescription('Mutes a user')
-		.setDMPermission(false)
+		.setContexts([InteractionContextType.Guild])
 		.setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
 		.addStringOption((option) =>
 			option
@@ -42,9 +43,9 @@ module.exports = {
 
 		// Force usage of staff server for commands
 		if (interaction.guild.id != opsGuild) {
-			await interaction.editReply(
-				'This command must be run from the MLE Staff server',
-			);
+			await interaction.editReply({
+				content: 'This command must be run from the MLE Staff server',
+			});
 			return;
 		}
 
@@ -60,12 +61,12 @@ module.exports = {
 		const userId = interaction.options.getString('user');
 		interaction.client.users
 			.fetch(userId)
-			.then(async function (user) {
+			.then(async (user) => {
 				// User exists, begin processing
 				const days = interaction.options.getInteger('days');
 				const guildCache = interaction.client.guilds.cache;
 
-				let servers = new Map();
+				const servers = new Map();
 				let successCount = 0;
 
 				// Loop through all servers
@@ -120,41 +121,41 @@ module.exports = {
 
 				// Check if it succeeded in any servers
 				if (successCount === 0) {
-					await interaction.editReply(
-						`Failed to mute ${user.displayName} in any MLE servers. See case log for details`,
-					);
+					await interaction.editReply({
+						content: `Failed to mute ${user.displayName} in any MLE servers. See case log for details`,
+					});
 				} else {
-					await interaction.editReply(
-						`Successfully muted ${
+					await interaction.editReply({
+						content: `Successfully muted ${
 							user.displayName
 						} in ${successCount} MLE server${
 							successCount === 1 ? '' : 's'
 						}. See case log for details`,
-					);
+					});
 
 					// If it succeeded, send a notice to user
 					const embed = createEmbed(days);
 					await user
 						.send({ embeds: [embed] })
-						.then(async function () {
+						.then(async () => {
 							// Try to send the notice
-							await interaction.followUp(
-								`Successfully sent mute notice to ${user.displayName}`,
-							);
+							await interaction.followUp({
+								content: `Successfully sent mute notice to ${user.displayName}`,
+							});
 							// Log it
 							caseLogger.logMute(user, interaction.user, servers, days, 'True');
 						})
-						.catch(async function (error) {
+						.catch(async (error) => {
 							// Send failed
 							if (error.code === 50007) {
-								await interaction.followUp(
-									`Failed to send mute notice to ${user.displayName}\nUser has DMs disabled or the bot is blocked`,
-								);
+								await interaction.followUp({
+									content: `Failed to send mute notice to ${user.displayName}\nUser has DMs disabled or the bot is blocked`,
+								});
 							} else {
 								console.error(error);
-								await interaction.followUp(
-									`Failed to send mute notice to ${user.displayName}, reason unknown`,
-								);
+								await interaction.followUp({
+									content: `Failed to send mute notice to ${user.displayName}, reason unknown`,
+								});
 								logger.logMessage(
 									`Error messaging ${user}!\n\`\`\`\n${error}\n\`\`\``,
 								);
@@ -170,12 +171,14 @@ module.exports = {
 						});
 				}
 			})
-			.catch(async function (error) {
+			.catch(async (error) => {
 				if (error.code === 10013) {
-					await interaction.editReply(`Failed to find user with ID ${userId}`);
+					await interaction.editReply({
+						content: `Failed to find user with ID ${userId}`,
+					});
 				} else {
 					console.error(error);
-					await interaction.editReply('An unknown error occurred');
+					await interaction.editReply({ content: 'An unknown error occurred' });
 					logger.logMessage(
 						`Unknown error muting ${userId}!\n\`\`\`\n${error}\n\`\`\``,
 					);
@@ -187,7 +190,7 @@ module.exports = {
 function createEmbed(days) {
 	return new EmbedBuilder()
 		.setColor('#ff0000')
-		.setTitle(`You have been muted`)
+		.setTitle('You have been muted')
 		.setTimestamp()
 		.setDescription(`You have been muted in MLE for ${days} days`);
 }

@@ -1,7 +1,7 @@
 const {
-	EmbedBuilder,
 	SlashCommandBuilder,
 	PermissionFlagsBits,
+	InteractionContextType,
 } = require('discord.js');
 const { Logger } = require('../util/Logger.js');
 const { CaseLogger } = require('../util/CaseLogger.js');
@@ -16,7 +16,7 @@ module.exports = {
 	data: new SlashCommandBuilder()
 		.setName('ban')
 		.setDescription('Bans a user')
-		.setDMPermission(false)
+		.setContexts([InteractionContextType.Guild])
 		.setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
 		.addStringOption((option) =>
 			option
@@ -31,9 +31,9 @@ module.exports = {
 
 		// Force usage of staff server for commands
 		if (interaction.guild.id != opsGuild) {
-			await interaction.editReply(
-				'This command must be run from the MLE Staff server',
-			);
+			await interaction.editReply({
+				content: 'This command must be run from the MLE Staff server',
+			});
 			return;
 		}
 
@@ -49,11 +49,11 @@ module.exports = {
 		const userId = interaction.options.getString('user');
 		interaction.client.users
 			.fetch(userId)
-			.then(async function (user) {
+			.then(async (user) => {
 				// User exists, begin processing
 				const guildCache = interaction.client.guilds.cache;
 
-				let servers = new Map();
+				const servers = new Map();
 				let successCount = 0;
 
 				// Loop through all servers
@@ -90,27 +90,29 @@ module.exports = {
 
 				// Check if it succeeded in any servers
 				if (successCount === 0) {
-					await interaction.editReply(
-						`Failed to ban ${user.displayName} from any MLE servers. See case log for details`,
-					);
+					await interaction.editReply({
+						content: `Failed to ban ${user.displayName} from any MLE servers. See case log for details`,
+					});
 				} else {
-					await interaction.editReply(
-						`Successfully banned ${
+					await interaction.editReply({
+						content: `Successfully banned ${
 							user.displayName
 						} from ${successCount} MLE server${
 							successCount === 1 ? '' : 's'
 						}. See case log for details`,
-					);
+					});
 
 					caseLogger.logBan(user, interaction.user, servers);
 				}
 			})
-			.catch(async function (error) {
+			.catch(async (error) => {
 				if (error.code === 10013) {
-					await interaction.editReply(`Failed to find user with ID ${userId}`);
+					await interaction.editReply({
+						content: `Failed to find user with ID ${userId}`,
+					});
 				} else {
 					console.error(error);
-					await interaction.editReply('An unknown error occurred');
+					await interaction.editReply({ content: 'An unknown error occurred' });
 					logger.logMessage(
 						`Unknown error banning ${userId}!\n\`\`\`\n${error}\n\`\`\``,
 					);

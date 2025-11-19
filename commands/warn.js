@@ -5,6 +5,8 @@ const {
 	TextInputStyle,
 	SlashCommandBuilder,
 	PermissionFlagsBits,
+	InteractionContextType,
+	LabelBuilder,
 } = require('discord.js');
 const { opsGuild } = require('../config.json');
 
@@ -12,14 +14,14 @@ module.exports = {
 	data: new SlashCommandBuilder()
 		.setName('warn')
 		.setDescription('Warns a user')
-		.setDMPermission(false)
+		.setContexts([InteractionContextType.Guild])
 		.setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
 	async execute(interaction) {
 		// Force usage of staff server for commands
 		if (interaction.guild.id != opsGuild) {
-			await interaction.reply(
-				'This command must be run from the MLE Staff server',
-			);
+			await interaction.reply({
+				content: 'This command must be run from the MLE Staff server',
+			});
 			return;
 		}
 
@@ -31,27 +33,31 @@ module.exports = {
 		// Build user ID input
 		const userIdInput = new TextInputBuilder()
 			.setCustomId('userId')
-			.setLabel('User ID')
 			.setStyle(TextInputStyle.Short)
 			.setMinLength(17)
 			.setMaxLength(19)
 			.setPlaceholder('Discord ID');
 
+		// Build user ID input label
+		const userIdInputLabel = new LabelBuilder()
+			.setLabel('Discord ID')
+			.setTextInputComponent(userIdInput);
+
 		// Build warning text input
 		const warnTextInput = new TextInputBuilder()
 			.setCustomId('warnText')
-			.setLabel('Warning Text')
 			.setStyle(TextInputStyle.Paragraph).setPlaceholder(`
                 Hello USER_NAME.
                 ...
             `);
 
-		// Create action rows
-		const actionRowOne = new ActionRowBuilder().addComponents(userIdInput);
-		const actionRowTwo = new ActionRowBuilder().addComponents(warnTextInput);
+		// Build user ID input label
+		const warnTextInputLabel = new LabelBuilder()
+			.setLabel('Warn Text')
+			.setTextInputComponent(warnTextInput);
 
 		// Add action rows to modal
-		modal.addComponents(actionRowOne, actionRowTwo);
+		modal.addLabelComponents(userIdInputLabel, warnTextInputLabel);
 
 		// Show modal
 		await interaction.showModal(modal);

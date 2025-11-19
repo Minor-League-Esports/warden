@@ -2,6 +2,7 @@ const {
 	EmbedBuilder,
 	SlashCommandBuilder,
 	PermissionFlagsBits,
+	InteractionContextType,
 } = require('discord.js');
 const { Logger } = require('../util/Logger.js');
 const { CaseLogger } = require('../util/CaseLogger.js');
@@ -16,7 +17,7 @@ module.exports = {
 	data: new SlashCommandBuilder()
 		.setName('unmute')
 		.setDescription('Unmutes a user')
-		.setDMPermission(false)
+		.setContexts([InteractionContextType.Guild])
 		.setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
 		.addStringOption((option) =>
 			option
