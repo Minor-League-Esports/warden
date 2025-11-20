@@ -116,7 +116,7 @@ function chunkTextPreserveNewlines(text, max = 1024) {
 	const lines = String(text).split(/\r?\n/);
 
 	for (let li = 0; li < lines.length; li++) {
-		let line = lines[li];
+		const line = lines[li];
 
 		// Handle completely empty line (just a newline)
 		if (line === '') {
@@ -136,8 +136,9 @@ function chunkTextPreserveNewlines(text, max = 1024) {
 		for (let wi = 0; wi < words.length; wi++) {
 			const word = words[wi];
 			if (!word) continue;
+			// space between words (not after newline or at start)
 			const separatorNeeded =
-				current.length && !current.endsWith('\n') && wi > 0 ? 1 : 0; // space between words (not after newline or at start)
+				current.length && !current.endsWith('\n') && wi > 0 ? 1 : 0;
 
 			const needed = current.length + separatorNeeded + word.length;
 
