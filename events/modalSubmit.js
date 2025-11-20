@@ -88,14 +88,12 @@ function createEmbed(warnText) {
 		.setTitle('You have been warned')
 		.setTimestamp();
 
-	const chunks = chunkText(warnText, 1024);
+	const chunks = chunkTextPreserveNewlines(warnText, 1024);
 
-	// Enforce Discord max 25 fields
 	let finalChunks = chunks;
 	if (chunks.length > 25) {
 		finalChunks = chunks.slice(0, 25);
-		// Merge remaining into last field and truncate if needed
-		const remainder = chunks.slice(24).join(' ');
+		const remainder = chunks.slice(24).join('');
 		finalChunks[24] =
 			remainder.length > 1024 ? remainder.slice(0, 1021) + '...' : remainder;
 	}
@@ -110,40 +108,81 @@ function createEmbed(warnText) {
 	return embed;
 }
 
-function chunkText(text, max = 1024) {
-	// Split on whitespace while preserving word integrity
-	const words = text.split(/\s+/);
+// Preserve newlines while chunking without breaking words (except ultra-long)
+function chunkTextPreserveNewlines(text, max = 1024) {
 	const chunks = [];
 	let current = '';
 
-	for (const word of words) {
-		if (!word) continue;
-		const needed = (current.length ? current.length + 1 : 0) + word.length;
-		if (needed > max) {
-			if (current) chunks.push(current);
-			// If single word exceeds max (very long), hard-split it
-			if (word.length > max) {
-				const pieces = word.match(new RegExp(`.{1,${max}}`, 'g'));
-				// First piece starts new current; others become full chunks except last
-				current = pieces.shift();
-				chunks.push(...pieces.slice(0, -1));
-				if (pieces.length) {
-					const last = pieces[pieces.length - 1];
-					if (last.length === max) {
-						chunks.push(last);
-						current = '';
-					} else {
-						current = last;
+	const lines = String(text).split(/\r?\n/);
+
+	for (let li = 0; li < lines.length; li++) {
+		let line = lines[li];
+
+		// Handle completely empty line (just a newline)
+		if (line === '') {
+			// Add newline (if not last line)
+			if (li < lines.length - 1) {
+				if (current.length + 1 > max) {
+					if (current) chunks.push(current);
+					current = '';
+				}
+				current += '\n';
+			}
+			continue;
+		}
+
+		const words = line.split(/\s+/);
+
+		for (let wi = 0; wi < words.length; wi++) {
+			const word = words[wi];
+			if (!word) continue;
+			const separatorNeeded =
+				current.length && !current.endsWith('\n') && wi > 0 ? 1 : 0; // space between words (not after newline or at start)
+
+			const needed = current.length + separatorNeeded + word.length;
+
+			if (needed > max) {
+				if (current) chunks.push(current);
+				current = '';
+				// If word itself longer than max, hard-split
+				if (word.length > max) {
+					const pieces = word.match(new RegExp(`.{1,${max}}`, 'g'));
+					while (pieces.length) {
+						const piece = pieces.shift();
+						if (piece.length === max) {
+							chunks.push(piece);
+						} else {
+							current = piece;
+							break;
+						}
 					}
+					if (!current) current = '';
+				} else {
+					current = word;
 				}
 			} else {
-				current = word;
+				current += (separatorNeeded ? ' ' : '') + word;
 			}
-		} else {
-			current += (current.length ? ' ' : '') + word;
+		}
+
+		// Append newline if not last line
+		if (li < lines.length - 1) {
+			if (current.length + 1 > max) {
+				if (current) chunks.push(current);
+				current = '';
+			}
+			current += '\n';
 		}
 	}
 
-	if (current) chunks.push(current);
-	return chunks;
+	if (current) {
+		// Remove trailing newline if it's the only character or at end
+		if (current.endsWith('\n')) {
+			// Keep intentional trailing newline if desired; usually safe to keep
+		}
+		chunks.push(current);
+	}
+
+	// Remove any empty chunks
+	return chunks.filter((c) => c.length);
 }
