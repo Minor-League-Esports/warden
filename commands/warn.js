@@ -45,10 +45,14 @@ module.exports = {
 		// Build warning text input
 		const warnTextInput = new TextInputBuilder()
 			.setCustomId('warnText')
-			.setStyle(TextInputStyle.Paragraph).setPlaceholder(`
+			.setStyle(TextInputStyle.Paragraph)
+			.setPlaceholder(
+				`
                 Hello USER_NAME.
                 ...
-            `);
+            `,
+			)
+			.setMaxLength(4000);
 
 		// Build user ID input label
 		const warnTextInputLabel = new LabelBuilder()

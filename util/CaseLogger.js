@@ -96,18 +96,40 @@ class CaseLogger {
 	}
 
 	createWarnEmbed(user, moderator, warnText, success) {
-		return new EmbedBuilder()
+		const embed = new EmbedBuilder()
 			.setColor('#ffe240')
 			.setTitle(`${user.displayName} | Warn`)
 			.setFooter({ text: `ID: ${user.id}` })
 			.setTimestamp()
-			.setThumbnail(user.displayAvatarURL())
-			.addFields(
-				{ name: 'User', value: `<@${user.id}>`, inline: true },
-				{ name: 'Moderator', value: `<@${moderator.id}>`, inline: true },
-				{ name: 'DM Success', value: success, inline: true },
-				{ name: 'Warn Text', value: warnText },
-			);
+			.setThumbnail(user.displayAvatarURL());
+
+		// Base fields (3 of 25 max)
+		embed.addFields(
+			{ name: 'User', value: `<@${user.id}>`, inline: true },
+			{ name: 'Moderator', value: `<@${moderator.id}>`, inline: true },
+			{ name: 'DM Success', value: success, inline: true },
+		);
+
+		const chunks = chunkText(warnText, 1024);
+		const maxWarnFields = 25 - 3; // remaining fields available
+
+		let finalChunks = chunks;
+		if (chunks.length > maxWarnFields) {
+			finalChunks = chunks.slice(0, maxWarnFields);
+			// Merge remaining into last warn field and truncate if necessary
+			const remainder = chunks.slice(maxWarnFields - 1).join(' ');
+			finalChunks[maxWarnFields - 1] =
+				remainder.length > 1024 ? remainder.slice(0, 1021) + '...' : remainder;
+		}
+
+		finalChunks.forEach((part, i) => {
+			embed.addFields({
+				name: i === 0 ? 'Warn Text' : `Warn Text (cont. ${i + 1})`,
+				value: part,
+			});
+		});
+
+		return embed;
 	}
 
 	getServerMapText(serverMap) {
@@ -117,6 +139,41 @@ class CaseLogger {
 		});
 		return returnString;
 	}
+}
+
+function chunkText(text, max = 1024) {
+	const words = String(text).split(/\s+/);
+	const chunks = [];
+	let current = '';
+
+	for (const word of words) {
+		if (!word) continue;
+		const needed = (current.length ? current.length + 1 : 0) + word.length;
+		if (needed > max) {
+			if (current) chunks.push(current);
+			if (word.length > max) {
+				const pieces = word.match(new RegExp(`.{1,${max}}`, 'g'));
+				current = pieces.shift();
+				chunks.push(...pieces.slice(0, -1));
+				const last = pieces[pieces.length - 1];
+				if (last) {
+					if (last.length === max) {
+						chunks.push(last);
+						current = '';
+					} else {
+						current = last;
+					}
+				}
+			} else {
+				current = word;
+			}
+		} else {
+			current += (current.length ? ' ' : '') + word;
+		}
+	}
+
+	if (current) chunks.push(current);
+	return chunks;
 }
 
 module.exports = {
