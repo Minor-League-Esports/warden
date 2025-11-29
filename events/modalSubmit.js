@@ -64,7 +64,7 @@ module.exports = {
 								user,
 								interaction.user,
 								warnText,
-								'False',
+								'Failed',
 								'N/A',
 							);
 						});
