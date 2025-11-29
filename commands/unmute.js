@@ -174,5 +174,6 @@ function createEmbed() {
 		.setColor('#00ff00')
 		.setTitle('You have been unmuted')
 		.setTimestamp()
-		.setDescription('You have been unmuted in MLE');
+		.setDescription('You have been unmuted in MLE')
+		.setThumbnail('https://mlesports.gg/wp-content/uploads/logo-mle-256.png');
 }

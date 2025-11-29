@@ -31,8 +31,14 @@ class CaseLogger {
 		this._channel.send({ embeds: [embed] });
 	}
 
-	logWarn(user, moderator, warnText, success) {
-		const embed = this.createWarnEmbed(user, moderator, warnText, success);
+	logWarn(user, moderator, warnText, success, fmNotify) {
+		const embed = this.createWarnEmbed(
+			user,
+			moderator,
+			warnText,
+			success,
+			fmNotify,
+		);
 		this._channel.send({ embeds: [embed] });
 	}
 
@@ -95,7 +101,7 @@ class CaseLogger {
 			);
 	}
 
-	createWarnEmbed(user, moderator, warnText, success) {
+	createWarnEmbed(user, moderator, warnText, success, fmNotify) {
 		const embed = new EmbedBuilder()
 			.setColor('#ffe240')
 			.setTitle(`${user.displayName} | Warn`)
@@ -103,16 +109,17 @@ class CaseLogger {
 			.setTimestamp()
 			.setThumbnail(user.displayAvatarURL());
 
-		// Base fields (3 of 25 max)
+		// Base fields (4 of 25 max)
 		embed.addFields(
 			{ name: 'User', value: `<@${user.id}>`, inline: true },
 			{ name: 'Moderator', value: `<@${moderator.id}>`, inline: true },
-			{ name: 'DM Success', value: success, inline: true },
+			{ name: 'User Notified', value: success },
+			{ name: 'FM Notified', value: fmNotify },
 		);
 
 		const chunks = chunkTextPreserveNewlines(warnText, 1024);
 		// remaining fields available
-		const maxWarnFields = 25 - 3;
+		const maxWarnFields = 25 - 4;
 
 		let finalChunks = chunks;
 		if (chunks.length > maxWarnFields) {

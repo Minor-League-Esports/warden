@@ -2,6 +2,7 @@ const { Events, EmbedBuilder } = require('discord.js');
 const { Logger } = require('../util/Logger.js');
 const { CaseLogger } = require('../util/CaseLogger.js');
 const { opsLogChannelId, caseLogChannelId } = require('../config.json');
+const { getDataParser } = require('../util/dataParserSingleton');
 
 module.exports = {
 	name: Events.InteractionCreate,
@@ -39,8 +40,8 @@ module.exports = {
 							await interaction.editReply({
 								content: `Successfully warned ${user.displayName}`,
 							});
-							// Log it
-							caseLogger.logWarn(user, interaction.user, warnText, 'True');
+
+							notifyFmAndLog(user, warnText, interaction, caseLogger, logger);
 						})
 						.catch(async (error) => {
 							// Warn failed
@@ -59,7 +60,13 @@ module.exports = {
 							}
 
 							// Log it
-							caseLogger.logWarn(user, interaction.user, warnText, 'False');
+							caseLogger.logWarn(
+								user,
+								interaction.user,
+								warnText,
+								'False',
+								'N/A',
+							);
 						});
 				})
 				.catch(async (error) => {
@@ -82,11 +89,127 @@ module.exports = {
 	},
 };
 
+async function notifyFmAndLog(user, warnText, interaction, caseLogger, logger) {
+	// Get data parser for notifying FMs
+	const dataParser = await getDataParser(interaction.client);
+	const fmDiscordId =
+		await dataParser.getPlayerFranchiseManagerDiscordIdByDiscordId(user.id);
+	const fmName = await dataParser.getMemberNameByDiscordId(fmDiscordId);
+	const warnedMemberName =
+		(await dataParser.getMemberNameByDiscordId(user.id)) ?? user.displayName;
+
+	if (fmDiscordId) {
+		// Notify FM of the warning
+		interaction.client.users
+			.fetch(fmDiscordId)
+			.then(async (fmUser) => {
+				// Create embed
+				const fmNoticeEmbed = createFmNoticeEmbed(warnText, warnedMemberName);
+
+				// Try to send
+				fmUser
+					.send({ embeds: [fmNoticeEmbed] })
+					.then(async () => {
+						// Warn success
+						await interaction.followUp({
+							content: `Successfully notified FM ${fmName}`,
+						});
+						// Log it
+						caseLogger.logWarn(
+							user,
+							interaction.user,
+							warnText,
+							'True',
+							fmName,
+						);
+					})
+					.catch(async (error) => {
+						// Warn failed
+						if (error.code === 50007) {
+							await interaction.followUp({
+								content: `Failed to send notice to FM ${fmName}\nUser has DMs disabled or the bot is blocked`,
+							});
+						} else {
+							console.error(error);
+							await interaction.followUp({
+								content: `Failed to send notice to FM ${fmName}, reason unknown`,
+							});
+							logger.logMessage(
+								`Error messaging ${fmName} (${fmDiscordId})!\n\`\`\`\n${error}\n\`\`\``,
+							);
+						}
+
+						// Log it
+						caseLogger.logWarn(
+							user,
+							interaction.user,
+							warnText,
+							'True',
+							'Failed',
+						);
+					});
+			})
+			.catch(async (error) => {
+				// Failed to fetch user
+				if (error.code === 10013) {
+					await interaction.followUp({
+						content: `Failed to find FM user with ID ${fmDiscordId}`,
+					});
+				} else {
+					console.error(error);
+					await interaction.followUp({
+						content: `An unknown error occurred finding FM user with ID ${fmDiscordId}`,
+					});
+					logger.logMessage(
+						`Unknown error notifying ${fmName} (${fmDiscordId})!\n\`\`\`\n${error}\n\`\`\``,
+					);
+				}
+
+				// Log it
+				caseLogger.logWarn(user, interaction.user, warnText, 'True', 'Failed');
+			});
+	} else {
+		// No FM to notify, just log it
+		// Log it
+		caseLogger.logWarn(user, interaction.user, warnText, 'True', 'N/A');
+	}
+}
+
+function createFmNoticeEmbed(warnText, playerName) {
+	const embed = new EmbedBuilder()
+		.setColor('#ff0000')
+		.setTitle(
+			`Your player ${playerName} has recieved an official warning from MLE Moderation`,
+		)
+		.setTimestamp()
+		.setThumbnail('https://mlesports.gg/wp-content/uploads/logo-mle-256.png');
+
+	const chunks = chunkTextPreserveNewlines(warnText, 1024);
+
+	let finalChunks = chunks;
+	if (chunks.length > 25) {
+		finalChunks = chunks.slice(0, 25);
+		const remainder = chunks.slice(24).join('');
+		finalChunks[24] =
+			remainder.length > 1024 ? remainder.slice(0, 1021) + '...' : remainder;
+	}
+
+	finalChunks.forEach((part, i) => {
+		embed.addFields({
+			name: i === 0 ? 'Reason' : `Reason (cont. ${i + 1})`,
+			value: part,
+		});
+	});
+
+	return embed;
+}
+
 function createEmbed(warnText) {
 	const embed = new EmbedBuilder()
 		.setColor('#ff0000')
-		.setTitle('You have been warned')
-		.setTimestamp();
+		.setTitle('You have recieved an official warning from MLE Moderation')
+		.setTimestamp()
+		.setThumbnail('https://mlesports.gg/wp-content/uploads/logo-mle-256.png');
 
 	const chunks = chunkTextPreserveNewlines(warnText, 1024);
 
