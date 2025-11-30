@@ -69,9 +69,6 @@ class DataParser {
 		const p = (async () => {
 			try {
 				const csvContent = await this._remoteManager.fetch(url);
-				console.log(
-					`Fetched CSV content from ${url} (${csvContent.length} characters)`,
-				);
 
 				const rawLines = csvContent
 					.split(/\r?\n/)
@@ -86,7 +83,6 @@ class DataParser {
 
 				const headerLine = lines[0];
 				const headers = headerLine.split(',').map((h) => unquote(h).trim());
-				console.log(`CSV Headers from ${url}:`, headers);
 
 				const data = lines.slice(1).map((line) => {
 					const values = line.split(',').map((v) => unquote(v).trim());
@@ -98,7 +94,6 @@ class DataParser {
 				});
 
 				this._cache.set(key, { data, fetchedAt: Date.now() });
-				console.log(`Parsed ${data.length} records from CSV at URL ${url}`);
 				return data;
 			} catch (error) {
 				this._logger.logMessage(

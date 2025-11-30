@@ -98,7 +98,7 @@ async function notifyFmAndLog(user, warnText, interaction, caseLogger, logger) {
 	const warnedMemberName =
 		(await dataParser.getMemberNameByDiscordId(user.id)) ?? user.displayName;
 
-	if (fmDiscordId) {
+	if (fmDiscordId && fmDiscordId != user.id) {
 		// Notify FM of the warning
 		interaction.client.users
 			.fetch(fmDiscordId)
