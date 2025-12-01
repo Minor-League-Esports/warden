@@ -192,5 +192,6 @@ function createEmbed(days) {
 		.setColor('#ff0000')
 		.setTitle('You have been muted')
 		.setTimestamp()
-		.setDescription(`You have been muted in MLE for ${days} days`);
+		.setDescription(`You have been muted in MLE for ${days} days`)
+		.setThumbnail('https://mlesports.gg/wp-content/uploads/logo-mle-256.png');
 }
