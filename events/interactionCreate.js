@@ -1,6 +1,10 @@
+const log4js = require('log4js');
+const logger = log4js.getLogger('InteractionCreate');
+const { logLevel, opsLogChannelId } = require('../config.json');
+logger.level = logLevel;
+
 const { Events, MessageFlags } = require('discord.js');
-const { Logger } = require('../util/Logger.js');
-const { opsLogChannelId } = require('../config.json');
+const { DiscordLogger } = require('../util/DiscordLogger.js');
 
 module.exports = {
 	name: Events.InteractionCreate,
@@ -10,25 +14,26 @@ module.exports = {
 		const command = interaction.client.commands.get(interaction.commandName);
 
 		if (!command) {
-			console.error(
-				`No command matching ${interaction.commandName} was found.`,
-			);
+			console.error(`No command matching ${interaction.commandName} was found.`);
 			return;
+		}
+
+		// Set up loggers
+		const client = interaction.client;
+		const discordLogger = new DiscordLogger(client, opsLogChannelId);
+		try {
+			await discordLogger.init();
+		} catch (error) {
+			logger.warn('Failed to initialize DiscordLogger', error);
 		}
 
 		try {
 			await command.execute(interaction);
 		} catch (error) {
-			console.error(error);
-			const logChannel = await interaction.client.channels.fetch(
-				opsLogChannelId,
-			);
-			const logger = new Logger(logChannel);
-			logger.logMessage('A command encountered an error!');
-			logger.logMessage(
-				`Interaction: \n\`\`\`\n${interaction.toString()}\n\`\`\``,
-			);
-			logger.logMessage(`Error: \n\`\`\`\n${error}\n\`\`\``);
+			logger.error(error);
+			discordLogger.logMessage('A command encountered an error!');
+			discordLogger.logMessage(`Interaction: \n\`\`\`\n${interaction.toString()}\n\`\`\``);
+			discordLogger.logMessage(`Error: \n\`\`\`\n${error}\n\`\`\``);
 			if (interaction.replied || interaction.deferred) {
 				await interaction.followUp({
 					content: 'There was an error while executing this command!',

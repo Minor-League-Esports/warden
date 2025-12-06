@@ -1,7 +1,11 @@
+const log4js = require('log4js');
+const logger = log4js.getLogger('ModalSubmit');
+const { logLevel, opsLogChannelId, caseLogChannelId } = require('../config.json');
+logger.level = logLevel;
+
 const { Events, EmbedBuilder } = require('discord.js');
-const { Logger } = require('../util/Logger.js');
+const { DiscordLogger } = require('../util/DiscordLogger');
 const { CaseLogger } = require('../util/CaseLogger.js');
-const { opsLogChannelId, caseLogChannelId } = require('../config.json');
 const { getDataParser } = require('../util/dataParserSingleton');
 
 module.exports = {
@@ -12,18 +16,20 @@ module.exports = {
 		if (interaction.customId === 'warnModal') {
 			await interaction.deferReply();
 
+			// Set up loggers
+			const client = interaction.client;
+			const discordLogger = new DiscordLogger(client, opsLogChannelId);
+			try {
+				await discordLogger.init();
+			} catch (error) {
+				logger.warn('Failed to initialize DiscordLogger', error);
+			}
+
+			const caseLogChannel = await interaction.client.channels.fetch(caseLogChannelId);
+			const caseLogger = new CaseLogger(caseLogChannel);
+
 			// Fetch the user
 			const userId = interaction.fields.getTextInputValue('userId');
-
-			// Set up loggers
-			const logChannel = await interaction.client.channels.fetch(
-				opsLogChannelId,
-			);
-			const logger = new Logger(logChannel);
-			const caseLogChannel = await interaction.client.channels.fetch(
-				caseLogChannelId,
-			);
-			const caseLogger = new CaseLogger(caseLogChannel);
 
 			interaction.client.users
 				.fetch(userId)
@@ -41,7 +47,7 @@ module.exports = {
 								content: `Successfully warned ${user.displayName}`,
 							});
 
-							notifyFmAndLog(user, warnText, interaction, caseLogger, logger);
+							notifyFmAndLog(user, warnText, interaction, caseLogger, discordLogger);
 						})
 						.catch(async (error) => {
 							// Warn failed
@@ -50,23 +56,15 @@ module.exports = {
 									content: `Failed to warn ${user.displayName}\nUser has DMs disabled or the bot is blocked`,
 								});
 							} else {
-								console.error(error);
+								logger.error(error);
 								await interaction.editReply({
 									content: `Failed to warn ${user.displayName}, reason unknown`,
 								});
-								logger.logMessage(
-									`Error messaging ${user}!\n\`\`\`\n${error}\n\`\`\``,
-								);
+								discordLogger.logMessage(`Error messaging ${user}!\n\`\`\`\n${error}\n\`\`\``);
 							}
 
 							// Log it
-							caseLogger.logWarn(
-								user,
-								interaction.user,
-								warnText,
-								'Failed',
-								'N/A',
-							);
+							caseLogger.logWarn(user, interaction.user, warnText, 'Failed', 'N/A');
 						});
 				})
 				.catch(async (error) => {
@@ -76,27 +74,23 @@ module.exports = {
 							content: `Failed to find user with ID ${userId}`,
 						});
 					} else {
-						console.error(error);
+						logger.error(error);
 						await interaction.editReply({
 							content: 'An unknown error occurred',
 						});
-						logger.logMessage(
-							`Unknown error warning ${userId}!\n\`\`\`\n${error}\n\`\`\``,
-						);
+						discordLogger.logMessage(`Unknown error warning ${userId}!\n\`\`\`\n${error}\n\`\`\``);
 					}
 				});
 		}
 	},
 };
 
-async function notifyFmAndLog(user, warnText, interaction, caseLogger, logger) {
+async function notifyFmAndLog(user, warnText, interaction, caseLogger, discordLogger) {
 	// Get data parser for notifying FMs
 	const dataParser = await getDataParser(interaction.client);
-	const fmDiscordId =
-		await dataParser.getPlayerFranchiseManagerDiscordIdByDiscordId(user.id);
+	const fmDiscordId = await dataParser.getPlayerFranchiseManagerDiscordIdByDiscordId(user.id);
 	const fmName = await dataParser.getMemberNameByDiscordId(fmDiscordId);
-	const warnedMemberName =
-		(await dataParser.getMemberNameByDiscordId(user.id)) ?? user.displayName;
+	const warnedMemberName = (await dataParser.getMemberNameByDiscordId(user.id)) ?? user.displayName;
 
 	if (fmDiscordId && fmDiscordId != user.id) {
 		// Notify FM of the warning
@@ -115,13 +109,7 @@ async function notifyFmAndLog(user, warnText, interaction, caseLogger, logger) {
 							content: `Successfully notified FM ${fmName}`,
 						});
 						// Log it
-						caseLogger.logWarn(
-							user,
-							interaction.user,
-							warnText,
-							'True',
-							fmName,
-						);
+						caseLogger.logWarn(user, interaction.user, warnText, 'True', fmName);
 					})
 					.catch(async (error) => {
 						// Warn failed
@@ -130,23 +118,15 @@ async function notifyFmAndLog(user, warnText, interaction, caseLogger, logger) {
 								content: `Failed to send notice to FM ${fmName}\nUser has DMs disabled or the bot is blocked`,
 							});
 						} else {
-							console.error(error);
+							logger.error(error);
 							await interaction.followUp({
 								content: `Failed to send notice to FM ${fmName}, reason unknown`,
 							});
-							logger.logMessage(
-								`Error messaging ${fmName} (${fmDiscordId})!\n\`\`\`\n${error}\n\`\`\``,
-							);
+							discordLogger.logMessage(`Error messaging ${fmName} (${fmDiscordId})!\n\`\`\`\n${error}\n\`\`\``);
 						}
 
 						// Log it
-						caseLogger.logWarn(
-							user,
-							interaction.user,
-							warnText,
-							'True',
-							'Failed',
-						);
+						caseLogger.logWarn(user, interaction.user, warnText, 'True', 'Failed');
 					});
 			})
 			.catch(async (error) => {
@@ -156,13 +136,11 @@ async function notifyFmAndLog(user, warnText, interaction, caseLogger, logger) {
 						content: `Failed to find FM user with ID ${fmDiscordId}`,
 					});
 				} else {
-					console.error(error);
+					logger.error(error);
 					await interaction.followUp({
 						content: `An unknown error occurred finding FM user with ID ${fmDiscordId}`,
 					});
-					logger.logMessage(
-						`Unknown error notifying ${fmName} (${fmDiscordId})!\n\`\`\`\n${error}\n\`\`\``,
-					);
+					discordLogger.logMessage(`Unknown error notifying ${fmName} (${fmDiscordId})!\n\`\`\`\n${error}\n\`\`\``);
 				}
 
 				// Log it
@@ -178,9 +156,7 @@ async function notifyFmAndLog(user, warnText, interaction, caseLogger, logger) {
 function createFmNoticeEmbed(warnText, playerName) {
 	const embed = new EmbedBuilder()
 		.setColor('#ff0000')
-		.setTitle(
-			`Your player ${playerName} has recieved an official warning from MLE Moderation`,
-		)
+		.setTitle(`Your player ${playerName} has recieved an official warning from MLE Moderation`)
 		.setTimestamp()
 		.setThumbnail('https://mlesports.gg/wp-content/uploads/logo-mle-256.png');
 
@@ -190,8 +166,7 @@ function createFmNoticeEmbed(warnText, playerName) {
 	if (chunks.length > 25) {
 		finalChunks = chunks.slice(0, 25);
 		const remainder = chunks.slice(24).join('');
-		finalChunks[24] =
-			remainder.length > 1024 ? remainder.slice(0, 1021) + '...' : remainder;
+		finalChunks[24] = remainder.length > 1024 ? remainder.slice(0, 1021) + '...' : remainder;
 	}
 
 	finalChunks.forEach((part, i) => {
@@ -217,8 +192,7 @@ function createEmbed(warnText) {
 	if (chunks.length > 25) {
 		finalChunks = chunks.slice(0, 25);
 		const remainder = chunks.slice(24).join('');
-		finalChunks[24] =
-			remainder.length > 1024 ? remainder.slice(0, 1021) + '...' : remainder;
+		finalChunks[24] = remainder.length > 1024 ? remainder.slice(0, 1021) + '...' : remainder;
 	}
 
 	finalChunks.forEach((part, i) => {
@@ -260,8 +234,7 @@ function chunkTextPreserveNewlines(text, max = 1024) {
 			const word = words[wi];
 			if (!word) continue;
 			// space between words (not after newline or at start)
-			const separatorNeeded =
-				current.length && !current.endsWith('\n') && wi > 0 ? 1 : 0;
+			const separatorNeeded = current.length && !current.endsWith('\n') && wi > 0 ? 1 : 0;
 
 			const needed = current.length + separatorNeeded + word.length;
 

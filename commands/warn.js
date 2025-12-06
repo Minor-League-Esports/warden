@@ -1,3 +1,8 @@
+const log4js = require('log4js');
+const logger = log4js.getLogger('WarnCommand');
+const { logLevel, opsGuild } = require('../config.json');
+logger.level = logLevel;
+
 const {
 	ModalBuilder,
 	TextInputBuilder,
@@ -7,7 +12,6 @@ const {
 	InteractionContextType,
 	LabelBuilder,
 } = require('discord.js');
-const { opsGuild } = require('../config.json');
 
 module.exports = {
 	data: new SlashCommandBuilder()
@@ -25,9 +29,7 @@ module.exports = {
 		}
 
 		// Build modal
-		const modal = new ModalBuilder()
-			.setCustomId('warnModal')
-			.setTitle('Warn a User');
+		const modal = new ModalBuilder().setCustomId('warnModal').setTitle('Warn a User');
 
 		// Build user ID input
 		const userIdInput = new TextInputBuilder()
@@ -38,9 +40,7 @@ module.exports = {
 			.setPlaceholder('Discord ID');
 
 		// Build user ID input label
-		const userIdInputLabel = new LabelBuilder()
-			.setLabel('Discord ID')
-			.setTextInputComponent(userIdInput);
+		const userIdInputLabel = new LabelBuilder().setLabel('Discord ID').setTextInputComponent(userIdInput);
 
 		// Build warning text input
 		const warnTextInput = new TextInputBuilder()
@@ -55,9 +55,7 @@ module.exports = {
 			.setMaxLength(4000);
 
 		// Build user ID input label
-		const warnTextInputLabel = new LabelBuilder()
-			.setLabel('Warn Text')
-			.setTextInputComponent(warnTextInput);
+		const warnTextInputLabel = new LabelBuilder().setLabel('Warn Text').setTextInputComponent(warnTextInput);
 
 		// Add action rows to modal
 		modal.addLabelComponents(userIdInputLabel, warnTextInputLabel);

@@ -1,17 +1,11 @@
-const {
-	EmbedBuilder,
-	SlashCommandBuilder,
-	PermissionFlagsBits,
-	InteractionContextType,
-} = require('discord.js');
-const { Logger } = require('../util/Logger.js');
+const log4js = require('log4js');
+const logger = log4js.getLogger('UnmuteCommand');
+const { logLevel, opsGuild, opsLogChannelId, caseLogChannelId, guildList } = require('../config.json');
+logger.level = logLevel;
+
+const { EmbedBuilder, SlashCommandBuilder, PermissionFlagsBits, InteractionContextType } = require('discord.js');
+const { DiscordLogger } = require('../util/DiscordLogger.js');
 const { CaseLogger } = require('../util/CaseLogger.js');
-const {
-	opsGuild,
-	opsLogChannelId,
-	caseLogChannelId,
-	guildList,
-} = require('../config.json');
 
 module.exports = {
 	data: new SlashCommandBuilder()
@@ -39,11 +33,15 @@ module.exports = {
 		}
 
 		// Set up loggers
-		const logChannel = await interaction.client.channels.fetch(opsLogChannelId);
-		const logger = new Logger(logChannel);
-		const caseLogChannel = await interaction.client.channels.fetch(
-			caseLogChannelId,
-		);
+		const client = interaction.client;
+		const discordLogger = new DiscordLogger(client, opsLogChannelId);
+		try {
+			await discordLogger.init();
+		} catch (error) {
+			logger.warn('Failed to initialize DiscordLogger', error);
+		}
+
+		const caseLogChannel = await interaction.client.channels.fetch(caseLogChannelId);
 		const caseLogger = new CaseLogger(caseLogChannel);
 
 		// Fetch the user
@@ -65,11 +63,7 @@ module.exports = {
 						servers.set(guildId, 'Error getting server');
 					} else {
 						// Check for permission
-						if (
-							!guild.members.me.permissions.has(
-								PermissionFlagsBits.ModerateMembers,
-							)
-						) {
+						if (!guild.members.me.permissions.has(PermissionFlagsBits.ModerateMembers)) {
 							servers.set(guild.name, 'No permission');
 							continue;
 						}
@@ -85,10 +79,10 @@ module.exports = {
 								successCount++;
 							} catch (error) {
 								// Failed to timeout member
-								console.error(error);
+								logger.error(error);
 								servers.set(guild.name, 'Error removing timeout from member');
 
-								logger.logMessage(
+								discordLogger.logMessage(
 									`Error removing timeout from out ${userId} in ${guild.name}!\n\`\`\`\n${error}\n\`\`\``,
 								);
 							}
@@ -97,11 +91,9 @@ module.exports = {
 							if (error.code === 10007) {
 								servers.set(guild.name, 'Not in server');
 							} else {
-								console.error(error);
+								logger.error(error);
 								servers.set(guild.name, 'Error getting member');
-								logger.logMessage(
-									`Error fetching member ${user}} in ${guild.name}!\n\`\`\`\n${error}\n\`\`\``,
-								);
+								discordLogger.logMessage(`Error fetching member ${user}} in ${guild.name}!\n\`\`\`\n${error}\n\`\`\``);
 							}
 						}
 					}
@@ -114,9 +106,7 @@ module.exports = {
 					});
 				} else {
 					await interaction.editReply({
-						content: `Successfully unmuted ${
-							user.displayName
-						} in ${successCount} MLE server${
+						content: `Successfully unmuted ${user.displayName} in ${successCount} MLE server${
 							successCount === 1 ? '' : 's'
 						}. See case log for details`,
 					});
@@ -140,13 +130,11 @@ module.exports = {
 									content: `Failed to send unmute notice to ${user.displayName}\nUser has DMs disabled or the bot is blocked`,
 								});
 							} else {
-								console.error(error);
+								logger.error(error);
 								await interaction.followUp({
 									content: `Failed to send unmute notice to ${user.displayName}, reason unknown`,
 								});
-								logger.logMessage(
-									`Error messaging ${user}!\n\`\`\`\n${error}\n\`\`\``,
-								);
+								discordLogger.logMessage(`Error messaging ${user}!\n\`\`\`\n${error}\n\`\`\``);
 							}
 							// Log it
 							caseLogger.logUnmute(user, interaction.user, servers, 'False');
@@ -159,11 +147,9 @@ module.exports = {
 						content: `Failed to find user with ID ${userId}`,
 					});
 				} else {
-					console.error(error);
+					logger.error(error);
 					await interaction.editReply({ content: 'An unknown error occurred' });
-					logger.logMessage(
-						`Unknown error unmuting ${userId}!\n\`\`\`\n${error}\n\`\`\``,
-					);
+					discordLogger.logMessage(`Unknown error unmuting ${userId}!\n\`\`\`\n${error}\n\`\`\``);
 				}
 			});
 	},

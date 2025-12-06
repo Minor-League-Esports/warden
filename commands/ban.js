@@ -1,16 +1,11 @@
-const {
-	SlashCommandBuilder,
-	PermissionFlagsBits,
-	InteractionContextType,
-} = require('discord.js');
-const { Logger } = require('../util/Logger.js');
+const log4js = require('log4js');
+const logger = log4js.getLogger('BanCommand');
+const { logLevel, opsGuild, opsLogChannelId, caseLogChannelId, guildList } = require('../config.json');
+logger.level = logLevel;
+
+const { SlashCommandBuilder, PermissionFlagsBits, InteractionContextType } = require('discord.js');
+const { DiscordLogger } = require('../util/DiscordLogger.js');
 const { CaseLogger } = require('../util/CaseLogger.js');
-const {
-	opsGuild,
-	opsLogChannelId,
-	caseLogChannelId,
-	guildList,
-} = require('../config.json');
 
 module.exports = {
 	data: new SlashCommandBuilder()
@@ -38,11 +33,15 @@ module.exports = {
 		}
 
 		// Set up loggers
-		const logChannel = await interaction.client.channels.fetch(opsLogChannelId);
-		const logger = new Logger(logChannel);
-		const caseLogChannel = await interaction.client.channels.fetch(
-			caseLogChannelId,
-		);
+		const client = interaction.client;
+		const discordLogger = new DiscordLogger(client, opsLogChannelId);
+		try {
+			await discordLogger.init();
+		} catch (error) {
+			logger.warn('Failed to initialize DiscordLogger', error);
+		}
+
+		const caseLogChannel = await interaction.client.channels.fetch(caseLogChannelId);
 		const caseLogger = new CaseLogger(caseLogChannel);
 
 		// Fetch the user
@@ -64,9 +63,7 @@ module.exports = {
 						servers.set(guildId, 'Error getting server');
 					} else {
 						// Check for permission
-						if (
-							!guild.members.me.permissions.has(PermissionFlagsBits.BanMembers)
-						) {
+						if (!guild.members.me.permissions.has(PermissionFlagsBits.BanMembers)) {
 							servers.set(guild.name, 'No permission');
 							continue;
 						}
@@ -77,13 +74,11 @@ module.exports = {
 							servers.set(guild.name, 'Success');
 							successCount++;
 						} catch (error) {
-							console.error(error);
+							logger.error(error);
 							// Ban failed
 							servers.set(guild.name, 'Error banning member');
 
-							logger.logMessage(
-								`Error banning ${userId} in ${guild.name}!\n\`\`\`\n${error}\n\`\`\``,
-							);
+							discordLogger.logMessage(`Error banning ${userId} in ${guild.name}!\n\`\`\`\n${error}\n\`\`\``);
 						}
 					}
 				}
@@ -95,9 +90,7 @@ module.exports = {
 					});
 				} else {
 					await interaction.editReply({
-						content: `Successfully banned ${
-							user.displayName
-						} from ${successCount} MLE server${
+						content: `Successfully banned ${user.displayName} from ${successCount} MLE server${
 							successCount === 1 ? '' : 's'
 						}. See case log for details`,
 					});
@@ -111,11 +104,9 @@ module.exports = {
 						content: `Failed to find user with ID ${userId}`,
 					});
 				} else {
-					console.error(error);
+					logger.error(error);
 					await interaction.editReply({ content: 'An unknown error occurred' });
-					logger.logMessage(
-						`Unknown error banning ${userId}!\n\`\`\`\n${error}\n\`\`\``,
-					);
+					discordLogger.logMessage(`Unknown error banning ${userId}!\n\`\`\`\n${error}\n\`\`\``);
 				}
 			});
 	},

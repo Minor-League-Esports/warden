@@ -1,15 +1,33 @@
+const log4js = require('log4js');
+const logger = log4js.getLogger('ReadyEvent');
+const { logLevel, opsLogChannelId } = require('../config.json');
+logger.level = logLevel;
+
 const { Events } = require('discord.js');
-const { Logger } = require('../util/Logger.js');
-const { opsLogChannelId } = require('../config.json');
+const { DiscordLogger } = require('../util/DiscordLogger.js');
 
 module.exports = {
 	name: Events.ClientReady,
 	once: true,
 	async execute(client) {
-		console.log(`Ready! Logged in as ${client.user.tag}`);
+		const discordLogger = new DiscordLogger(client, opsLogChannelId);
+		try {
+			await discordLogger.init();
+		} catch (error) {
+			logger.warn('Failed to initialize DiscordLogger', error);
+		}
 
-		const logChannel = await client.channels.fetch(opsLogChannelId);
-		const logger = new Logger(logChannel);
-		logger.logMessage('Bot is ready');
+		discordLogger.logMessage('Bot is ready');
+		logger.info(`Ready! Logged in as ${client.user.tag}`);
+
+		globalThis.databaseManager
+			.init()
+			.then(() => {
+				discordLogger.logMessage('Database Manager initialized');
+			})
+			.catch((error) => {
+				logger.error(error);
+				discordLogger.logMessage('Database Manager failed to initialize!');
+			});
 	},
 };
