@@ -1,4 +1,5 @@
 const { EmbedBuilder } = require('discord.js');
+const { chunkTextPreserveNewlines } = require('./UtilFunctions.js');
 
 class CaseLogger {
 	constructor(channel) {
@@ -6,13 +7,7 @@ class CaseLogger {
 	}
 
 	logMute(user, moderator, serverMap, days, success) {
-		const embed = this.createMuteEmbed(
-			user,
-			moderator,
-			serverMap,
-			days,
-			success,
-		);
+		const embed = this.createMuteEmbed(user, moderator, serverMap, days, success);
 		this._channel.send({ embeds: [embed] });
 	}
 
@@ -32,13 +27,7 @@ class CaseLogger {
 	}
 
 	logWarn(user, moderator, warnText, success, fmNotify) {
-		const embed = this.createWarnEmbed(
-			user,
-			moderator,
-			warnText,
-			success,
-			fmNotify,
-		);
+		const embed = this.createWarnEmbed(user, moderator, warnText, success, fmNotify);
 		this._channel.send({ embeds: [embed] });
 	}
 
@@ -125,8 +114,7 @@ class CaseLogger {
 		if (chunks.length > maxWarnFields) {
 			finalChunks = chunks.slice(0, 25);
 			const remainder = chunks.slice(24).join('');
-			finalChunks[24] =
-				remainder.length > 1024 ? remainder.slice(0, 1021) + '...' : remainder;
+			finalChunks[24] = remainder.length > 1024 ? remainder.slice(0, 1021) + '...' : remainder;
 		}
 
 		finalChunks.forEach((part, i) => {
@@ -146,86 +134,6 @@ class CaseLogger {
 		});
 		return returnString;
 	}
-}
-
-// Preserve newlines while chunking without breaking words (except ultra-long)
-function chunkTextPreserveNewlines(text, max = 1024) {
-	const chunks = [];
-	let current = '';
-
-	const lines = String(text).split(/\r?\n/);
-
-	for (let li = 0; li < lines.length; li++) {
-		const line = lines[li];
-
-		// Handle completely empty line (just a newline)
-		if (line === '') {
-			// Add newline (if not last line)
-			if (li < lines.length - 1) {
-				if (current.length + 1 > max) {
-					if (current) chunks.push(current);
-					current = '';
-				}
-				current += '\n';
-			}
-			continue;
-		}
-
-		const words = line.split(/\s+/);
-
-		for (let wi = 0; wi < words.length; wi++) {
-			const word = words[wi];
-			if (!word) continue;
-			// space between words (not after newline or at start)
-			const separatorNeeded =
-				current.length && !current.endsWith('\n') && wi > 0 ? 1 : 0;
-
-			const needed = current.length + separatorNeeded + word.length;
-
-			if (needed > max) {
-				if (current) chunks.push(current);
-				current = '';
-				// If word itself longer than max, hard-split
-				if (word.length > max) {
-					const pieces = word.match(new RegExp(`.{1,${max}}`, 'g'));
-					while (pieces.length) {
-						const piece = pieces.shift();
-						if (piece.length === max) {
-							chunks.push(piece);
-						} else {
-							current = piece;
-							break;
-						}
-					}
-					if (!current) current = '';
-				} else {
-					current = word;
-				}
-			} else {
-				current += (separatorNeeded ? ' ' : '') + word;
-			}
-		}
-
-		// Append newline if not last line
-		if (li < lines.length - 1) {
-			if (current.length + 1 > max) {
-				if (current) chunks.push(current);
-				current = '';
-			}
-			current += '\n';
-		}
-	}
-
-	if (current) {
-		// Remove trailing newline if it's the only character or at end
-		if (current.endsWith('\n')) {
-			// Keep intentional trailing newline if desired; usually safe to keep
-		}
-		chunks.push(current);
-	}
-
-	// Remove any empty chunks
-	return chunks.filter((c) => c.length);
 }
 
 module.exports = {

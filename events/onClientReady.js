@@ -1,5 +1,5 @@
 const log4js = require('log4js');
-const logger = log4js.getLogger('ReadyEvent');
+const logger = log4js.getLogger('onClientReady');
 const { logLevel, opsLogChannelId, caseLogChannelId } = require('../config.json');
 logger.level = logLevel;
 

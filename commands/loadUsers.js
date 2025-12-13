@@ -10,7 +10,13 @@ module.exports = {
 		.setName('loadusers')
 		.setDescription('Loads users from the data source into the database')
 		.setContexts([InteractionContextType.Guild])
-		.setDefaultMemberPermissions(PermissionFlagsBits.BanMembers),
+		.setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
+		.addBooleanOption((option) =>
+			option
+				.setName('fetchavatars')
+				.setDescription('Whether to fetch avatars for the users (this takes a LONG time)')
+				.setRequired(false),
+		),
 	async execute(interaction) {
 		// Force usage of staff server for commands
 		if (interaction.guild.id != opsGuild) {
@@ -30,24 +36,52 @@ module.exports = {
 		let unchanged = 0;
 		let failed = 0;
 
+		const fetchAvatars = interaction.options.getBoolean('fetchavatars') === true;
+
+		if (fetchAvatars) {
+			interaction.editReply(
+				'Loading users with avatar fetching. This will take a while (30+ minutes)... A log will be sent when complete.',
+			);
+		}
+
 		await Promise.all(
-			membersData.map((member) =>
-				globalThis.databaseManager
-					.createUser(member.discord_id, member.name, member.mle_id)
-					.then(({ action }) => {
-						if (action === 'created') created++;
-						else if (action === 'updated') updated++;
-						else if (action === 'unchanged') unchanged++;
-					})
-					.catch((error) => {
-						logger.error(`Failed to load user ${member.name} (${member.discord_id}): ${error}`);
-						failed++;
-					}),
-			),
+			membersData.map(async (member) => {
+				try {
+					let avatarUrl = undefined;
+					if (fetchAvatars) {
+						try {
+							const discordUser = await interaction.client.users.fetch(member.discord_id);
+							avatarUrl = discordUser.displayAvatarURL();
+						} catch (_) {
+							_;
+							// Ignore avatar fetch failure; proceed without avatar
+						}
+					}
+
+					const { action } = await globalThis.databaseManager.createUser(
+						member.discord_id,
+						member.name,
+						member.mle_id,
+						avatarUrl,
+					);
+
+					if (action === 'created') created++;
+					else if (action === 'updated') updated++;
+					else if (action === 'unchanged') unchanged++;
+				} catch (error) {
+					logger.error(`Failed to load user ${member.name} (${member.discord_id}): ${error}`);
+					failed++;
+				}
+			}),
 		);
 
-		const message = `Created: ${created} users\nUpdated: ${updated} users\nUnchanged: ${unchanged} users\nFailed: ${failed} users`;
+		const message = `Created: ${created} users\nUpdated: ${updated} users\nUnchanged: ${unchanged} users\nFailed: ${failed} users\nUpdate avatars: ${fetchAvatars}`;
 
-		await interaction.editReply(message);
+		if (!fetchAvatars) {
+			// Fetching 5000+ avatars can cause timeout, so only edit reply if not fetching avatars
+			await interaction.editReply(message);
+		} else {
+			globalThis.discordLogger.logMessage('LoadUsersCommand', message);
+		}
 	},
 };

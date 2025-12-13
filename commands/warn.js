@@ -41,7 +41,41 @@ module.exports = {
 
 		const userId = interaction.options.getString('user');
 
-		// await globalThis.databaseManager.createWarning(732, 732, 732, 'Test private reason', 'Test public reason', 2);
+		// await globalThis.databaseManager.createWarning(
+		// 	727,
+		// 	942,
+		// 	75,
+		// 	'1.1(2) Comments that are moderately insulting',
+		// 	'Saying "Fuck you, you piece of shit" in gen chat',
+		// 	2,
+		// 	'14 day mute within the MLE Community',
+		// 	'Some private notes here',
+		// 	new Date('2025-07-10T15:01:00.191-05:00'),
+		// );
+
+		// await globalThis.databaseManager.createWarning(
+		// 	727,
+		// 	625,
+		// 	285,
+		// 	'1.10(1) Directly accusing a player or team of violating competitive integrity',
+		// 	'Saying "Delta is literally throwing scrims to stay as a 5 sal" in a twitch chat',
+		// 	1,
+		// 	'14 day mute within the MLE Community',
+		// 	"I mean delta really shouldn't be a 5 sal but rules are rules",
+		// 	new Date('2025-10-02T15:01:42.570-05:00'),
+		// );
+
+		// await globalThis.databaseManager.createWarning(
+		// 	727,
+		// 	999,
+		// 	251,
+		// 	'1.3(4) Mildly bigoted remarks or slurs',
+		// 	'Using the R-slur in a general chat',
+		// 	4,
+		// 	'Ban from the Minor League Esports Community and League',
+		// 	'(direct quote)',
+		// 	new Date('2025-12-09T11:09:42.570-05:00'),
+		// );
 
 		interaction.client.users
 			.fetch(userId)
@@ -61,10 +95,11 @@ module.exports = {
 								content: `User with ID ${userId} not found in database. Creating new user entry...`,
 							});
 							globalThis.databaseManager
-								.createUser(userId, discordUser.username)
-								.then(async () => {
+								.createUser(userId, discordUser.username, null, discordUser.displayAvatarURL())
+								.then(async (user) => {
 									await interaction.followUp({
-										content: `Created new user entry for ${discordUser.username} with ID ${userId}.`,
+										embeds: [user['user'].generateUserSummaryEmbed()],
+										components: generateUserSummaryButtons(),
 									});
 								})
 								.catch(async (creationError) => {
@@ -97,15 +132,15 @@ module.exports = {
 
 function generateUserSummaryButtons() {
 	const confirmButton = new ButtonBuilder()
-		.setCustomId('userConfirmButton')
-		.setLabel('Confirm User')
+		.setCustomId('userConfirmWarnButton')
+		.setLabel('Warn User')
 		.setStyle(ButtonStyle.Success);
 	const updateButton = new ButtonBuilder()
 		.setCustomId('userUpdateButton')
 		.setLabel('Update User')
 		.setStyle(ButtonStyle.Danger);
 	const viewButton = new ButtonBuilder()
-		.setCustomId('userViewButton')
+		.setCustomId('userViewHistoryButton')
 		.setLabel('View History')
 		.setStyle(ButtonStyle.Primary);
 	const actionRow = new ActionRowBuilder().addComponents(confirmButton, updateButton, viewButton);
