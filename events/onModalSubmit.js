@@ -1,12 +1,9 @@
 const log4js = require('log4js');
 const logger = log4js.getLogger('ModalSubmit');
-const { logLevel, opsLogChannelId, caseLogChannelId } = require('../config.json');
+const { logLevel } = require('../config.json');
 logger.level = logLevel;
 
 const { Events, EmbedBuilder } = require('discord.js');
-const { DiscordLogger } = require('../util/DiscordLogger');
-const { CaseLogger } = require('../util/CaseLogger.js');
-const { getDataParser } = require('../util/dataParserSingleton');
 
 module.exports = {
 	name: Events.InteractionCreate,
@@ -15,18 +12,6 @@ module.exports = {
 
 		if (interaction.customId === 'warnModal') {
 			await interaction.deferReply();
-
-			// Set up loggers
-			const client = interaction.client;
-			const discordLogger = new DiscordLogger(client, opsLogChannelId);
-			try {
-				await discordLogger.init();
-			} catch (error) {
-				logger.warn('Failed to initialize DiscordLogger', error);
-			}
-
-			const caseLogChannel = await interaction.client.channels.fetch(caseLogChannelId);
-			const caseLogger = new CaseLogger(caseLogChannel);
 
 			// Fetch the user
 			const userId = interaction.fields.getTextInputValue('userId');
@@ -47,7 +32,7 @@ module.exports = {
 								content: `Successfully warned ${user.displayName}`,
 							});
 
-							notifyFmAndLog(user, warnText, interaction, caseLogger, discordLogger);
+							notifyFmAndLog(user, warnText, interaction, globalThis.caseLogger, globalThis.discordLogger);
 						})
 						.catch(async (error) => {
 							// Warn failed
@@ -60,11 +45,11 @@ module.exports = {
 								await interaction.editReply({
 									content: `Failed to warn ${user.displayName}, reason unknown`,
 								});
-								discordLogger.logMessage(`Error messaging ${user}!\n\`\`\`\n${error}\n\`\`\``);
+								globalThis.discordLogger.logMessage(`Error messaging ${user}!\n\`\`\`\n${error}\n\`\`\``);
 							}
 
 							// Log it
-							caseLogger.logWarn(user, interaction.user, warnText, 'Failed', 'N/A');
+							globalThis.caseLogger.logWarn(user, interaction.user, warnText, 'Failed', 'N/A');
 						});
 				})
 				.catch(async (error) => {
@@ -78,7 +63,7 @@ module.exports = {
 						await interaction.editReply({
 							content: 'An unknown error occurred',
 						});
-						discordLogger.logMessage(`Unknown error warning ${userId}!\n\`\`\`\n${error}\n\`\`\``);
+						globalThis.discordLogger.logMessage(`Unknown error warning ${userId}!\n\`\`\`\n${error}\n\`\`\``);
 					}
 				});
 		}
@@ -87,10 +72,9 @@ module.exports = {
 
 async function notifyFmAndLog(user, warnText, interaction, caseLogger, discordLogger) {
 	// Get data parser for notifying FMs
-	const dataParser = await getDataParser(interaction.client);
-	const fmDiscordId = await dataParser.getPlayerFranchiseManagerDiscordIdByDiscordId(user.id);
-	const fmName = await dataParser.getMemberNameByDiscordId(fmDiscordId);
-	const warnedMemberName = (await dataParser.getMemberNameByDiscordId(user.id)) ?? user.displayName;
+	const fmDiscordId = await globalThis.dataParser.getPlayerFranchiseManagerDiscordIdByDiscordId(user.id);
+	const fmName = await globalThis.dataParser.getMemberNameByDiscordId(fmDiscordId);
+	const warnedMemberName = (await globalThis.dataParser.getMemberNameByDiscordId(user.id)) ?? user.displayName;
 
 	if (fmDiscordId && fmDiscordId != user.id) {
 		// Notify FM of the warning

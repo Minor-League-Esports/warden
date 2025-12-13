@@ -3,6 +3,8 @@ const path = require('node:path');
 const { Client, Collection, GatewayIntentBits } = require('discord.js');
 const { token } = require('./config.json');
 const { DatabaseManager } = require('./util/DatabaseManager');
+const { RemoteManager } = require('./util/RemoteManager.js');
+const { DataParser } = require('./util/DataParser.js');
 
 const client = new Client({
 	intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
@@ -38,3 +40,7 @@ for (const file of eventFiles) {
 client.login(token);
 
 globalThis.databaseManager = new DatabaseManager();
+globalThis.remoteManager = new RemoteManager();
+globalThis.dataParser = new DataParser(globalThis.remoteManager);
+globalThis.discordLogger = null;
+globalThis.caseLogger = null;

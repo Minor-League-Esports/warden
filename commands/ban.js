@@ -1,11 +1,9 @@
 const log4js = require('log4js');
 const logger = log4js.getLogger('BanCommand');
-const { logLevel, opsGuild, opsLogChannelId, caseLogChannelId, guildList } = require('../config.json');
+const { logLevel, opsGuild, guildList } = require('../config.json');
 logger.level = logLevel;
 
-const { SlashCommandBuilder, PermissionFlagsBits, InteractionContextType } = require('discord.js');
-const { DiscordLogger } = require('../util/DiscordLogger.js');
-const { CaseLogger } = require('../util/CaseLogger.js');
+const { MessageFlags, SlashCommandBuilder, PermissionFlagsBits, InteractionContextType } = require('discord.js');
 
 module.exports = {
 	data: new SlashCommandBuilder()
@@ -22,27 +20,16 @@ module.exports = {
 				.setMaxLength(19),
 		),
 	async execute(interaction) {
-		await interaction.deferReply();
-
 		// Force usage of staff server for commands
 		if (interaction.guild.id != opsGuild) {
-			await interaction.editReply({
+			await interaction.reply({
 				content: 'This command must be run from the MLE Staff server',
+				flags: MessageFlags.Ephemeral,
 			});
 			return;
 		}
 
-		// Set up loggers
-		const client = interaction.client;
-		const discordLogger = new DiscordLogger(client, opsLogChannelId);
-		try {
-			await discordLogger.init();
-		} catch (error) {
-			logger.warn('Failed to initialize DiscordLogger', error);
-		}
-
-		const caseLogChannel = await interaction.client.channels.fetch(caseLogChannelId);
-		const caseLogger = new CaseLogger(caseLogChannel);
+		await interaction.deferReply();
 
 		// Fetch the user
 		const userId = interaction.options.getString('user');
@@ -78,7 +65,9 @@ module.exports = {
 							// Ban failed
 							servers.set(guild.name, 'Error banning member');
 
-							discordLogger.logMessage(`Error banning ${userId} in ${guild.name}!\n\`\`\`\n${error}\n\`\`\``);
+							globalThis.discordLogger.logMessage(
+								`Error banning ${userId} in ${guild.name}!\n\`\`\`\n${error}\n\`\`\``,
+							);
 						}
 					}
 				}
@@ -95,7 +84,7 @@ module.exports = {
 						}. See case log for details`,
 					});
 
-					caseLogger.logBan(user, interaction.user, servers);
+					globalThis.caseLogger.logBan(user, interaction.user, servers);
 				}
 			})
 			.catch(async (error) => {
@@ -106,7 +95,7 @@ module.exports = {
 				} else {
 					logger.error(error);
 					await interaction.editReply({ content: 'An unknown error occurred' });
-					discordLogger.logMessage(`Unknown error banning ${userId}!\n\`\`\`\n${error}\n\`\`\``);
+					globalThis.discordLogger.logMessage(`Unknown error banning ${userId}!\n\`\`\`\n${error}\n\`\`\``);
 				}
 			});
 	},

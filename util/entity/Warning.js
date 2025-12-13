@@ -12,7 +12,6 @@ class Warning {
 		reporterId,
 		reporterName,
 		pointsAdded,
-		isBan,
 	) {
 		this._userId = userId;
 		this._userName = userName;
@@ -24,7 +23,6 @@ class Warning {
 		this._reporterId = reporterId;
 		this._reporterName = reporterName;
 		this._pointsAdded = pointsAdded;
-		this._isBan = isBan;
 	}
 
 	/**
@@ -208,29 +206,11 @@ class Warning {
 	}
 
 	/**
-	 * Setter for ban flag
-	 *
-	 * @param {Boolean} isBan
-	 */
-	setIsBan(isBan) {
-		this._isBan = isBan;
-	}
-
-	/**
-	 * Getter for ban flag
-	 *
-	 * @returns {Boolean}
-	 */
-	getIsBan() {
-		return this._isBan;
-	}
-
-	/**
 	 * To string method to represent the Warning as an Embed
 	 *
 	 * @returns {Embed}
 	 */
-	toString() {
+	generateEmbed() {
 		const embed = new EmbedBuilder()
 			.setTitle('User Warning')
 			.addFields(
