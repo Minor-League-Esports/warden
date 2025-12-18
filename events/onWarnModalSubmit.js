@@ -29,15 +29,6 @@ module.exports = {
 				return;
 			}
 
-			// Fetch guild member to get join date
-			const mainServer = interaction.client.guilds.cache.get(mainGuild);
-			let guildMember;
-			try {
-				guildMember = await mainServer.members.fetch(interaction.user.id);
-			} catch (error) {
-				logger.error(error);
-			}
-
 			let reporter;
 			if (reporterId.trim() === '') {
 				reporter = null;
@@ -118,6 +109,14 @@ module.exports = {
 			globalThis.databaseManager
 				.getUserByDiscordId(dbId, 'db')
 				.then(async (dbUser) => {
+					// Fetch guild member to get join date
+					const mainServer = interaction.client.guilds.cache.get(mainGuild);
+					let guildMember;
+					try {
+						guildMember = await mainServer.members.fetch(dbUser.getDiscordId());
+					} catch (error) {
+						logger.error(error);
+					}
 					const currentPoints = calculateCurrentPoints(dbUser.getWarnings());
 					const newPointsTotal = currentPoints + pointsAdded;
 					const daysSinceJoin = guildMember?.joinedAt
@@ -125,6 +124,8 @@ module.exports = {
 						: null;
 					const onProbation = daysSinceJoin !== null && daysSinceJoin < 90;
 					const probationStatus = daysSinceJoin ? onProbation : 'Unknown';
+					logger.debug('Joined at:', guildMember?.joinedAt);
+					logger.debug(`Days since join: ${daysSinceJoin}, On probation: ${onProbation}`);
 					const recommendedAction = calculateRecommendedAction(newPointsTotal, onProbation);
 
 					const embed = generateWarnConfirmationEmbed(
