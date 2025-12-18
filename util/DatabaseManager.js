@@ -335,6 +335,58 @@ class DatabaseManager {
 	}
 
 	/**
+	 * Gets a user's standalone punishments (not linked to any warning)
+	 *
+	 * @param {String} userId The user's Database ID
+	 * @returns {Promise<Punishment[]>} A promise to return an array of Punishment objects
+	 */
+	async getStandalonePunishments(userId) {
+		return new Promise((resolve, reject) => {
+			if (this._status !== 'success') {
+				return reject('DB manager not initialized');
+			}
+
+			this._client
+				.query(
+					`SELECT 
+						pun.punishment_id AS pun_id,
+						pun.user_id AS pun_user_id,
+						pun.moderator_id AS pun_moderator_id,
+						pun.timestamp AS pun_timestamp,
+						pun.punishment_type AS pun_type,
+						pun.punishment_duration AS pun_duration,
+						-- Target user (punished)
+						u_user.user_id AS u_user_id,
+						u_user.discord_id AS u_user_discord_id,
+						u_user.discord_avatar AS u_user_avatar,
+						u_user.user_name AS u_user_name,
+						u_user.mle_id AS u_user_mle_id,
+						-- Moderator
+						u_mod.user_id AS u_mod_id,
+						u_mod.discord_id AS u_mod_discord_id,
+						u_mod.discord_avatar AS u_mod_avatar,
+						u_mod.user_name AS u_mod_name,
+						u_mod.mle_id AS u_mod_mle_id
+					FROM Punishments pun
+					JOIN Users u_user ON u_user.user_id = pun.user_id
+					JOIN Users u_mod ON u_mod.user_id = pun.moderator_id
+					LEFT JOIN WarningPunishments wp ON wp.punishment_id = pun.punishment_id
+					WHERE pun.user_id = $1 AND wp.punishment_id IS NULL
+					ORDER BY pun.timestamp DESC`,
+					[userId],
+				)
+				.then((punResult) => {
+					return resolve(this.parseDatabasePunishmentResponse(punResult));
+				})
+				.catch((error) => {
+					logger.error('Error getting standalone punishments!');
+					logger.error(error);
+					return reject('Error getting standalone punishments');
+				});
+		});
+	}
+
+	/**
 	 * Creates a new warning for a user
 	 *
 	 * @param {String} userId DB ID of the user being warned
@@ -497,6 +549,44 @@ class DatabaseManager {
 		}
 
 		return Array.from(byId.values()).map((e) => e.warning);
+	}
+
+	/**
+	 * Parses raw database data into an array of Punishments
+	 *
+	 * @param {*} punResult The raw DB data
+	 * @returns {Punishment[]} The parsed Punishments
+	 */
+	parseDatabasePunishmentResponse(punResult) {
+		const rows = punResult.rows;
+		const punishments = [];
+		for (const row of rows) {
+			const p = new Punishment();
+			p.setPunishmentId(row['pun_id']);
+			p.setType(row['pun_type']);
+			p.setDuration(row['pun_duration']);
+			p.setTimestamp(row['pun_timestamp']);
+			// Build user context
+			const punishedUser = new User(
+				row['u_user_id'],
+				row['u_user_discord_id'],
+				row['u_user_avatar'],
+				row['u_user_name'],
+				row['u_user_mle_id'],
+			);
+			const moderatorUser = new User(
+				row['u_mod_id'],
+				row['u_mod_discord_id'],
+				row['u_mod_avatar'],
+				row['u_mod_name'],
+				row['u_mod_mle_id'],
+			);
+			p.setUser(punishedUser);
+			p.setModerator(moderatorUser);
+			punishments.push(p);
+		}
+
+		return punishments;
 	}
 }
 

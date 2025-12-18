@@ -86,7 +86,6 @@ class User {
 			.addFields(
 				{ name: 'User', value: `<@${this._discordId}>`, inline: true },
 				{ name: 'MLE ID', value: this._mleId ?? 'N/A', inline: true },
-				{ name: 'DB ID', value: this._userId.toString(), inline: true },
 				{
 					name: 'Current Points',
 					value: currentPoints > 0 ? `${currentPoints} (expires ${pointExpiration})` : 'No current points',

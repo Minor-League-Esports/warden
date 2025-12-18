@@ -1,3 +1,5 @@
+const { EmbedBuilder } = require('discord.js');
+
 class Punishment {
 	/**
 	 * Setter for punishment ID
@@ -124,7 +126,34 @@ class Punishment {
 			return `${this._duration} week suspension from all MLE League Play`;
 		} else if (this._type === 'warning') {
 			return 'Official warning';
+		} else if (this._type === 'unmute') {
+			return 'Unmute within the MLE Community';
+		} else if (this._type === 'unban') {
+			return 'Unban from the MLE Community and League';
+		} else {
+			return 'Unknown';
 		}
+	}
+
+	/**
+	 * Generates an embed for moderator view of a standalone punishment
+	 *
+	 * @returns {EmbedBuilder}
+	 */
+	generatePrivateEmbed() {
+		const embed = new EmbedBuilder()
+			.setTitle(`${this.getUser()?.getUserName() ?? 'User'} | Punishment`)
+			.setTimestamp(new Date(this.getTimestamp()))
+			.addFields(
+				{ name: 'Type', value: String(this.getType() ?? 'Unknown'), inline: true },
+				{ name: 'Duration', value: String(this.getDuration() ?? 'N/A'), inline: true },
+				{ name: 'Details', value: String(this.getFriendlyString() ?? 'None') },
+				{ name: 'Moderator Name', value: String(this.getModerator()?.getUserName() ?? 'None'), inline: true },
+			)
+			.setFooter({ text: `ID: ${this.getUser()?.getDiscordId() ?? 'Unknown'}` })
+			.setThumbnail(this.getUser()?.getDiscordAvatar() ?? null)
+			.setColor('#ff0000');
+		return embed;
 	}
 }
 

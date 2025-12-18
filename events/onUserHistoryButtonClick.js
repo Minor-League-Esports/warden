@@ -11,53 +11,14 @@ module.exports = {
 		if (!interaction.isButton()) return;
 
 		const buttonId = interaction.customId;
-		const buttonMessage = interaction.message;
 
-		// Helper to build pagination components
-		const buildPaginationComponents = (dbId, index, total) => {
-			const prevDisabled = index <= 0;
-			const nextDisabled = index >= total - 1;
-			const row = new ActionRowBuilder().addComponents(
-				new ButtonBuilder()
-					.setCustomId(`userHistoryPrev:${dbId}:${index - 1}`)
-					.setLabel('Prev')
-					.setStyle(ButtonStyle.Secondary)
-					.setDisabled(prevDisabled),
-				new ButtonBuilder()
-					.setCustomId(`userHistoryNext:${dbId}:${index + 1}`)
-					.setLabel('Next')
-					.setStyle(ButtonStyle.Secondary)
-					.setDisabled(nextDisabled),
-				new ButtonBuilder().setCustomId(`userHistoryAll:${dbId}`).setLabel('View All').setStyle(ButtonStyle.Primary),
-			);
-			return [row];
-		};
-
-		if (buttonId === 'userViewHistoryButton') {
+		if (buttonId.startsWith('userViewHistoryButton:')) {
 			await interaction.deferReply();
-			const embeds = buttonMessage.embeds;
-			if (embeds.length === 0) {
-				await interaction.editReply({
-					content: 'No user information found in the message.',
-				});
-				return;
-			}
-			if (embeds.length > 1) {
-				await interaction.editReply({
-					content: 'Multiple embeds found in the message; cannot determine user.',
-				});
-				return;
-			}
-			const userIdField = embeds[0].data.fields.find((field) => field.name === 'DB ID');
-			if (!userIdField) {
-				await interaction.editReply({
-					content: 'No DB ID field found in the embed.',
-				});
-				return;
-			}
+			const [, dbId] = buttonId.split(':');
+			logger.debug(`Fetching warnings for user DB ID: ${dbId}`);
 
 			globalThis.databaseManager
-				.getWarnings(userIdField.value)
+				.getWarnings(dbId)
 				.then(async (warnings) => {
 					if (warnings.length === 0) {
 						await interaction.editReply({
@@ -70,7 +31,7 @@ module.exports = {
 					// most recent warning
 					const indexToShow = 0;
 					const embed = warnings[indexToShow].generatePrivateEmbed();
-					const components = buildPaginationComponents(userIdField.value, indexToShow, warnings.length);
+					const components = buildPaginationComponents(dbId, indexToShow, warnings.length);
 					await interaction.editReply({
 						content: `Showing warning ${indexToShow + 1} of ${warnings.length}.`,
 						embeds: [embed],
@@ -80,7 +41,7 @@ module.exports = {
 				.catch(async (error) => {
 					logger.error(error);
 					await interaction.editReply({
-						content: 'Failed to retrieve user warnings.',
+						content: 'Error: Failed to retrieve user warnings.',
 						components: [],
 					});
 				});
@@ -92,14 +53,14 @@ module.exports = {
 			const [, dbId, targetIndexStr] = buttonId.split(':');
 			let targetIndex = Number.parseInt(targetIndexStr, 10);
 			if (Number.isNaN(targetIndex)) {
-				await interaction.reply({ content: 'Invalid pagination index.', ephemeral: true });
+				await interaction.update({ content: 'Error: Invalid pagination index.' });
 				return;
 			}
 
 			try {
 				const warnings = await globalThis.databaseManager.getWarnings(dbId);
 				if (warnings.length === 0) {
-					await interaction.reply({ content: 'This user has no warnings on record.', ephemeral: true });
+					await interaction.update({ content: 'This user has no warnings on record.' });
 					return;
 				}
 
@@ -116,7 +77,7 @@ module.exports = {
 				});
 			} catch (error) {
 				logger.error(error);
-				await interaction.reply({ content: 'Failed to paginate warnings.', ephemeral: true });
+				await interaction.update({ content: 'Error: Failed to paginate warnings.' });
 			}
 		}
 
@@ -126,7 +87,7 @@ module.exports = {
 			try {
 				const warnings = await globalThis.databaseManager.getWarnings(dbId);
 				if (warnings.length === 0) {
-					await interaction.reply({ content: 'This user has no warnings on record.', ephemeral: true });
+					await interaction.update({ content: 'This user has no warnings on record.' });
 					return;
 				}
 
@@ -157,8 +118,73 @@ module.exports = {
 				}
 			} catch (error) {
 				logger.error(error);
-				await interaction.reply({ content: 'Failed to display all warnings.', ephemeral: true });
+				await interaction.update({ content: 'Error: Failed to display all warnings.' });
+			}
+		}
+
+		// Handle view standalone punishments button click
+		if (buttonId.startsWith('userHistoryPunAll:')) {
+			await interaction.deferReply();
+			const [, dbId] = buttonId.split(':');
+			try {
+				const punishments = await globalThis.databaseManager.getStandalonePunishments(dbId);
+				if (punishments.length === 0) {
+					await interaction.editReply({ content: 'This user has no standalone punishments on record.' });
+					return;
+				}
+
+				const allEmbeds = punishments.map((p) => p.generatePrivateEmbed());
+				const chunkSize = 10;
+				const chunks = [];
+				for (let i = 0; i < allEmbeds.length; i += chunkSize) {
+					chunks.push(allEmbeds.slice(i, i + chunkSize));
+				}
+
+				const firstCount = chunks[0].length;
+				await interaction.editReply({
+					content: `Showing standalone punishments (1-${firstCount} of ${punishments.length}).`,
+					embeds: chunks[0],
+					components: [],
+				});
+
+				for (let c = 1; c < chunks.length; c++) {
+					const start = c * chunkSize + 1;
+					const end = Math.min((c + 1) * chunkSize, punishments.length);
+					await interaction.followUp({
+						content: `Standalone punishments ${start}-${end} of ${punishments.length}.`,
+						embeds: chunks[c],
+					});
+				}
+			} catch (error) {
+				logger.error(error);
+				await interaction.editReply({
+					content: 'Error: Failed to display standalone punishments.',
+				});
 			}
 		}
 	},
 };
+
+// Helper to build pagination components
+function buildPaginationComponents(dbId, index, total) {
+	const prevDisabled = index <= 0;
+	const nextDisabled = index >= total - 1;
+	const row = new ActionRowBuilder().addComponents(
+		new ButtonBuilder()
+			.setCustomId(`userHistoryPrev:${dbId}:${index - 1}`)
+			.setLabel('Prev')
+			.setStyle(ButtonStyle.Secondary)
+			.setDisabled(prevDisabled),
+		new ButtonBuilder()
+			.setCustomId(`userHistoryNext:${dbId}:${index + 1}`)
+			.setLabel('Next')
+			.setStyle(ButtonStyle.Secondary)
+			.setDisabled(nextDisabled),
+		new ButtonBuilder().setCustomId(`userHistoryAll:${dbId}`).setLabel('View All').setStyle(ButtonStyle.Primary),
+		new ButtonBuilder()
+			.setCustomId(`userHistoryPunAll:${dbId}`)
+			.setLabel('View Standalone Punishments')
+			.setStyle(ButtonStyle.Primary),
+	);
+	return [row];
+}
