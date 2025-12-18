@@ -197,9 +197,9 @@ class PunishmentExecutor {
 						// Punishments where the member may not be in the server
 						try {
 							if (punishmentType === 'ban') {
-								await guild.members.ban(userDiscordId, `Warden Punishment ID: ${punishmentId}`);
+								await guild.members.ban(userDiscordId, { reason: `Warden Punishment ID: ${punishmentId}` });
 							} else if (punishmentType === 'unban') {
-								await guild.members.unban(userDiscordId, `Warden Punishment ID: ${punishmentId}`);
+								await guild.members.unban(userDiscordId, { reason: `Warden Punishment ID: ${punishmentId}` });
 							}
 							servers.set(guild.name, 'Success');
 							successCount++;

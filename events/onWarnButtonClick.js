@@ -13,6 +13,7 @@ const {
 	ButtonBuilder,
 	ButtonStyle,
 	ActionRowBuilder,
+	PermissionFlagsBits,
 } = require('discord.js');
 
 module.exports = {
@@ -124,6 +125,91 @@ module.exports = {
 						interaction.followUp({ content: `Error executing ${recommendedAction}.` });
 					});
 			}
+		}
+
+		if (buttonId.startsWith('approveBanButton:')) {
+			const [, dbId, moderatorId] = buttonId.split(':');
+			const buttonMessage = interaction.message;
+			const proposalEmbed = buttonMessage.embeds[0];
+
+			// Check permissions
+			if (!interaction.member.permissions.has(PermissionFlagsBits.BanMembers)) {
+				logger.warn(`User ${interaction.user.id} attempted to approve a ban without sufficient permissions.`);
+				await interaction.reply({ content: `<@${interaction.user.id}>, you do not have permission to approve bans.` });
+				return;
+			}
+
+			let director;
+			try {
+				const directorDbUser = await globalThis.databaseManager.getUserByDiscordId(interaction.user.id);
+				director = directorDbUser.getUserId();
+			} catch (_) {
+				_;
+				await interaction.client.users
+					.fetch(interaction.user.id)
+					.then((user) => {
+						globalThis.databaseManager
+							.createUser(interaction.user.id, user.username, null, user.displayAvatarURL())
+							.then((newUser) => {
+								director = newUser['user'].getUserId();
+							})
+							.catch((creationError) => {
+								logger.error(`Error creating director user for ID ${interaction.user.id}: ${creationError}`);
+								interaction.reply({
+									content: `Error: Failed to create director with Discord ID ${interaction.user.id}.`,
+								});
+								director = null;
+							});
+					})
+					.catch((fetchError) => {
+						interaction.reply({
+							content: `Error: Director with Discord ID ${interaction.user.id} not found.`,
+						});
+						logger.error(`Error fetching director by ID ${interaction.user.id}: ${fetchError}`);
+						director = null;
+					});
+			}
+
+			// Only continue if director fetch/creation was successful
+			if (director === null) {
+				return;
+			}
+
+			// Remove buttons after click
+			await interaction.update({
+				components: [],
+			});
+
+			// Execute ban
+			globalThis.punishmentExecutor
+				.execute(dbId, moderatorId, director, proposalEmbed, 'ban')
+				.then(async () => {
+					logger.info(`Successfully executed ban for user with DB ID: ${dbId}`);
+					await interaction.followUp({ content: 'Successfully executed ban.' });
+				})
+				.catch((error) => {
+					logger.error(`Error executing ban for user with DB ID: ${dbId}: ${error}`);
+					interaction.followUp({ content: 'Error executing ban.' });
+				});
+		}
+
+		if (buttonId.startsWith('denyBanButton:')) {
+			const [, dbId, moderatorId] = buttonId.split(':');
+
+			// Check permissions
+			if (!interaction.member.permissions.has(PermissionFlagsBits.BanMembers)) {
+				logger.warn(`User ${interaction.user.id} attempted to deny a ban without sufficient permissions.`);
+				await interaction.reply({ content: 'You do not have permission to deny bans.' });
+				return;
+			}
+
+			// Remove buttons after click
+			await interaction.update({
+				components: [],
+			});
+
+			logger.info(`Ban denied for user with DB ID: ${dbId} by moderator ID: ${moderatorId}`);
+			await interaction.followUp({ content: 'Ban has been denied.' });
 		}
 	},
 };
