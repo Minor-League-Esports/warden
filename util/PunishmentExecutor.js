@@ -11,13 +11,13 @@ class PunishmentExecutor {
 		this._caseLogger = caseLogger;
 	}
 
-	async execute(dbUserId, moderatorId, proposalEmbed, action) {
+	async execute(dbUserId, warnCreatorId, punishmentExecutorId, proposalEmbed, action) {
 		const parsedEmbed = this.parseProposedEmbed(proposalEmbed);
 		try {
 			// Create the warning in the database
 			const warning = await globalThis.databaseManager.createWarning(
 				dbUserId,
-				moderatorId,
+				warnCreatorId,
 				parsedEmbed.reporter,
 				parsedEmbed.rulesBroken,
 				parsedEmbed.violatingContent,
@@ -26,39 +26,53 @@ class PunishmentExecutor {
 			);
 
 			logger.debug(`Created warning with ID: ${warning.getWarningId()} for user ID: ${dbUserId}`);
+			const punishments = [];
+			// For each punishment in the action string, create the punishment and link it to the warning
 			for (const pun of action.split(';')) {
 				const [type, durationStr] = pun.split('=');
 				// Create the punishment in the database
 				const punishment = await globalThis.databaseManager.createPunishment(
 					dbUserId,
-					moderatorId,
+					punishmentExecutorId,
 					type,
 					durationStr ? Number.parseInt(durationStr, 10) : null,
 				);
 				logger.debug(
 					`Created punishment with ID: ${punishment.getPunishmentId()} of type: ${type} for user ID: ${dbUserId}`,
 				);
+				punishments.push(punishment);
 
 				// Link the warning and punishment in the database
 				await globalThis.databaseManager.createWarningPunishmentLink(
 					warning.getWarningId(),
 					punishment.getPunishmentId(),
 				);
-
-				if (type === 'mute') {
-					const durationDays = durationStr ? Number.parseInt(durationStr, 10) : 0;
-					await this.executeMute(parsedEmbed.userDiscordId, durationDays, punishment);
-				}
 			}
 
 			// Now we can execute the warning
 			// Can't do it earlier because the warning needs to have a record of the punishments linked to it
 			try {
 				const newWarning = await globalThis.databaseManager.getWarnings(dbUserId, 1);
-				await this.executeWarn(parsedEmbed.userDiscordId, newWarning[0]);
+				await this.executeWarn(newWarning[0]);
 			} catch (warnError) {
 				logger.error(`Error sending warning to user ID ${parsedEmbed.userDiscordId}: ${warnError}`);
 				throw warnError;
+			}
+
+			// Now execute all punishments
+			for (const punishment of punishments) {
+				if (punishment.getType() === 'suspension') {
+					// Warden can't execute suspensions yet
+					continue;
+				}
+				try {
+					await this.executePunishment(punishment);
+				} catch (punishmentError) {
+					logger.error(
+						`Error executing punishment ID ${punishment.getPunishmentId()} for user ID ${dbUserId}: ${punishmentError}`,
+					);
+					throw punishmentError;
+				}
 			}
 		} catch (error) {
 			logger.error(`Error executing punishment for user ID ${dbUserId}: ${error}`);
@@ -93,11 +107,11 @@ class PunishmentExecutor {
 			// Log it
 			await globalThis.caseLogger.logWarn(warning, false, 'N/A');
 			if (error.code === 50007) {
-				throw new Error(`Failed to send mute notice to ${userName}\nUser has DMs disabled or the bot is blocked`);
+				throw new Error(`Failed to send warning to ${userName}\nUser has DMs disabled or the bot is blocked`);
 			} else {
 				logger.error(error);
 				await globalThis.discordLogger.logMessage(`Error messaging ${userName}!\n\`\`\`\n${error}\n\`\`\``);
-				throw new Error(`Failed to send mute notice to ${userName}, reason unknown`);
+				throw new Error(`Failed to send warning to ${userName}, reason unknown`);
 			}
 		}
 	}
@@ -179,7 +193,7 @@ class PunishmentExecutor {
 								);
 							}
 						}
-					} else {
+					} else if (punishmentType === 'ban' || punishmentType === 'unban') {
 						// Punishments where the member may not be in the server
 						try {
 							if (punishmentType === 'ban') {
@@ -196,6 +210,8 @@ class PunishmentExecutor {
 								`Error banning/unbanning ${userName} in ${guild.name}!\n\`\`\`\n${error}\n\`\`\``,
 							);
 						}
+					} else {
+						servers.set(guild.name, 'Unknown punishment type');
 					}
 				}
 			}),

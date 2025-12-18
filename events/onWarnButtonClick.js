@@ -100,15 +100,24 @@ module.exports = {
 				await interaction.channel.send({
 					embeds: [approvalEmbed],
 					components: [generateBanApprovalButtons(dbId, moderatorId)],
-					content: `<@&${directorRoleId}> please review the above ban request. Clicking "Approve Ban" will enact the ban.`,
+					content: `
+                    <@&${directorRoleId}> please review the below ban request. 
+                    Clicking "Approve Ban" will enact the ban. 
+                    Ensure League Operations has moved the user to FP.`,
 				});
 			} else {
 				// Execute other punishments directly
 				globalThis.punishmentExecutor
-					.execute(dbId, moderatorId, proposalEmbed, recommendedAction)
-					.then(() => {
+					.execute(dbId, moderatorId, moderatorId, proposalEmbed, recommendedAction)
+					.then(async () => {
 						logger.info(`Successfully executed ${recommendedAction} for user with DB ID: ${dbId}`);
-						interaction.followUp({ content: `Successfully executed ${recommendedAction}.` });
+						await interaction.followUp({ content: 'Successfully executed punishment.' });
+						if (recommendedAction.includes('suspension')) {
+							await interaction.followUp({
+								content: `Note: Suspensions are not automatically executed by Warden yet. 
+                                Please handle the suspension manually via League Operations.`,
+							});
+						}
 					})
 					.catch((error) => {
 						logger.error(`Error executing ${recommendedAction} for user with DB ID: ${dbId}: ${error}`);
