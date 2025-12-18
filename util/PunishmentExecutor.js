@@ -11,7 +11,7 @@ class PunishmentExecutor {
 		this._caseLogger = caseLogger;
 	}
 
-	async executePunishment(dbUserId, moderatorId, proposalEmbed, action) {
+	async execute(dbUserId, moderatorId, proposalEmbed, action) {
 		const parsedEmbed = this.parseProposedEmbed(proposalEmbed);
 		try {
 			// Create the warning in the database
@@ -66,11 +66,13 @@ class PunishmentExecutor {
 		}
 	}
 
-	async executeWarn(discordId, warning) {
+	async executeWarn(warning) {
+		const userDiscordId = warning.getUser().getDiscordId();
+		const userName = warning.getUser().getUserName();
 		try {
-			const user = await this._discordClient.users.fetch(discordId);
+			const user = await this._discordClient.users.fetch(userDiscordId);
 			const userEmbed = warning.generateUserEmbed();
-			const fmDiscordId = await globalThis.dataParser.getPlayerFranchiseManagerDiscordIdByDiscordId(discordId);
+			const fmDiscordId = await globalThis.dataParser.getPlayerFranchiseManagerDiscordIdByDiscordId(userDiscordId);
 			const fmName = await globalThis.dataParser.getMemberNameByDiscordId(fmDiscordId);
 			await user.send({ embeds: [userEmbed] });
 			if (fmDiscordId) {
@@ -78,7 +80,7 @@ class PunishmentExecutor {
 				const fmEmbed = EmbedBuilder.from(userEmbed)
 					.setTitle(`Franchise Manager Notice: ${userEmbed.title}`)
 					.setDescription(
-						`This is to notify you that your franchise member, ${user.displayName}, has been issued a warning.\n\n` +
+						`This is to notify you that your franchise member, ${userName}, has been issued a warning.\n\n` +
 							userEmbed.description,
 					);
 				await fmUser.send({ embeds: [fmEmbed] });
@@ -89,22 +91,28 @@ class PunishmentExecutor {
 		} catch (error) {
 			// Send failed
 			// Log it
-			logger.error(error);
 			await globalThis.caseLogger.logWarn(warning, false, 'N/A');
 			if (error.code === 50007) {
-				throw new Error(`Failed to send mute notice to ${discordId}\nUser has DMs disabled or the bot is blocked`);
+				throw new Error(`Failed to send mute notice to ${userName}\nUser has DMs disabled or the bot is blocked`);
 			} else {
 				logger.error(error);
-				await globalThis.discordLogger.logMessage(`Error messaging ${discordId}!\n\`\`\`\n${error}\n\`\`\``);
-				throw new Error(`Failed to send mute notice to ${discordId}, reason unknown`);
+				await globalThis.discordLogger.logMessage(`Error messaging ${userName}!\n\`\`\`\n${error}\n\`\`\``);
+				throw new Error(`Failed to send mute notice to ${userName}, reason unknown`);
 			}
 		}
 	}
 
-	async executeMute(discordId, duration, punishment) {
+	async executePunishment(punishment) {
+		const punishmentId = punishment.getPunishmentId();
+		const punishmentType = punishment.getType();
+		const punishmentDuration = punishment.getDuration();
+		const userDiscordId = punishment.getUser().getDiscordId();
+		const userName = punishment.getUser().getUserName();
 		const servers = new Map();
 		let successCount = 0;
 
+		// Do the punishment in discord across all guilds
+		// Promise.all to do them all concurrently
 		await Promise.all(
 			guildList.map(async (guildId) => {
 				const guild = this._discordClient.guilds.cache.get(guildId);
@@ -113,38 +121,79 @@ class PunishmentExecutor {
 					servers.set(guildId, 'Error getting server');
 				} else {
 					// Check for permission
-					if (!guild.members.me.permissions.has(PermissionFlagsBits.ModerateMembers)) {
-						servers.set(guild.name, 'No permission');
-						return;
+					if (punishmentType === 'mute' || punishmentType === 'unmute') {
+						if (!guild.members.me.permissions.has(PermissionFlagsBits.ModerateMembers)) {
+							servers.set(guild.name, 'No permission');
+							return;
+						}
+					} else if (punishmentType === 'ban' || punishmentType === 'unban') {
+						if (!guild.members.me.permissions.has(PermissionFlagsBits.BanMembers)) {
+							servers.set(guild.name, 'No permission');
+							return;
+						}
+					} else if (punishmentType === 'kick') {
+						if (!guild.members.me.permissions.has(PermissionFlagsBits.KickMembers)) {
+							servers.set(guild.name, 'No permission');
+							return;
+						}
 					}
 
-					try {
-						// Try to get member
-						const member = await guild.members.fetch(discordId);
-
+					// Punishments where the member is already in the server
+					if (punishmentType === 'mute' || punishmentType === 'unmute' || punishmentType === 'kick') {
 						try {
-							// Try to timeout member
-							await member.timeout(duration * 24 * 60 * 60 * 1000);
+							// Try to get member
+							const member = await guild.members.fetch(userDiscordId);
+
+							try {
+								// Try to timeout member
+								if (punishmentType === 'mute') {
+									await member.timeout(
+										punishmentDuration * 24 * 60 * 60 * 1000,
+										`Warden Punishment ID: ${punishmentId}`,
+									);
+								} else if (punishmentType === 'unmute') {
+									await member.timeout(1, `Warden Punishment ID: ${punishmentId}`);
+								} else {
+									await member.kick(`Warden Punishment ID: ${punishmentId}`);
+								}
+								servers.set(guild.name, 'Success');
+								successCount++;
+							} catch (error) {
+								logger.error(error);
+								// Failed to timeout member
+								servers.set(guild.name, 'Error');
+
+								await globalThis.discordLogger.logMessage(
+									`Error punishing ${userName} in ${guild.name}!\n\`\`\`\n${error}\n\`\`\``,
+								);
+							}
+						} catch (error) {
+							// Failed to get member
+							if (error.code === 10007) {
+								servers.set(guild.name, 'Not in server');
+							} else {
+								logger.error(error);
+								servers.set(guild.name, 'Error getting member');
+								await globalThis.discordLogger.logMessage(
+									`Error fetching member ${userDiscordId} in ${guild.name}!\n\`\`\`\n${error}\n\`\`\``,
+								);
+							}
+						}
+					} else {
+						// Punishments where the member may not be in the server
+						try {
+							if (punishmentType === 'ban') {
+								await guild.members.ban(userDiscordId, `Warden Punishment ID: ${punishmentId}`);
+							} else if (punishmentType === 'unban') {
+								await guild.members.unban(userDiscordId, `Warden Punishment ID: ${punishmentId}`);
+							}
 							servers.set(guild.name, 'Success');
 							successCount++;
 						} catch (error) {
 							logger.error(error);
-							// Failed to timeout member
-							servers.set(guild.name, 'Error timing out member');
-
+							servers.set(guild.name, 'Error banning/unbanning member');
 							await globalThis.discordLogger.logMessage(
-								`Error timing out ${discordId} in ${guild.name}!\n\`\`\`\n${error}\n\`\`\``,
-							);
-						}
-					} catch (error) {
-						// Failed to get member
-						if (error.code === 10007) {
-							servers.set(guild.name, 'Not in server');
-						} else {
-							logger.error(error);
-							servers.set(guild.name, 'Error getting member');
-							await globalThis.discordLogger.logMessage(
-								`Error fetching member ${discordId} in ${guild.name}!\n\`\`\`\n${error}\n\`\`\``,
+								`Error banning/unbanning ${userName} in ${guild.name}!\n\`\`\`\n${error}\n\`\`\``,
 							);
 						}
 					}
@@ -152,17 +201,16 @@ class PunishmentExecutor {
 			}),
 		);
 
-		logger.debug(`Mute execution results for ${discordId}: ${JSON.stringify(Array.from(servers.entries()))}`);
+		logger.debug(`Execution results for ${userDiscordId}: ${JSON.stringify(Array.from(servers.entries()))}`);
 
 		// Check if it succeeded in any servers
 		if (successCount === 0) {
-			throw new Error('Failed to mute user in any MLE servers');
+			throw new Error('Failed to punish user in any MLE servers');
 		} else {
 			// If it succeeded, send a notice to user
 			try {
-				const embed = this.createMuteEmbed(duration);
-				const user = await this._discordClient.users.fetch(discordId);
-				await user.send({ embeds: [embed] });
+				const user = await this._discordClient.users.fetch(userDiscordId);
+				await user.send({ embeds: [punishment.generateUserEmbed()] });
 				await globalThis.caseLogger.logPunishment(punishment, 'True', servers);
 			} catch (error) {
 				// Send failed
@@ -170,23 +218,16 @@ class PunishmentExecutor {
 				logger.error(error);
 				await globalThis.caseLogger.logPunishment(punishment, 'False', servers);
 				if (error.code === 50007) {
-					throw new Error(`Failed to send mute notice to ${discordId}\nUser has DMs disabled or the bot is blocked`);
+					throw new Error(
+						`Failed to send punishment notice to ${userName}\nUser has DMs disabled or the bot is blocked`,
+					);
 				} else {
 					logger.error(error);
-					await globalThis.discordLogger.logMessage(`Error messaging ${discordId}!\n\`\`\`\n${error}\n\`\`\``);
-					throw new Error(`Failed to send mute notice to ${discordId}, reason unknown`);
+					await globalThis.discordLogger.logMessage(`Error messaging ${userName}!\n\`\`\`\n${error}\n\`\`\``);
+					throw new Error(`Failed to send punishment notice to ${userName}, reason unknown`);
 				}
 			}
 		}
-	}
-
-	createMuteEmbed(days) {
-		return new EmbedBuilder()
-			.setColor('#ff0000')
-			.setTitle('You have been muted')
-			.setTimestamp()
-			.setDescription(`You have been muted in MLE for ${days} days`)
-			.setThumbnail('https://mlesports.gg/wp-content/uploads/logo-mle-256.png');
 	}
 
 	parseProposedEmbed(proposalEmbed) {

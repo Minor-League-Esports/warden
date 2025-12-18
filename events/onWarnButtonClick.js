@@ -105,7 +105,7 @@ module.exports = {
 			} else {
 				// Execute other punishments directly
 				globalThis.punishmentExecutor
-					.executePunishment(dbId, moderatorId, proposalEmbed, recommendedAction)
+					.execute(dbId, moderatorId, proposalEmbed, recommendedAction)
 					.then(() => {
 						logger.info(`Successfully executed ${recommendedAction} for user with DB ID: ${dbId}`);
 						interaction.followUp({ content: `Successfully executed ${recommendedAction}.` });
