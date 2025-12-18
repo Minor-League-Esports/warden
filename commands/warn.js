@@ -48,9 +48,8 @@ module.exports = {
 		// 	'1.1(2) Comments that are moderately insulting',
 		// 	'Saying "Fuck you, you piece of shit" in gen chat',
 		// 	2,
-		// 	'14 day mute within the MLE Community',
 		// 	'Some private notes here',
-		// 	new Date('2025-07-10T15:01:00.191-05:00'),
+		// 	new Date('2025-06-10T15:01:00.191-05:00'),
 		// );
 
 		// await globalThis.databaseManager.createWarning(
@@ -60,9 +59,19 @@ module.exports = {
 		// 	'1.10(1) Directly accusing a player or team of violating competitive integrity',
 		// 	'Saying "Delta is literally throwing scrims to stay as a 5 sal" in a twitch chat',
 		// 	1,
-		// 	'14 day mute within the MLE Community',
 		// 	"I mean delta really shouldn't be a 5 sal but rules are rules",
 		// 	new Date('2025-10-02T15:01:42.570-05:00'),
+		// );
+
+		// await globalThis.databaseManager.createWarning(
+		// 	727,
+		// 	833,
+		// 	267,
+		// 	'1.10(1) Directly accusing a player or team of violating competitive integrity',
+		// 	'here goes',
+		// 	1,
+		// 	"another one",
+		// 	new Date('2025-10-22T15:01:42.570-05:00'),
 		// );
 
 		// await globalThis.databaseManager.createWarning(
@@ -72,7 +81,6 @@ module.exports = {
 		// 	'1.3(4) Mildly bigoted remarks or slurs',
 		// 	'Using the R-slur in a general chat',
 		// 	4,
-		// 	'Ban from the Minor League Esports Community and League',
 		// 	'(direct quote)',
 		// 	new Date('2025-12-09T11:09:42.570-05:00'),
 		// );

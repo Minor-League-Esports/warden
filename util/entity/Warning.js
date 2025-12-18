@@ -2,110 +2,74 @@ const { EmbedBuilder } = require('discord.js');
 
 class Warning {
 	/**
-	 * Setter for user ID
+	 * Sets the warning ID
 	 *
-	 * @param {String} userId
+	 * @param {String} warningId
 	 */
-	setUserId(userId) {
-		this._userId = userId;
+	setWarningId(warningId) {
+		this._warningId = warningId;
 	}
 
 	/**
-	 * Getter for user ID
+	 * Gets the warning ID
 	 * @returns {String}
 	 */
-	getUserId() {
-		return this._userId;
+	getWarningId() {
+		return this._warningId;
 	}
 
 	/**
-	 * Setter for user name
+	 * Sets the user object
 	 *
-	 * @param {String} userName
+	 * @param {User} user
 	 */
-	setUserName(userName) {
-		this._userName = userName;
+	setUser(user) {
+		this._user = user;
 	}
 
 	/**
-	 * Getter for user name
+	 * Gets the user object
 	 *
-	 * @returns {String}
+	 * @returns {User}
 	 */
-	getUserName() {
-		return this._userName;
+	getUser() {
+		return this._user;
 	}
 
 	/**
-	 * Setter for user discord ID
+	 * Sets the moderator object
 	 *
-	 * @param {String} discordId
+	 * @param {User} moderator
 	 */
-	setDiscordId(discordId) {
-		this._discordId = discordId;
+	setModerator(moderator) {
+		this._moderator = moderator;
 	}
 
 	/**
-	 * Getter for user discord ID
+	 * Gets the moderator
 	 *
-	 * @returns {String}
+	 * @returns {User}
 	 */
-	getDiscordId() {
-		return this._discordId;
+	getModerator() {
+		return this._moderator;
 	}
 
 	/**
-	 * Setter for user avatar
+	 * Sets the repoter
 	 *
-	 * @param {String} userAvatar
+	 * @param {User} reporter
 	 */
-	setUserAvatar(userAvatar) {
-		this._userAvatar = userAvatar;
+	setReporter(reporter) {
+		this._reporter = reporter;
 	}
 
 	/**
-	 * Getter for user avatar
+	 * Gets the reporter
 	 *
-	 * @returns {String}
+	 * @returns {User}
 	 */
-	getUserAvatar() {
-		return this._userAvatar;
-	}
-
-	/**
-	 * Setter for moderator name
-	 *
-	 * @param {String} moderatorName
-	 */
-	setModeratorName(moderatorName) {
-		this._moderatorName = moderatorName;
-	}
-
-	/**
-	 * Getter for moderator name
-	 *
-	 * @returns {String}
-	 */
-	getModeratorName() {
-		return this._moderatorName;
-	}
-
-	/**
-	 * Setter for reporter name
-	 *
-	 * @param {String} reporterName
-	 */
-	setReporterName(reporterName) {
-		this._reporterName = reporterName;
-	}
-
-	/**
-	 * Getter for reporter name
-	 *
-	 * @returns {String}
-	 */
-	getReporterName() {
-		return this._reporterName;
+	getReporter() {
+		return this._reporter;
 	}
 
 	/**
@@ -199,23 +163,6 @@ class Warning {
 	}
 
 	/**
-	 * Setter for actions taken
-	 *
-	 * @param {String} actionsTaken
-	 */
-	setActionsTaken(actionsTaken) {
-		this._actionsTaken = actionsTaken;
-	}
-
-	/**
-	 * Getter for actions taken
-	 * @returns {String}
-	 */
-	getActionsTaken() {
-		return this._actionsTaken;
-	}
-
-	/**
 	 * Setter for moderator notes
 	 *
 	 * @param {String} moderatorNotes
@@ -234,13 +181,41 @@ class Warning {
 	}
 
 	/**
+	 * Setter for punishments
+	 *
+	 * @param {Array<Punishment>} punishments
+	 */
+	setPunishments(punishments) {
+		this._punishments = punishments;
+	}
+
+	/**
+	 * Getter for punishments
+	 *
+	 * @returns {Array<Punishment>}
+	 */
+	getPunishments() {
+		return this._punishments;
+	}
+
+	/**
+	 * Getter for punishment friendly strings
+	 *
+	 * @returns {String}
+	 */
+	getPunishmentFriendlyStrings() {
+		if (!this._punishments || this._punishments.length === 0) return 'None';
+		return this._punishments.map((p) => p.getFriendlyString()).join('\n');
+	}
+
+	/**
 	 * To string method to represent the Warning as an Embed for moderators
 	 *
 	 * @returns {Embed}
 	 */
 	generatePrivateEmbed() {
 		const embed = new EmbedBuilder()
-			.setTitle(`${this.getUserName()} | Warning`)
+			.setTitle(`${this.getUser().getUserName()} | Warning`)
 			.setTimestamp(new Date(this.getTimestamp()))
 			.addFields(
 				{ name: 'Rule(s) Broken', value: String(this.getRulesBroken() ?? 'None') },
@@ -255,13 +230,16 @@ class Warning {
 					value: String(this.getNewPointTotal() === 1 ? '1 point' : `${this.getNewPointTotal()} points`),
 					inline: true,
 				},
-				{ name: 'Actions Taken', value: String(this.getActionsTaken() ?? 'None') },
-				{ name: 'Moderator Name', value: String(this.getModeratorName() ?? 'None'), inline: true },
-				{ name: 'Reporter Name', value: String(this.getReporterName() ?? 'None'), inline: true },
+				{
+					name: 'Actions Taken',
+					value: String(this.getPunishmentFriendlyStrings()),
+				},
+				{ name: 'Moderator Name', value: String(this.getModerator()?.getUserName() ?? 'None'), inline: true },
+				{ name: 'Reporter Name', value: String(this.getReporter()?.getUserName() ?? 'None'), inline: true },
 				{ name: 'Moderator Notes', value: String(this.getModeratorNotes() ?? 'None') },
 			)
-			.setFooter({ text: `ID: ${this.getDiscordId()}` })
-			.setThumbnail(this.getUserAvatar())
+			.setFooter({ text: `ID: ${this.getUser().getDiscordId()}` })
+			.setThumbnail(this.getUser().getDiscordAvatar())
 			.setColor('#ff761b');
 		return embed;
 	}
@@ -288,9 +266,12 @@ class Warning {
 					value: String(this.getNewPointTotal() === 1 ? '1 point' : `${this.getNewPointTotal()} points`),
 					inline: true,
 				},
-				{ name: 'Actions Taken', value: String(this.getActionsTaken() ?? 'None') },
+				{
+					name: 'Actions Taken',
+					value: String(this.getPunishmentFriendlyStrings()),
+				},
 			)
-			.setFooter({ text: `ID: ${this.getDiscordId()}` })
+			.setFooter({ text: `ID: ${this.getUser().getDiscordId()}` })
 			.setThumbnail('https://mlesports.gg/wp-content/uploads/logo-mle-256.png')
 			.setColor('#ff0000');
 		return embed;

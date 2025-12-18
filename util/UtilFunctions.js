@@ -3,7 +3,7 @@ const logger = log4js.getLogger('UtilFunctions');
 const { logLevel } = require('../config.json');
 logger.level = logLevel;
 
-function calculateCurrentPoints(warnings) {
+function calculateCurrentPoints(warnings, asOf = Date.now()) {
 	// 90 days in ms
 	const PERIOD_MS = 90 * 24 * 60 * 60 * 1000;
 	if (!Array.isArray(warnings) || warnings.length === 0) return 0;
@@ -38,8 +38,12 @@ function calculateCurrentPoints(warnings) {
 		points += toPoints(w);
 	}
 
-	// Final decay from the last reset to "now"
-	const now = Date.now();
+	// Final decay from the last reset to the provided "asOf" moment
+	let now;
+	if (asOf instanceof Date) now = asOf.getTime();
+	else if (typeof asOf === 'string') now = new Date(asOf).getTime();
+	else if (typeof asOf === 'number') now = asOf;
+	else now = Date.now();
 	const elapsedFinal = now - lastResetTime;
 	if (elapsedFinal >= PERIOD_MS && points > 0) {
 		const decaysFinal = Math.floor(elapsedFinal / PERIOD_MS);

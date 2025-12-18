@@ -28,6 +28,14 @@ class User {
 	}
 
 	/**
+	 * Getter for Discord Avatar
+	 * @returns {String}
+	 */
+	getDiscordAvatar() {
+		return this._discordAvatar;
+	}
+
+	/**
 	 * Getter for user name
 	 * @returns {String}
 	 */

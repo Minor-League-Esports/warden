@@ -6,6 +6,7 @@ logger.level = logLevel;
 const { Client } = require('pg');
 const Warning = require('./entity/Warning');
 const User = require('./entity/User');
+const Punishment = require('./entity/Punishment');
 const { calculateCurrentPoints } = require('./UtilFunctions');
 
 class DatabaseManager {
@@ -34,6 +35,7 @@ class DatabaseManager {
 		await this._client.connect();
 
 		// Drop existing tables for testing purposes
+		// await this._client.query('DROP TABLE IF EXISTS WarningPunishments');
 		// await this._client.query('DROP TABLE IF EXISTS Punishments');
 		// await this._client.query('DROP TABLE IF EXISTS Warnings');
 		// await this._client.query('DROP TABLE IF EXISTS Users');
@@ -49,6 +51,17 @@ class DatabaseManager {
 		);
 
 		await this._client.query(
+			`CREATE TABLE IF NOT EXISTS Punishments (
+				punishment_id SERIAL PRIMARY KEY,
+				user_id INT REFERENCES Users(user_id) NOT NULL,
+				moderator_id INT REFERENCES Users(user_id) NOT NULL,
+				timestamp TIMESTAMPTZ NOT NULL,
+                punishment_type TEXT NOT NULL,
+                punishment_duration INT
+			)`,
+		);
+
+		await this._client.query(
 			`CREATE TABLE IF NOT EXISTS Warnings (
 				warning_id SERIAL PRIMARY KEY,
 				user_id INT REFERENCES Users(user_id) NOT NULL,
@@ -58,28 +71,21 @@ class DatabaseManager {
 				rules_broken TEXT NOT NULL,
 				violating_content TEXT NOT NULL,
 				points_added INT NOT NULL,
-				actions_taken TEXT NOT NULL,
 				new_point_total INT NOT NULL,
 				moderator_notes TEXT
 			)`,
 		);
 
+		// Link table to support multiple punishments per warning
 		await this._client.query(
-			`CREATE TABLE IF NOT EXISTS Punishments (
-				punishment_id SERIAL PRIMARY KEY,
-				user_id INT REFERENCES Users(user_id) NOT NULL,
-				moderator_id INT REFERENCES Users(user_id) NOT NULL,
-				warning_id INT REFERENCES Warnings(warning_id),
-				timestamp TIMESTAMPTZ NOT NULL,
-				is_mute BOOLEAN NOT NULL,
-				mute_duration INT,
-				is_unmute BOOLEAN NOT NULL,
-				is_suspension BOOLEAN NOT NULL,
-				suspension_duration INT,
-				is_ban BOOLEAN NOT NULL,
-				is_unban BOOLEAN NOT NULL
+			`CREATE TABLE IF NOT EXISTS WarningPunishments (
+				warning_id INT REFERENCES Warnings(warning_id) ON DELETE CASCADE,
+				punishment_id INT REFERENCES Punishments(punishment_id) ON DELETE CASCADE,
+				PRIMARY KEY (warning_id, punishment_id),
+				UNIQUE (punishment_id)
 			)`,
 		);
+
 		this._status = 'success';
 		logger.debug('Initialized the database connection');
 	}
@@ -140,8 +146,6 @@ class DatabaseManager {
 					for (const row of rows) {
 						if (row['warning_id'] == null) continue;
 						const w = new Warning();
-						w.setUserId(row['w_user_id'] ?? row['user_id']);
-						w.setUserName(first['user_name']);
 						w.setTimestamp(row['timestamp']);
 						w.setPointsAdded(row['points_added']);
 						warnings.push(w);
@@ -274,18 +278,49 @@ class DatabaseManager {
 			this._client
 				.query(
 					`SELECT 
-						w.*, 
-						u_user.user_name AS user_name,
-						u_user.discord_id AS discord_id,
-						u_user.discord_avatar AS user_avatar,
-						u_mod.user_name AS moderator_name,
-						u_rep.user_name AS reporter_name
+						w.warning_id,
+						w.user_id,
+						w.moderator_id,
+						w.reporter_id,
+						w.timestamp,
+						w.rules_broken,
+						w.violating_content,
+						w.points_added,
+						w.new_point_total,
+						w.moderator_notes,
+						-- Target user (warned)
+						u_user.user_id AS u_user_id,
+						u_user.discord_id AS u_user_discord_id,
+						u_user.discord_avatar AS u_user_avatar,
+						u_user.user_name AS u_user_name,
+						u_user.mle_id AS u_user_mle_id,
+						-- Moderator
+						u_mod.user_id AS u_mod_id,
+						u_mod.discord_id AS u_mod_discord_id,
+						u_mod.discord_avatar AS u_mod_avatar,
+						u_mod.user_name AS u_mod_name,
+						u_mod.mle_id AS u_mod_mle_id,
+						-- Reporter (nullable)
+						u_rep.user_id AS u_rep_id,
+						u_rep.discord_id AS u_rep_discord_id,
+						u_rep.discord_avatar AS u_rep_avatar,
+						u_rep.user_name AS u_rep_name,
+						u_rep.mle_id AS u_rep_mle_id,
+						-- Linked punishments (nullable)
+						pun.punishment_id AS pun_id,
+						pun.user_id AS pun_user_id,
+						pun.moderator_id AS pun_moderator_id,
+						pun.timestamp AS pun_timestamp,
+						pun.punishment_type AS pun_type,
+						pun.punishment_duration AS pun_duration
 					FROM Warnings w
 					LEFT JOIN Users u_user ON u_user.user_id = w.user_id
 					LEFT JOIN Users u_mod ON u_mod.user_id = w.moderator_id
 					LEFT JOIN Users u_rep ON u_rep.user_id = w.reporter_id
+					LEFT JOIN WarningPunishments wp ON wp.warning_id = w.warning_id
+					LEFT JOIN Punishments pun ON pun.punishment_id = wp.punishment_id
 					WHERE w.user_id = $1
-					ORDER BY w.timestamp DESC`,
+					ORDER BY w.timestamp DESC, pun.timestamp DESC NULLS LAST`,
 					[userId],
 				)
 				.then((warningResult) => {
@@ -308,7 +343,6 @@ class DatabaseManager {
 	 * @param {String} rulesBroken The rules broken by the user
 	 * @param {String} violatingContent The content that violated the rules
 	 * @param {Number} pointsAdded Number of points added by this warning
-	 * @param {String} actionsTaken Actions taken against the user
 	 * @param {String} moderatorNotes Private notes for moderator reference (optional)
 	 * @param {String} timestamp Optional timestamp; defaults to now (ex 2025-12-12 20:23:22.611 -0600)
 	 * @returns {Warning} The newly created warning object
@@ -320,7 +354,6 @@ class DatabaseManager {
 		rulesBroken,
 		violatingContent,
 		pointsAdded,
-		actionsTaken,
 		moderatorNotes = null,
 		timestamp = new Date().toISOString(),
 	) {
@@ -331,13 +364,13 @@ class DatabaseManager {
 		try {
 			// Get existing warnings to compute current points at time of warn
 			const existingWarnings = await this.getWarnings(userId);
-			const currentPoints = calculateCurrentPoints(existingWarnings);
+			const currentPoints = calculateCurrentPoints(existingWarnings, timestamp);
 			const newPointTotal = currentPoints + (pointsAdded || 0);
 
 			const result = await this._client.query(
 				`INSERT INTO Warnings 
-                (user_id, moderator_id, reporter_id, timestamp, rules_broken, violating_content, points_added, actions_taken, new_point_total, moderator_notes)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                (user_id, moderator_id, reporter_id, timestamp, rules_broken, violating_content, points_added, new_point_total, moderator_notes)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
                 RETURNING *`,
 				[
 					userId,
@@ -347,7 +380,6 @@ class DatabaseManager {
 					rulesBroken,
 					violatingContent,
 					pointsAdded,
-					actionsTaken,
 					newPointTotal,
 					moderatorNotes,
 				],
@@ -399,37 +431,72 @@ class DatabaseManager {
 	parseDatabaseWarningResponse(warningResult) {
 		const rows = warningResult.rows;
 
-		const warnings = [];
+		// Group rows by warning_id to aggregate punishments per warning
+		const byId = new Map();
+
 		for (const row of rows) {
-			const warning = new Warning();
-			warning.setUserId(row['user_id']);
-			// Names may be present when joining; set if available
-			if (row['user_name'] !== undefined) {
-				warning.setUserName(row['user_name']);
+			const wid = row['warning_id'];
+			let entry = byId.get(wid);
+			if (!entry) {
+				// Build full User objects
+				const warnedUser = new User(
+					row['u_user_id'],
+					row['u_user_discord_id'],
+					row['u_user_avatar'],
+					row['u_user_name'],
+					row['u_user_mle_id'],
+				);
+				const moderatorUser = new User(
+					row['u_mod_id'],
+					row['u_mod_discord_id'],
+					row['u_mod_avatar'],
+					row['u_mod_name'],
+					row['u_mod_mle_id'],
+				);
+				let reporterUser = null;
+				if (row['u_rep_id']) {
+					reporterUser = new User(
+						row['u_rep_id'],
+						row['u_rep_discord_id'],
+						row['u_rep_avatar'],
+						row['u_rep_name'],
+						row['u_rep_mle_id'],
+					);
+				}
+
+				const warning = new Warning();
+				warning.setWarningId(wid);
+				warning.setUser(warnedUser);
+				warning.setModerator(moderatorUser);
+				reporterUser ? warning.setReporter(reporterUser) : warning.setReporter(null);
+				warning.setTimestamp(row['timestamp']);
+				warning.setRulesBroken(row['rules_broken']);
+				warning.setViolatingContent(row['violating_content']);
+				warning.setPointsAdded(row['points_added']);
+				warning.setNewPointTotal(row['new_point_total']);
+				warning.setModeratorNotes(row['moderator_notes']);
+				warning.setPunishments([]);
+
+				entry = { warning };
+				byId.set(wid, entry);
 			}
-			if (row['discord_id'] !== undefined) {
-				warning.setDiscordId(row['discord_id']);
+
+			// Add punishment if present
+			if (row['pun_id']) {
+				const p = new Punishment();
+				p.setPunishmentId(row['pun_id']);
+				p.setType(row['pun_type']);
+				p.setDuration(row['pun_duration']);
+				p.setTimestamp(row['pun_timestamp']);
+				// Attach context users (optional convenience)
+				p.setUser(entry.warning.getUser());
+				p.setModerator(entry.warning.getModerator());
+
+				entry.warning.getPunishments().push(p);
 			}
-			if (row['user_avatar'] !== undefined) {
-				warning.setUserAvatar(row['user_avatar']);
-			}
-			if (row['moderator_name'] !== undefined) {
-				warning.setModeratorName(row['moderator_name']);
-			}
-			if (row['reporter_name'] !== undefined) {
-				warning.setReporterName(row['reporter_name']);
-			}
-			warning.setTimestamp(row['timestamp']);
-			warning.setRulesBroken(row['rules_broken']);
-			warning.setViolatingContent(row['violating_content']);
-			warning.setActionsTaken(row['actions_taken']);
-			warning.setPointsAdded(row['points_added']);
-			warning.setNewPointTotal(row['new_point_total']);
-			warning.setModeratorNotes(row['moderator_notes']);
-			warnings.push(warning);
 		}
 
-		return warnings;
+		return Array.from(byId.values()).map((e) => e.warning);
 	}
 }
 
