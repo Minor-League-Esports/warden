@@ -19,12 +19,12 @@ module.exports = {
 			const violatingContent = interaction.fields.getTextInputValue('violatingContent');
 			const pointsAddedStr = interaction.fields.getTextInputValue('pointsAdded');
 			const moderatorNotes = interaction.fields.getTextInputValue('moderatorNotes');
+			const reporterId = interaction.fields.getTextInputValue('reporterId');
 
 			const pointsAdded = Number.parseInt(pointsAddedStr, 10);
 			if (Number.isNaN(pointsAdded) || pointsAdded < 0) {
 				await interaction.editReply({
 					content: 'Error: Points Added must be a valid non-negative integer.',
-					components: [],
 				});
 				return;
 			}
@@ -38,6 +38,83 @@ module.exports = {
 				logger.error(error);
 			}
 
+			let reporter;
+			if (reporterId.trim() === '') {
+				reporter = null;
+			} else {
+				try {
+					const reporterDbUser = await globalThis.databaseManager.getUserByDiscordId(reporterId);
+					reporter = reporterDbUser.getUserName() + ':' + reporterDbUser.getUserId();
+				} catch (_) {
+					_;
+					await interaction.client.users
+						.fetch(reporterId)
+						.then((user) => {
+							globalThis.databaseManager
+								.createUser(reporterId, user.username, null, user.displayAvatarURL())
+								.then((newUser) => {
+									reporter = newUser['user'].getUserName() + ':' + newUser['user'].getUserId();
+								})
+								.catch((creationError) => {
+									logger.error(`Error creating reporter user for ID ${reporterId}: ${creationError}`);
+									interaction.editReply({
+										content: `Error: Failed to create reporter with Discord ID ${reporterId}.`,
+									});
+									reporter = -1;
+								});
+						})
+						.catch((fetchError) => {
+							interaction.editReply({
+								content: `Error: Reporter with Discord ID ${reporterId} not found.`,
+							});
+							logger.error(`Error fetching reporter by ID ${reporterId}: ${fetchError}`);
+							reporter = -1;
+						});
+				}
+			}
+
+			// Only continue if reporter fetch/creation was successful
+			// Or if reporter was not specified (null)
+			if (reporter === -1) {
+				return;
+			}
+
+			let moderator;
+			try {
+				const moderatorDbUser = await globalThis.databaseManager.getUserByDiscordId(interaction.user.id);
+				moderator = moderatorDbUser.getUserId();
+			} catch (_) {
+				_;
+				await interaction.client.users
+					.fetch(interaction.user.id)
+					.then((user) => {
+						globalThis.databaseManager
+							.createUser(interaction.user.id, user.username, null, user.displayAvatarURL())
+							.then((newUser) => {
+								moderator = newUser['user'].getUserId();
+							})
+							.catch((creationError) => {
+								logger.error(`Error creating moderator user for ID ${interaction.user.id}: ${creationError}`);
+								interaction.editReply({
+									content: `Error: Failed to create moderator with Discord ID ${interaction.user.id}.`,
+								});
+								moderator = null;
+							});
+					})
+					.catch((fetchError) => {
+						interaction.editReply({
+							content: `Error: Moderator with Discord ID ${interaction.user.id} not found.`,
+						});
+						logger.error(`Error fetching moderator by ID ${interaction.user.id}: ${fetchError}`);
+						moderator = null;
+					});
+			}
+
+			// Only continue if moderator fetch/creation was successful
+			if (moderator === null) {
+				return;
+			}
+
 			globalThis.databaseManager
 				.getUserByDiscordId(dbId, 'db')
 				.then(async (dbUser) => {
@@ -46,19 +123,25 @@ module.exports = {
 					const daysSinceJoin = guildMember?.joinedAt
 						? Math.floor((Date.now() - guildMember.joinedAt.getTime()) / (1000 * 60 * 60 * 24))
 						: null;
-					const recommendedAction = calculateRecommendedAction(newPointsTotal, daysSinceJoin);
+					const onProbation = daysSinceJoin !== null && daysSinceJoin < 90;
+					const probationStatus = daysSinceJoin ? onProbation : 'Unknown';
+					const recommendedAction = calculateRecommendedAction(newPointsTotal, onProbation);
 
 					const embed = generateWarnConfirmationEmbed(
 						dbUser,
-						daysSinceJoin !== null && daysSinceJoin < 90,
+						probationStatus,
 						rulesBroken,
 						violatingContent,
 						pointsAdded,
 						newPointsTotal,
 						moderatorNotes,
+						reporter,
 						recommendedAction,
 					);
-					await interaction.editReply({ embeds: [embed], components: generateWarnConfirmationButtons(dbId) });
+					await interaction.editReply({
+						embeds: [embed],
+						components: generateWarnConfirmationButtons(dbId, moderator, recommendedAction),
+					});
 				})
 				.catch(async (error) => {
 					logger.error(error);
@@ -73,8 +156,8 @@ module.exports = {
 	},
 };
 
-function calculateRecommendedAction(totalPoints, daysSinceJoin) {
-	if ((daysSinceJoin < 90 && totalPoints >= 3) || totalPoints >= 5) {
+function calculateRecommendedAction(totalPoints, onProbation) {
+	if ((onProbation && totalPoints >= 3) || totalPoints >= 5) {
 		return 'ban';
 	} else if (totalPoints == 4) {
 		return 'mute=28;suspension=4';
@@ -109,12 +192,13 @@ function generateRecommendedActionDescription(action) {
 
 function generateWarnConfirmationEmbed(
 	dbUser,
-	probation,
+	probationStatus,
 	rulesBroken,
 	violatingContent,
 	pointsAdded,
 	newPointsTotal,
 	moderatorNotes,
+	reporter,
 	recommendedAction,
 ) {
 	return new EmbedBuilder()
@@ -126,7 +210,7 @@ function generateWarnConfirmationEmbed(
 		.addFields(
 			{ name: 'User', value: `<@${dbUser.getDiscordId()}>`, inline: true },
 			{ name: 'MLE ID', value: dbUser.getMleId() ?? 'N/A', inline: true },
-			{ name: 'On Probation', value: probation ? 'Yes' : 'No', inline: true },
+			{ name: 'On Probation', value: probationStatus ? 'Yes' : 'No', inline: true },
 			{ name: 'Rule(s) Broken', value: String(rulesBroken ?? 'None') },
 			{ name: 'Violating Content', value: String(violatingContent ?? 'None') },
 			{
@@ -141,7 +225,11 @@ function generateWarnConfirmationEmbed(
 			},
 			{
 				name: 'Moderator Notes',
-				value: String(moderatorNotes ?? 'None'),
+				value: String(moderatorNotes?.trim() === '' ? 'None' : moderatorNotes.trim()),
+			},
+			{
+				name: 'Reporter',
+				value: String(reporter ?? 'None'),
 			},
 			{
 				name: 'Recommended Action',
@@ -150,9 +238,9 @@ function generateWarnConfirmationEmbed(
 		);
 }
 
-function generateWarnConfirmationButtons(dbId) {
+function generateWarnConfirmationButtons(dbId, moderatorId, recommendedAction) {
 	const confirmButton = new ButtonBuilder()
-		.setCustomId(`executeWarnButton:${dbId}`)
+		.setCustomId(`executeWarnButton:${dbId}:${moderatorId}:${recommendedAction}`)
 		.setLabel('Confirm Recommended Action')
 		.setStyle(ButtonStyle.Success);
 	const overrideButton = new ButtonBuilder()

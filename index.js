@@ -44,3 +44,4 @@ globalThis.remoteManager = new RemoteManager();
 globalThis.dataParser = new DataParser(globalThis.remoteManager);
 globalThis.discordLogger = null;
 globalThis.caseLogger = null;
+globalThis.punishmentExecutor = null;

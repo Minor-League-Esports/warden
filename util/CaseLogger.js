@@ -6,6 +6,20 @@ class CaseLogger {
 		this._channel = channel;
 	}
 
+	logWarn(warning, success, fmNotify) {
+		const embed = warning.generatePrivateEmbed();
+		embed.addFields({ name: 'FM Notified', value: String(fmNotify) });
+		embed.addFields({ name: 'User Notified', value: String(success) });
+		this._channel.send({ embeds: [embed] });
+	}
+
+	logPunishment(punishment, success, serverMap) {
+		const embed = punishment.generatePrivateEmbed();
+		embed.addFields({ name: 'User Notified', value: String(success) });
+		embed.addFields({ name: 'Servers', value: this.getServerMapText(serverMap) });
+		this._channel.send({ embeds: [embed] });
+	}
+
 	logMute(user, moderator, serverMap, days, success) {
 		const embed = this.createMuteEmbed(user, moderator, serverMap, days, success);
 		this._channel.send({ embeds: [embed] });
@@ -26,10 +40,10 @@ class CaseLogger {
 		this._channel.send({ embeds: [embed] });
 	}
 
-	logWarn(user, moderator, warnText, success, fmNotify) {
-		const embed = this.createWarnEmbed(user, moderator, warnText, success, fmNotify);
-		this._channel.send({ embeds: [embed] });
-	}
+	// logWarn(user, moderator, warnText, success, fmNotify) {
+	// 	const embed = this.createWarnEmbed(user, moderator, warnText, success, fmNotify);
+	// 	this._channel.send({ embeds: [embed] });
+	// }
 
 	createMuteEmbed(user, moderator, serverMap, days, success) {
 		return new EmbedBuilder()

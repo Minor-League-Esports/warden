@@ -6,6 +6,7 @@ logger.level = logLevel;
 const { Events } = require('discord.js');
 const { DiscordLogger } = require('../util/DiscordLogger.js');
 const { CaseLogger } = require('../util/CaseLogger.js');
+const { PunishmentExecutor } = require('../util/PunishmentExecutor.js');
 
 module.exports = {
 	name: Events.ClientReady,
@@ -51,6 +52,7 @@ module.exports = {
 		try {
 			const caseLogChannel = await client.channels.fetch(caseLogChannelId);
 			globalThis.caseLogger = new CaseLogger(caseLogChannel);
+			globalThis.punishmentExecutor = new PunishmentExecutor(client, globalThis.caseLogger);
 			await discordLogger.logMessage('Case Logger initialized');
 		} catch (error) {
 			logger.error('Failed to initialize CaseLogger', error);

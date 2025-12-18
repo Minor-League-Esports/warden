@@ -280,7 +280,7 @@ class DatabaseManager {
 	 * @param {String} userId The user's Database ID
 	 * @returns {Promise<Warning[]>} A promise to return an array of Warning objects
 	 */
-	async getWarnings(userId) {
+	async getWarnings(userId, limit = null) {
 		return new Promise((resolve, reject) => {
 			if (this._status !== 'success') {
 				return reject('DB manager not initialized');
@@ -331,7 +331,8 @@ class DatabaseManager {
 					LEFT JOIN WarningPunishments wp ON wp.warning_id = w.warning_id
 					LEFT JOIN Punishments pun ON pun.punishment_id = wp.punishment_id
 					WHERE w.user_id = $1
-					ORDER BY w.timestamp DESC, pun.timestamp DESC NULLS LAST`,
+					ORDER BY w.timestamp DESC, pun.timestamp DESC NULLS LAST
+                    ${limit ? `LIMIT ${limit}` : ''}`,
 					[userId],
 				)
 				.then((warningResult) => {
@@ -457,6 +458,91 @@ class DatabaseManager {
 			logger.error('Error creating warning!');
 			logger.error(error);
 			throw new Error('Error creating warning');
+		}
+	}
+
+	async createPunishment(
+		userId,
+		moderatorId,
+		punishmentType,
+		punishmentDuration = null,
+		timestamp = new Date().toISOString(),
+	) {
+		if (this._status !== 'success') {
+			throw new Error('DB manager not initialized');
+		}
+		try {
+			// Create the punishment row and get the new ID
+			const insertResult = await this._client.query(
+				`INSERT INTO Punishments
+				(user_id, moderator_id, timestamp, punishment_type, punishment_duration)
+				VALUES ($1, $2, $3, $4, $5)
+				RETURNING punishment_id`,
+				[userId, moderatorId, timestamp, punishmentType, punishmentDuration],
+			);
+
+			if (!insertResult.rows || insertResult.rows.length === 0) {
+				throw new Error('Failed to create punishment');
+			}
+
+			const createdPunishmentId = insertResult.rows[0]['punishment_id'];
+
+			// Load full context (user + moderator) for the newly created punishment
+			const joinedResult = await this._client.query(
+				`SELECT 
+					pun.punishment_id AS pun_id,
+					pun.user_id AS pun_user_id,
+					pun.moderator_id AS pun_moderator_id,
+					pun.timestamp AS pun_timestamp,
+					pun.punishment_type AS pun_type,
+					pun.punishment_duration AS pun_duration,
+					-- Target user (punished)
+					u_user.user_id AS u_user_id,
+					u_user.discord_id AS u_user_discord_id,
+					u_user.discord_avatar AS u_user_avatar,
+					u_user.user_name AS u_user_name,
+					u_user.mle_id AS u_user_mle_id,
+					-- Moderator
+					u_mod.user_id AS u_mod_id,
+					u_mod.discord_id AS u_mod_discord_id,
+					u_mod.discord_avatar AS u_mod_avatar,
+					u_mod.user_name AS u_mod_name,
+					u_mod.mle_id AS u_mod_mle_id
+				FROM Punishments pun
+				JOIN Users u_user ON u_user.user_id = pun.user_id
+				JOIN Users u_mod ON u_mod.user_id = pun.moderator_id
+				WHERE pun.punishment_id = $1`,
+				[createdPunishmentId],
+			);
+
+			const punishments = this.parseDatabasePunishmentResponse(joinedResult);
+			if (!punishments || punishments.length === 0) {
+				throw new Error('Failed to load created punishment');
+			}
+			return punishments[0];
+		} catch (error) {
+			logger.error('Error creating punishment!');
+			logger.error(error);
+			throw new Error('Error creating punishment');
+		}
+	}
+
+	async createWarningPunishmentLink(warningId, punishmentId) {
+		if (this._status !== 'success') {
+			throw new Error('DB manager not initialized');
+		}
+		try {
+			await this._client.query(
+				`INSERT INTO WarningPunishments
+                (warning_id, punishment_id)
+                VALUES ($1, $2)`,
+				[warningId, punishmentId],
+			);
+			logger.debug(`Linked punishment ID ${punishmentId} to warning ID ${warningId}`);
+		} catch (error) {
+			logger.error('Error linking warning and punishment!');
+			logger.error(error);
+			throw new Error('Error linking warning and punishment');
 		}
 	}
 
