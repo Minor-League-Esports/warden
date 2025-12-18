@@ -99,10 +99,21 @@ class DatabaseManager {
 	 * @param {String} userId The user's Discord ID
 	 * @returns {Promise<User>} A promise to return the User object
 	 */
-	async getUserByDiscordId(userId) {
+	async getUserByDiscordId(userId, type = 'discord') {
 		return new Promise((resolve, reject) => {
 			if (this._status !== 'success') {
 				return reject('DB manager not initialized');
+			}
+
+			let whereClause;
+			if (type === 'discord') {
+				whereClause = 'u.discord_id = $1';
+			} else if (type === 'mle') {
+				whereClause = 'u.mle_id = $1';
+			} else if (type === 'db') {
+				whereClause = 'u.user_id = $1';
+			} else {
+				return reject('Invalid user ID type specified');
 			}
 
 			// Single query: get user row and all joined warnings with names
@@ -120,7 +131,7 @@ class DatabaseManager {
 						w.points_added AS points_added
 					FROM Users u
 					LEFT JOIN Warnings w ON w.user_id = u.user_id
-					WHERE u.discord_id = $1
+					WHERE ${whereClause}
 					ORDER BY w.timestamp DESC NULLS LAST
 					`,
 					[userId],
