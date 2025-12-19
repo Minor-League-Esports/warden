@@ -40,57 +40,12 @@ module.exports = {
 		await interaction.deferReply();
 
 		const userId = interaction.options.getString('user');
+		const user = await globalThis.userUtility.fetchDatabaseUserByDiscordId(userId);
 
-		interaction.client.users
-			.fetch(userId)
-			.then(async (discordUser) => {
-				globalThis.databaseManager
-					.getUserByDiscordId(userId)
-					.then(async (dbUser) => {
-						await interaction.editReply({
-							embeds: [dbUser.generateUserSummaryEmbed()],
-							components: generateUserSummaryButtons(dbUser.getUserId()),
-						});
-					})
-					.catch(async (error) => {
-						if (error === 'User not found') {
-							// User not found in DB, create new user entry
-							await interaction.editReply({
-								content: `User with ID ${userId} not found in database. Creating new user entry...`,
-							});
-							globalThis.databaseManager
-								.createUser(userId, discordUser.username, null, discordUser.displayAvatarURL())
-								.then(async (user) => {
-									await interaction.followUp({
-										embeds: [user['user'].generateUserSummaryEmbed()],
-										components: generateUserSummaryButtons(user['user'].getUserId()),
-									});
-								})
-								.catch(async (creationError) => {
-									logger.error('Error creating user for history command:', creationError);
-									await interaction.followUp({
-										content: `An error occurred while creating a new user with ID ${userId}.`,
-									});
-								});
-						} else {
-							logger.error('Error fetching user for history command:', error);
-							await interaction.editReply({
-								content: `An error occurred while fetching the user with ID ${userId}.`,
-							});
-						}
-					});
-			})
-			.catch(async (error) => {
-				if (error.code === 10013) {
-					await interaction.editReply({
-						content: `Failed to find user with ID ${userId}`,
-					});
-				} else {
-					logger.error(error);
-					await interaction.editReply({ content: 'An unknown error occurred' });
-					globalThis.discordLogger.logMessage(`Unknown error warning ${userId}!\n\`\`\`\n${error}\n\`\`\``);
-				}
-			});
+		await interaction.editReply({
+			embeds: [user.generateUserSummaryEmbed()],
+			components: generateUserSummaryButtons(user.getUserId()),
+		});
 	},
 };
 

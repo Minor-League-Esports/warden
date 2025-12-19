@@ -23,7 +23,7 @@ module.exports = {
 					if (warnings.length === 0) {
 						await interaction.editReply({
 							content: 'This user has no warnings on record.',
-							components: [],
+							components: buildStandalonePunishmentComponents(dbId),
 						});
 						return;
 					}
@@ -184,6 +184,16 @@ function buildPaginationComponents(dbId, index, total) {
 		new ButtonBuilder()
 			.setCustomId(`userHistoryPunAll:${dbId}`)
 			.setLabel('View Standalone Punishments')
+			.setStyle(ButtonStyle.Primary),
+	);
+	return [row];
+}
+
+function buildStandalonePunishmentComponents(dbId) {
+	const row = new ActionRowBuilder().addComponents(
+		new ButtonBuilder()
+			.setCustomId(`userHistoryPunAll:${dbId}`)
+			.setLabel('View All Standalone Punishments')
 			.setStyle(ButtonStyle.Primary),
 	);
 	return [row];

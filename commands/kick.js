@@ -1,5 +1,5 @@
 const log4js = require('log4js');
-const logger = log4js.getLogger('BanCommand');
+const logger = log4js.getLogger('UnmuteCommand');
 const { logLevel, opsGuild } = require('../config.json');
 logger.level = logLevel;
 
@@ -16,14 +16,14 @@ const {
 
 module.exports = {
 	data: new SlashCommandBuilder()
-		.setName('ban')
-		.setDescription('Bans a user')
+		.setName('kick')
+		.setDescription('Kicks a user')
 		.setContexts([InteractionContextType.Guild])
-		.setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
+		.setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
 		.addStringOption((option) =>
 			option
 				.setName('user')
-				.setDescription('The Discord ID of the user to ban')
+				.setDescription('The Discord ID of the user to kick')
 				.setRequired(true)
 				.setMinLength(17)
 				.setMaxLength(19),
@@ -55,10 +55,8 @@ module.exports = {
 
 function generateConfirmationEmbed(dbUser) {
 	const embed = new EmbedBuilder()
-		.setTitle('Confirm Ban')
-		.setDescription(
-			`Are you sure you want to ban ${dbUser.getUserName()} without warning? Most bans should be handled through /warn instead`,
-		)
+		.setTitle('Confirm Kick')
+		.setDescription(`Are you sure you want to kick ${dbUser.getUserName()}?`)
 		.setColor('#ff0000')
 		.setFooter({ text: `ID: ${dbUser.getDiscordId()}` })
 		.setTimestamp()
@@ -68,11 +66,11 @@ function generateConfirmationEmbed(dbUser) {
 
 function generateConfirmationButtons(dbId) {
 	const confirmButton = new ButtonBuilder()
-		.setCustomId(`banConfirmButton:${dbId}`)
-		.setLabel('Ban User')
+		.setCustomId(`kickConfirmButton:${dbId}`)
+		.setLabel('Kick User')
 		.setStyle(ButtonStyle.Success);
 	const cancelButton = new ButtonBuilder()
-		.setCustomId(`cancelBanButton:${dbId}`)
+		.setCustomId(`cancelKickButton:${dbId}`)
 		.setLabel('Cancel')
 		.setStyle(ButtonStyle.Danger);
 	const actionRow = new ActionRowBuilder().addComponents(confirmButton, cancelButton);

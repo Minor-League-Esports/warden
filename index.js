@@ -45,3 +45,4 @@ globalThis.dataParser = new DataParser(globalThis.remoteManager);
 globalThis.discordLogger = null;
 globalThis.caseLogger = null;
 globalThis.punishmentExecutor = null;
+globalThis.userUtility = null;

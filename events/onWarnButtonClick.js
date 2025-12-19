@@ -139,41 +139,8 @@ module.exports = {
 				return;
 			}
 
-			let director;
-			try {
-				const directorDbUser = await globalThis.databaseManager.getUserByDiscordId(interaction.user.id);
-				director = directorDbUser.getUserId();
-			} catch (_) {
-				_;
-				await interaction.client.users
-					.fetch(interaction.user.id)
-					.then((user) => {
-						globalThis.databaseManager
-							.createUser(interaction.user.id, user.username, null, user.displayAvatarURL())
-							.then((newUser) => {
-								director = newUser['user'].getUserId();
-							})
-							.catch((creationError) => {
-								logger.error(`Error creating director user for ID ${interaction.user.id}: ${creationError}`);
-								interaction.reply({
-									content: `Error: Failed to create director with Discord ID ${interaction.user.id}.`,
-								});
-								director = null;
-							});
-					})
-					.catch((fetchError) => {
-						interaction.reply({
-							content: `Error: Director with Discord ID ${interaction.user.id} not found.`,
-						});
-						logger.error(`Error fetching director by ID ${interaction.user.id}: ${fetchError}`);
-						director = null;
-					});
-			}
-
-			// Only continue if director fetch/creation was successful
-			if (director === null) {
-				return;
-			}
+			// Get the director's user record
+			const director = await globalThis.userUtility.fetchDatabaseUserByDiscordId(interaction.user.id);
 
 			// Remove buttons after click
 			await interaction.update({
@@ -182,7 +149,7 @@ module.exports = {
 
 			// Execute ban
 			globalThis.punishmentExecutor
-				.execute(dbId, moderatorId, director, proposalEmbed, 'ban')
+				.execute(dbId, moderatorId, director.getUserId(), proposalEmbed, 'ban')
 				.then(async () => {
 					logger.info(`Successfully executed ban for user with DB ID: ${dbId}`);
 					await interaction.followUp({ content: 'Successfully executed ban.' });

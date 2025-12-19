@@ -7,6 +7,7 @@ const { Events } = require('discord.js');
 const { DiscordLogger } = require('../util/DiscordLogger.js');
 const { CaseLogger } = require('../util/CaseLogger.js');
 const { PunishmentExecutor } = require('../util/PunishmentExecutor.js');
+const { UserUtility } = require('../util/UserUtility.js');
 
 module.exports = {
 	name: Events.ClientReady,
@@ -43,6 +44,7 @@ module.exports = {
 		try {
 			await globalThis.databaseManager.init();
 			await discordLogger.logMessage('Database Manager initialized');
+			globalThis.userUtility = new UserUtility(client, globalThis.databaseManager);
 		} catch (error) {
 			logger.error(error);
 			await gracefulExit(discordLogger, 'FATAL: Database Manager failed to initialize!');

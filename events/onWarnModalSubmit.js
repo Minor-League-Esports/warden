@@ -29,81 +29,11 @@ module.exports = {
 				return;
 			}
 
-			let reporter;
-			if (reporterId.trim() === '') {
-				reporter = null;
-			} else {
-				try {
-					const reporterDbUser = await globalThis.databaseManager.getUserByDiscordId(reporterId);
-					reporter = reporterDbUser.getUserName() + ':' + reporterDbUser.getUserId();
-				} catch (_) {
-					_;
-					await interaction.client.users
-						.fetch(reporterId)
-						.then((user) => {
-							globalThis.databaseManager
-								.createUser(reporterId, user.username, null, user.displayAvatarURL())
-								.then((newUser) => {
-									reporter = newUser['user'].getUserName() + ':' + newUser['user'].getUserId();
-								})
-								.catch((creationError) => {
-									logger.error(`Error creating reporter user for ID ${reporterId}: ${creationError}`);
-									interaction.editReply({
-										content: `Error: Failed to create reporter with Discord ID ${reporterId}.`,
-									});
-									reporter = -1;
-								});
-						})
-						.catch((fetchError) => {
-							interaction.editReply({
-								content: `Error: Reporter with Discord ID ${reporterId} not found.`,
-							});
-							logger.error(`Error fetching reporter by ID ${reporterId}: ${fetchError}`);
-							reporter = -1;
-						});
-				}
-			}
+			const moderator = await globalThis.userUtility.fetchDatabaseUserByDiscordId(interaction.user.id);
 
-			// Only continue if reporter fetch/creation was successful
-			// Or if reporter was not specified (null)
-			if (reporter === -1) {
-				return;
-			}
-
-			let moderator;
-			try {
-				const moderatorDbUser = await globalThis.databaseManager.getUserByDiscordId(interaction.user.id);
-				moderator = moderatorDbUser.getUserId();
-			} catch (_) {
-				_;
-				await interaction.client.users
-					.fetch(interaction.user.id)
-					.then((user) => {
-						globalThis.databaseManager
-							.createUser(interaction.user.id, user.username, null, user.displayAvatarURL())
-							.then((newUser) => {
-								moderator = newUser['user'].getUserId();
-							})
-							.catch((creationError) => {
-								logger.error(`Error creating moderator user for ID ${interaction.user.id}: ${creationError}`);
-								interaction.editReply({
-									content: `Error: Failed to create moderator with Discord ID ${interaction.user.id}.`,
-								});
-								moderator = null;
-							});
-					})
-					.catch((fetchError) => {
-						interaction.editReply({
-							content: `Error: Moderator with Discord ID ${interaction.user.id} not found.`,
-						});
-						logger.error(`Error fetching moderator by ID ${interaction.user.id}: ${fetchError}`);
-						moderator = null;
-					});
-			}
-
-			// Only continue if moderator fetch/creation was successful
-			if (moderator === null) {
-				return;
+			let reporter = null;
+			if (reporterId.trim() !== '') {
+				reporter = await globalThis.userUtility.fetchDatabaseUserByDiscordId(reporterId);
 			}
 
 			globalThis.databaseManager
@@ -136,12 +66,12 @@ module.exports = {
 						pointsAdded,
 						newPointsTotal,
 						moderatorNotes,
-						reporter,
+						reporter?.getUserId(),
 						recommendedAction,
 					);
 					await interaction.editReply({
 						embeds: [embed],
-						components: generateWarnConfirmationButtons(dbId, moderator, recommendedAction),
+						components: generateWarnConfirmationButtons(dbId, moderator.getUserId(), recommendedAction),
 					});
 				})
 				.catch(async (error) => {
