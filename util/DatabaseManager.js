@@ -91,6 +91,172 @@ class DatabaseManager {
 	}
 
 	/**
+	 * Gets all users whose current mod points are at or above a threshold
+	 * Computation uses in-memory decay logic via calculateCurrentPoints() at a given timestamp
+	 * Single SQL query to fetch all users and their warnings, then grouped client-side
+	 *
+	 * @param {number} threshold Minimum points required (inclusive)
+	 * @param {string|Date|number} asOf Timestamp to evaluate points at (default: now)
+	 * @returns {Promise<Array<{ user: User, points: number }>>}
+	 */
+	async getUsersWithCurrentPointsAtOrAbove(threshold = 3, asOf = new Date().toISOString()) {
+		return new Promise((resolve, reject) => {
+			if (this._status !== 'success') {
+				return reject('DB manager not initialized');
+			}
+
+			// Fetch all users with their warnings in one pass
+			this._client
+				.query(
+					`WITH latest_ban AS (
+						SELECT user_id, MAX(timestamp) AS last_ban_at
+						FROM Punishments
+						WHERE punishment_type = 'ban'
+						GROUP BY user_id
+					),
+					latest_unban AS (
+						SELECT user_id, MAX(timestamp) AS last_unban_at
+						FROM Punishments
+						WHERE punishment_type = 'unban'
+						GROUP BY user_id
+					),
+					ban_status AS (
+						SELECT u.user_id,
+							CASE 
+								WHEN lb.last_ban_at IS NOT NULL AND (lu.last_unban_at IS NULL OR lb.last_ban_at > lu.last_unban_at)
+									THEN TRUE
+								ELSE FALSE
+							END AS is_banned
+						FROM Users u
+						LEFT JOIN latest_ban lb ON lb.user_id = u.user_id
+						LEFT JOIN latest_unban lu ON lu.user_id = u.user_id
+					)
+					SELECT 
+						u.user_id AS user_id,
+						u.discord_id AS discord_id,
+						u.discord_avatar AS discord_avatar,
+						u.user_name AS user_name,
+						u.mle_id AS mle_id,
+						w.warning_id AS warning_id,
+						w.timestamp AS timestamp,
+						w.points_added AS points_added,
+						bs.is_banned AS is_banned
+					FROM Users u
+					LEFT JOIN Warnings w ON w.user_id = u.user_id
+					LEFT JOIN ban_status bs ON bs.user_id = u.user_id
+					WHERE COALESCE(bs.is_banned, FALSE) = FALSE
+					ORDER BY u.user_id ASC, w.timestamp ASC NULLS LAST`,
+				)
+				.then((result) => {
+					const rows = result.rows || [];
+					// Group by user_id
+					const byUser = new Map();
+					for (const row of rows) {
+						let entry = byUser.get(row['user_id']);
+						if (!entry) {
+							const user = new User(
+								row['user_id'],
+								row['discord_id'],
+								row['discord_avatar'],
+								row['user_name'],
+								row['mle_id'],
+							);
+							entry = { user, warnings: [] };
+							byUser.set(row['user_id'], entry);
+						}
+
+						// Append warning summary if present
+						if (row['warning_id'] != null) {
+							const w = new Warning();
+							w.setTimestamp(row['timestamp']);
+							w.setPointsAdded(row['points_added']);
+							entry.warnings.push(w);
+						}
+					}
+
+					// Compute current points and filter
+					const qualifying = [];
+					for (const { user, warnings } of byUser.values()) {
+						const pts = calculateCurrentPoints(warnings, asOf);
+						if (pts >= threshold) {
+							qualifying.push({ user, points: pts });
+						}
+					}
+
+					resolve(qualifying);
+				})
+				.catch((error) => {
+					logger.error('Error computing users at/above threshold!');
+					logger.error(error);
+					reject('Error computing users at/above threshold');
+				});
+		});
+	}
+
+	/**
+	 * Returns all users that are currently banned.
+	 * A user is considered banned if the latest 'ban' punishment timestamp
+	 * is present and is newer than the latest 'unban' (or no unban exists).
+	 * @returns {Promise<User[]>}
+	 */
+	async getCurrentlyBannedUsers() {
+		return new Promise((resolve, reject) => {
+			if (this._status !== 'success') {
+				return reject('DB manager not initialized');
+			}
+
+			this._client
+				.query(
+					`WITH latest_ban AS (
+						SELECT user_id, MAX(timestamp) AS last_ban_at
+						FROM Punishments
+						WHERE punishment_type = 'ban'
+						GROUP BY user_id
+					),
+					latest_unban AS (
+						SELECT user_id, MAX(timestamp) AS last_unban_at
+						FROM Punishments
+						WHERE punishment_type = 'unban'
+						GROUP BY user_id
+					),
+					ban_status AS (
+						SELECT u.user_id,
+							CASE 
+								WHEN lb.last_ban_at IS NOT NULL AND (lu.last_unban_at IS NULL OR lb.last_ban_at > lu.last_unban_at)
+									THEN TRUE
+								ELSE FALSE
+							END AS is_banned
+						FROM Users u
+						LEFT JOIN latest_ban lb ON lb.user_id = u.user_id
+						LEFT JOIN latest_unban lu ON lu.user_id = u.user_id
+					)
+					SELECT 
+						u.user_id AS user_id,
+						u.discord_id AS discord_id,
+						u.discord_avatar AS discord_avatar,
+						u.user_name AS user_name,
+						u.mle_id AS mle_id
+					FROM Users u
+					JOIN ban_status bs ON bs.user_id = u.user_id
+					WHERE bs.is_banned = TRUE
+					ORDER BY u.user_name ASC`,
+				)
+				.then((result) => {
+					const users = (result.rows || []).map(
+						(row) =>
+							new User(row['user_id'], row['discord_id'], row['discord_avatar'], row['user_name'], row['mle_id']),
+					);
+					resolve(users);
+				})
+				.catch((error) => {
+					logger.error('Error fetching currently banned users!');
+					logger.error(error);
+					reject('Error fetching currently banned users');
+				});
+		});
+	}
+
+	/**
 	 * Gets a user object.
 	 * Returns basic user data and basic info of warnings
 	 * Enough to display user summary

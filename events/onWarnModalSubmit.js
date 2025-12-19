@@ -141,7 +141,7 @@ function generateWarnConfirmationEmbed(
 		.addFields(
 			{ name: 'User', value: `<@${dbUser.getDiscordId()}>`, inline: true },
 			{ name: 'MLE ID', value: dbUser.getMleId() ?? 'N/A', inline: true },
-			{ name: 'On Probation', value: probationStatus ? 'Yes' : 'No', inline: true },
+			{ name: 'On Probation', value: probationStatus, inline: true },
 			{ name: 'Rule(s) Broken', value: String(rulesBroken ?? 'None') },
 			{ name: 'Violating Content', value: String(violatingContent ?? 'None') },
 			{
