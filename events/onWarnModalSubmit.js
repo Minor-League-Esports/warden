@@ -53,7 +53,7 @@ module.exports = {
 						? Math.floor((Date.now() - guildMember.joinedAt.getTime()) / (1000 * 60 * 60 * 24))
 						: null;
 					const onProbation = daysSinceJoin !== null && daysSinceJoin < 90;
-					const probationStatus = daysSinceJoin ? onProbation : 'Unknown';
+					const probationStatus = daysSinceJoin !== null ? onProbation : 'Unknown';
 					logger.debug('Joined at:', guildMember?.joinedAt);
 					logger.debug(`Days since join: ${daysSinceJoin}, On probation: ${onProbation}`);
 					const recommendedAction = calculateRecommendedAction(newPointsTotal, onProbation);
@@ -141,7 +141,7 @@ function generateWarnConfirmationEmbed(
 		.addFields(
 			{ name: 'User', value: `<@${dbUser.getDiscordId()}>`, inline: true },
 			{ name: 'MLE ID', value: dbUser.getMleId() ?? 'N/A', inline: true },
-			{ name: 'On Probation', value: probationStatus, inline: true },
+			{ name: 'On Probation', value: String(probationStatus), inline: true },
 			{ name: 'Rule(s) Broken', value: String(rulesBroken ?? 'None') },
 			{ name: 'Violating Content', value: String(violatingContent ?? 'None') },
 			{

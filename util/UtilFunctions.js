@@ -183,3 +183,67 @@ function chunkTextPreserveNewlines(text, max = 1024) {
 }
 
 module.exports = { calculateCurrentPoints, getNextPointExpiry, chunkTextPreserveNewlines };
+/**
+ * Determine which warnings contribute to the current point total at a given time.
+ * Uses the same decay model as calculateCurrentPoints: 1 point decays every 90 days
+ * since the last warning timestamp (timer resets at each warning, even zero-point ones).
+ * Oldest points decay first.
+ *
+ * @param {Array} warnings Array of Warning instances or plain-like objects
+ * @param {Date|string|number} asOf Timestamp to evaluate contributions at (default: now)
+ * @returns {Array} Subset of input warnings that still contribute (chronological order)
+ */
+function getContributingWarnings(warnings, asOf = Date.now()) {
+	const PERIOD_MS = 90 * 24 * 60 * 60 * 1000;
+	if (!Array.isArray(warnings) || warnings.length === 0) return [];
+
+	const toTimestamp = (w) => {
+		const ts = typeof w.getTimestamp === 'function' ? w.getTimestamp() : w.timestamp;
+		return new Date(ts).getTime();
+	};
+	const toPoints = (w) => (typeof w.getPointsAdded === 'function' ? w.getPointsAdded() : w.points_added) || 0;
+
+	const sorted = [...warnings].sort((a, b) => toTimestamp(a) - toTimestamp(b));
+
+	// Represent each point as a token tied to the warning index
+	const tokens = [];
+	let lastResetTime = toTimestamp(sorted[0]);
+
+	const removeOldest = (n) => {
+		if (n <= 0) return;
+		const removeCount = Math.min(n, tokens.length);
+		tokens.splice(0, removeCount);
+	};
+
+	for (let i = 0; i < sorted.length; i++) {
+		const w = sorted[i];
+		const ts = toTimestamp(w);
+		const elapsed = ts - lastResetTime;
+		if (elapsed >= PERIOD_MS && tokens.length > 0) {
+			const decays = Math.floor(elapsed / PERIOD_MS);
+			removeOldest(decays);
+		}
+		lastResetTime = ts;
+		const pts = toPoints(w);
+		for (let k = 0; k < pts; k++) {
+			tokens.push({ idx: i, ts });
+		}
+	}
+
+	let now;
+	if (asOf instanceof Date) now = asOf.getTime();
+	else if (typeof asOf === 'string') now = new Date(asOf).getTime();
+	else if (typeof asOf === 'number') now = asOf;
+	else now = Date.now();
+
+	const elapsedFinal = now - lastResetTime;
+	if (elapsedFinal >= PERIOD_MS && tokens.length > 0) {
+		const decaysFinal = Math.floor(elapsedFinal / PERIOD_MS);
+		removeOldest(decaysFinal);
+	}
+
+	const contributingIdx = Array.from(new Set(tokens.map((t) => t.idx))).sort((a, b) => a - b);
+	return contributingIdx.map((i) => sorted[i]);
+}
+
+module.exports.getContributingWarnings = getContributingWarnings;

@@ -1,4 +1,10 @@
+const log4js = require('log4js');
+const logger = log4js.getLogger('Punishment');
+const { logLevel } = require('../../config.json');
+logger.level = logLevel;
+
 const { EmbedBuilder } = require('discord.js');
+const { getContributingWarnings, chunkTextPreserveNewlines } = require('../UtilFunctions');
 
 class Punishment {
 	/**
@@ -190,6 +196,66 @@ class Punishment {
 		} else {
 			embed.setDescription('You have received a punishment from MLE Moderation.');
 		}
+		return embed;
+	}
+
+	/**
+	 * Generates a public-facing announcement embed for bans.
+	 * Includes a list of warnings that contribute to the user's current point total
+	 * at the time of the ban. Uses 90-day decay rules.
+	 * @returns {Promise<EmbedBuilder>}
+	 */
+	async generateAnnouncementEmbed(options = {}) {
+		const embed = new EmbedBuilder()
+			.setColor('#ff0000')
+			.setTimestamp()
+			.setThumbnail('https://mlesports.gg/wp-content/uploads/logo-mle-256.png');
+
+		const user = this.getUser();
+		const asOf = this.getTimestamp() ?? new Date().toISOString();
+
+		const onProbation = Boolean(options.onProbation);
+		const thresholdText = onProbation ? '3 or more mod points while on probation' : '5 or more mod points';
+		embed.setTitle('Community Notice: Ban Issued');
+		embed.setDescription(
+			`${
+				user?.getUserName() ?? 'A member'
+			} has been banned from MLE for accumulating ${thresholdText}.\nThey violated rules:`,
+		);
+
+		try {
+			const dbUserId = user?.getUserId();
+			let warnings = [];
+			if (dbUserId) {
+				warnings = await globalThis.databaseManager.getWarnings(dbUserId);
+			}
+
+			// Determine contributing warnings at the time of the ban
+			const contributing = getContributingWarnings(warnings, asOf);
+
+			// Build a readable list of rules broken only (no timestamps/points/content)
+			if (contributing.length > 0) {
+				const lines = contributing
+					.sort((a, b) => new Date(a.getTimestamp()).getTime() - new Date(b.getTimestamp()).getTime())
+					.map((w) => String(w.getRulesBroken() ?? ''))
+					.filter((s) => s.trim().length > 0)
+					.join('\n');
+
+				const chunks = chunkTextPreserveNewlines(lines, 1024);
+				for (let i = 0; i < chunks.length; i++) {
+					embed.addFields({ name: i === 0 ? 'Rules' : 'Rules (cont.)', value: chunks[i] });
+				}
+			} else {
+				embed.addFields({ name: 'Rules', value: 'None found' });
+			}
+		} catch (error) {
+			logger.error('Failed to retrieve warnings for punishment announcement embed', error);
+			// If warning retrieval fails, still send a basic announcement
+			embed.addFields({ name: 'Rules', value: 'Unavailable', inline: false });
+		}
+
+		// Footer
+		embed.setFooter({ text: `ID: ${user?.getDiscordId() ?? 'Unknown'}` });
 		return embed;
 	}
 }

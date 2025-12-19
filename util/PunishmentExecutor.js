@@ -1,6 +1,6 @@
 const log4js = require('log4js');
 const logger = log4js.getLogger('PunishmentExecutor');
-const { logLevel, guildList } = require('../config.json');
+const { logLevel, guildList, announcementChannelId, mainGuild } = require('../config.json');
 logger.level = logLevel;
 
 const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
@@ -59,6 +59,18 @@ class PunishmentExecutor {
 				throw warnError;
 			}
 
+			// Normalize probation status from the proposed embed (string -> boolean/undefined)
+			const normalizeOnProbation = (val) => {
+				if (typeof val === 'boolean') return val;
+				if (typeof val === 'string') {
+					const s = val.trim().toLowerCase();
+					if (s === 'true' || s === 'yes') return true;
+					if (s === 'false' || s === 'no') return false;
+				}
+				return undefined;
+			};
+			const parsedOnProbation = normalizeOnProbation(parsedEmbed.onProbation);
+
 			// Now execute all punishments
 			for (const punishment of punishments) {
 				if (punishment.getType() === 'suspension') {
@@ -66,7 +78,7 @@ class PunishmentExecutor {
 					continue;
 				}
 				try {
-					await this.executePunishment(punishment);
+					await this.executePunishment(punishment, { onProbationOverride: parsedOnProbation });
 				} catch (punishmentError) {
 					logger.error(
 						`Error executing punishment ID ${punishment.getPunishmentId()} for user ID ${dbUserId}: ${punishmentError}`,
@@ -116,7 +128,7 @@ class PunishmentExecutor {
 		}
 	}
 
-	async executePunishment(punishment) {
+	async executePunishment(punishment, options = {}) {
 		const punishmentId = punishment.getPunishmentId();
 		const punishmentType = punishment.getType();
 		const punishmentDuration = punishment.getDuration();
@@ -124,6 +136,27 @@ class PunishmentExecutor {
 		const userName = punishment.getUser().getUserName();
 		const servers = new Map();
 		let successCount = 0;
+
+		// Determine probation status before executing any guild actions
+		let onProbation = undefined;
+		if (typeof options.onProbationOverride === 'boolean') {
+			onProbation = options.onProbationOverride;
+		} else {
+			try {
+				const mainServer = this._discordClient.guilds.cache.get(mainGuild);
+				if (mainServer) {
+					const member = await mainServer.members.fetch(userDiscordId);
+					const joinedAt = member?.joinedAt;
+					if (joinedAt) {
+						const daysSinceJoin = Math.floor((Date.now() - joinedAt.getTime()) / (1000 * 60 * 60 * 24));
+						onProbation = daysSinceJoin < 90;
+					}
+				}
+			} catch (_) {
+				// leave undefined if lookup fails
+				_;
+			}
+		}
 
 		// Do the punishment in discord across all guilds
 		// Promise.all to do them all concurrently
@@ -241,6 +274,15 @@ class PunishmentExecutor {
 					logger.error(error);
 					await globalThis.discordLogger.logMessage(`Error messaging ${userName}!\n\`\`\`\n${error}\n\`\`\``);
 					throw new Error(`Failed to send punishment notice to ${userName}, reason unknown`);
+				}
+			} finally {
+				// Announce in announcement channel
+				if (punishmentType === 'ban') {
+					const announcementChannel = await this._discordClient.channels.fetch(announcementChannelId);
+					if (announcementChannel && announcementChannel.isTextBased()) {
+						const announcementEmbed = await punishment.generateAnnouncementEmbed({ onProbation: Boolean(onProbation) });
+						await announcementChannel.send({ embeds: [announcementEmbed] });
+					}
 				}
 			}
 		}

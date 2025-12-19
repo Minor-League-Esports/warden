@@ -2,8 +2,19 @@
 	"token": "<TOKEN>",
 	"clientId": "<CLIENT ID>",
 	"guildId": "<GUILD ID>",
+    "mainGuild": "<MAIN GUILD>",
 	"opsGuild": "<OPS GUILD>",
+    "directorRoleId": "<DIRECTOR ROLE>",
 	"opsLogChannelId": "<OPS CHANNEL>",
 	"caseLogChannelId": "<CASE CHANNEL>",
-	"guildList": [<GUILD LIST>]
+    "announcementChannelId": "<ANNOUNCEMENT CHANNEL>",
+	"guildList": [<GUILD LIST>],
+    "database": {
+		"hostname": "<DATABASE HOSTNAME>",
+		"port": 5432,
+		"database": "<DATABASE NAME>",
+		"username": "<DATABASE USERNAME>",
+		"password": "<DATABASE PASSWORD>"
+	},
+    "logLevel": "info"
 }
