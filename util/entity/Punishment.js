@@ -258,6 +258,22 @@ class Punishment {
 		embed.setFooter({ text: `ID: ${user?.getDiscordId() ?? 'Unknown'}` });
 		return embed;
 	}
+
+	/**
+	 * Setter for Case object
+	 * @param {Case} kase
+	 */
+	setCase(kase) {
+		this._case = kase;
+	}
+
+	/**
+	 * Getter for Case object
+	 * @returns {Case}
+	 */
+	getCase() {
+		return this._case;
+	}
 }
 
 module.exports = Punishment;

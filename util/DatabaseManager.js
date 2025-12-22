@@ -7,7 +7,9 @@ const { Client } = require('pg');
 const Warning = require('./entity/Warning');
 const User = require('./entity/User');
 const Punishment = require('./entity/Punishment');
+const Case = require('./entity/Case');
 const { calculateCurrentPoints } = require('./UtilFunctions');
+const Report = require('./entity/Report');
 
 class DatabaseManager {
 	constructor() {
@@ -50,6 +52,39 @@ class DatabaseManager {
 			)`,
 		);
 
+		// New: Cases table to group reports and resulting actions
+		await this._client.query(
+			`CREATE TABLE IF NOT EXISTS Cases (
+				case_id SERIAL PRIMARY KEY,
+				creator_id INT REFERENCES Users(user_id),
+				subject_user_id INT REFERENCES Users(user_id),
+				moderator_id INT REFERENCES Users(user_id),
+				status TEXT NOT NULL,
+				created_at TIMESTAMPTZ NOT NULL,
+				closed_at TIMESTAMPTZ,
+				notes TEXT,
+				custom_response TEXT
+			)`,
+		);
+
+		await this._client.query(
+			`CREATE TABLE IF NOT EXISTS Reports (
+				report_id SERIAL PRIMARY KEY,
+				reporter_id INT REFERENCES Users(user_id) NOT NULL,
+				user_id INT REFERENCES Users(user_id),
+                moderator_id INT REFERENCES Users(user_id) NOT NULL,
+				report_timestamp TIMESTAMPTZ NOT NULL,
+                acknowledge_timestamp TIMESTAMPTZ NOT NULL,
+                close_timestamp TIMESTAMPTZ NOT NULL,
+                report_reason TEXT NOT NULL,
+                report_evidence TEXT NOT NULL,
+                status TEXT NOT NULL,
+                moderator_notes TEXT,
+                custom_response TEXT,
+                case_id INT REFERENCES Cases(case_id)
+			)`,
+		);
+
 		await this._client.query(
 			`CREATE TABLE IF NOT EXISTS Punishments (
 				punishment_id SERIAL PRIMARY KEY,
@@ -57,7 +92,8 @@ class DatabaseManager {
 				moderator_id INT REFERENCES Users(user_id) NOT NULL,
 				timestamp TIMESTAMPTZ NOT NULL,
                 punishment_type TEXT NOT NULL,
-                punishment_duration INT
+                punishment_duration INT,
+                case_id INT REFERENCES Cases(case_id)
 			)`,
 		);
 
@@ -72,19 +108,15 @@ class DatabaseManager {
 				violating_content TEXT NOT NULL,
 				points_added INT NOT NULL,
 				new_point_total INT NOT NULL,
-				moderator_notes TEXT
+				moderator_notes TEXT,
+				case_id INT REFERENCES Cases(case_id)
 			)`,
 		);
 
-		// Link table to support multiple punishments per warning
-		await this._client.query(
-			`CREATE TABLE IF NOT EXISTS WarningPunishments (
-				warning_id INT REFERENCES Warnings(warning_id) ON DELETE CASCADE,
-				punishment_id INT REFERENCES Punishments(punishment_id) ON DELETE CASCADE,
-				PRIMARY KEY (warning_id, punishment_id),
-				UNIQUE (punishment_id)
-			)`,
-		);
+		// New: Add supporting indexes
+		await this._client.query('CREATE INDEX IF NOT EXISTS idx_reports_case_id ON Reports(case_id)');
+		await this._client.query('CREATE INDEX IF NOT EXISTS idx_warnings_case_id ON Warnings(case_id)');
+		await this._client.query('CREATE INDEX IF NOT EXISTS idx_punishments_case_id ON Punishments(case_id)');
 
 		this._status = 'success';
 		logger.debug('Initialized the database connection');
@@ -254,6 +286,228 @@ class DatabaseManager {
 					reject('Error fetching currently banned users');
 				});
 		});
+	}
+
+	/**
+	 * Retrieves a Case by ID with linked reports, warnings (with punishments), and standalone punishments
+	 * @param {number} caseId
+	 * @returns {Promise<Case>}
+	 */
+	async getCaseById(caseId) {
+		if (this._status !== 'success') {
+			throw new Error('DB manager not initialized');
+		}
+
+		try {
+			// Load case core + related users
+			const caseRes = await this._client.query(
+				`SELECT 
+						c.case_id,
+						c.creator_id,
+						c.subject_user_id,
+						c.moderator_id,
+						c.status,
+						c.created_at,
+						c.closed_at,
+						c.notes,
+						c.custom_response,
+						-- Creator
+						u_cre.user_id AS cre_id,
+						u_cre.discord_id AS cre_discord_id,
+						u_cre.discord_avatar AS cre_avatar,
+						u_cre.user_name AS cre_name,
+						u_cre.mle_id AS cre_mle_id,
+						-- Subject
+						u_sub.user_id AS sub_id,
+						u_sub.discord_id AS sub_discord_id,
+						u_sub.discord_avatar AS sub_avatar,
+						u_sub.user_name AS sub_name,
+						u_sub.mle_id AS sub_mle_id,
+						-- Moderator
+						u_mod.user_id AS mod_id,
+						u_mod.discord_id AS mod_discord_id,
+						u_mod.discord_avatar AS mod_avatar,
+						u_mod.user_name AS mod_name,
+						u_mod.mle_id AS mod_mle_id
+					FROM Cases c
+					LEFT JOIN Users u_cre ON u_cre.user_id = c.creator_id
+					LEFT JOIN Users u_sub ON u_sub.user_id = c.subject_user_id
+					LEFT JOIN Users u_mod ON u_mod.user_id = c.moderator_id
+					WHERE c.case_id = $1
+					LIMIT 1`,
+				[caseId],
+			);
+
+			if (!caseRes.rows || caseRes.rows.length === 0) {
+				throw new Error('Case not found');
+			}
+
+			const cRow = caseRes.rows[0];
+			const kase = new Case();
+			kase.setCaseId(cRow['case_id']);
+			kase.setStatus(cRow['status']);
+			kase.setCreatedAt(cRow['created_at']);
+			kase.setClosedAt(cRow['closed_at']);
+			kase.setNotes(cRow['notes']);
+			kase.setCustomResponse(cRow['custom_response']);
+
+			// Attach user objects if present
+			if (cRow['cre_id']) {
+				kase.setCreator(
+					new User(cRow['cre_id'], cRow['cre_discord_id'], cRow['cre_avatar'], cRow['cre_name'], cRow['cre_mle_id']),
+				);
+			}
+			if (cRow['sub_id']) {
+				kase.setSubjectUser(
+					new User(cRow['sub_id'], cRow['sub_discord_id'], cRow['sub_avatar'], cRow['sub_name'], cRow['sub_mle_id']),
+				);
+			}
+			if (cRow['mod_id']) {
+				kase.setModerator(
+					new User(cRow['mod_id'], cRow['mod_discord_id'], cRow['mod_avatar'], cRow['mod_name'], cRow['mod_mle_id']),
+				);
+			}
+
+			// Reports in case
+			const repRes = await this._client.query(
+				`SELECT 
+						r.report_id,
+						r.reporter_id,
+						r.user_id,
+						r.moderator_id,
+						r.report_timestamp,
+						r.acknowledge_timestamp,
+						r.close_timestamp,
+						r.report_reason,
+						r.report_evidence,
+						r.status,
+						r.moderator_notes,
+						r.custom_response,
+						-- Reporter
+						u_rep.user_id AS u_rep_id,
+						u_rep.discord_id AS u_rep_discord_id,
+						u_rep.discord_avatar AS u_rep_avatar,
+						u_rep.user_name AS u_rep_name,
+						u_rep.mle_id AS u_rep_mle_id,
+						-- Subject (reported)
+						u_user.user_id AS u_user_id,
+						u_user.discord_id AS u_user_discord_id,
+						u_user.discord_avatar AS u_user_avatar,
+						u_user.user_name AS u_user_name,
+						u_user.mle_id AS u_user_mle_id,
+						-- Moderator
+						u_mod.user_id AS u_mod_id,
+						u_mod.discord_id AS u_mod_discord_id,
+						u_mod.discord_avatar AS u_mod_avatar,
+						u_mod.user_name AS u_mod_name,
+						u_mod.mle_id AS u_mod_mle_id
+					FROM Reports r
+					LEFT JOIN Users u_rep ON u_rep.user_id = r.reporter_id
+					LEFT JOIN Users u_user ON u_user.user_id = r.user_id
+					LEFT JOIN Users u_mod ON u_mod.user_id = r.moderator_id
+					WHERE r.case_id = $1
+					ORDER BY r.report_timestamp ASC`,
+				[caseId],
+			);
+			const reports = this.parseDatabaseReportResponse(repRes);
+			reports.forEach((r) => r.setCase(kase));
+
+			// Warnings in case (with punishments via join)
+			const warnRes = await this._client.query(
+				`SELECT 
+						w.warning_id,
+						w.user_id,
+						w.moderator_id,
+						w.reporter_id,
+						w.timestamp,
+						w.rules_broken,
+						w.violating_content,
+						w.points_added,
+						w.new_point_total,
+						w.moderator_notes,
+						-- Target user (warned)
+						u_user.user_id AS u_user_id,
+						u_user.discord_id AS u_user_discord_id,
+						u_user.discord_avatar AS u_user_avatar,
+						u_user.user_name AS u_user_name,
+						u_user.mle_id AS u_user_mle_id,
+						-- Moderator
+						u_mod.user_id AS u_mod_id,
+						u_mod.discord_id AS u_mod_discord_id,
+						u_mod.discord_avatar AS u_mod_avatar,
+						u_mod.user_name AS u_mod_name,
+						u_mod.mle_id AS u_mod_mle_id,
+						-- Reporter (nullable)
+						u_rep.user_id AS u_rep_id,
+						u_rep.discord_id AS u_rep_discord_id,
+						u_rep.discord_avatar AS u_rep_avatar,
+						u_rep.user_name AS u_rep_name,
+						u_rep.mle_id AS u_rep_mle_id,
+						-- Linked punishments (nullable)
+						pun.punishment_id AS pun_id,
+						pun.user_id AS pun_user_id,
+						pun.moderator_id AS pun_moderator_id,
+						pun.timestamp AS pun_timestamp,
+						pun.punishment_type AS pun_type,
+						pun.punishment_duration AS pun_duration
+					FROM Warnings w
+					LEFT JOIN Users u_user ON u_user.user_id = w.user_id
+					LEFT JOIN Users u_mod ON u_mod.user_id = w.moderator_id
+					LEFT JOIN Users u_rep ON u_rep.user_id = w.reporter_id
+					LEFT JOIN WarningPunishments wp ON wp.warning_id = w.warning_id
+					LEFT JOIN Punishments pun ON pun.punishment_id = wp.punishment_id
+					WHERE w.case_id = $1
+					ORDER BY w.timestamp DESC, pun.timestamp DESC NULLS LAST`,
+				[caseId],
+			);
+			const warnings = this.parseDatabaseWarningResponse(warnRes);
+			warnings.forEach((w) => {
+				w.setCase(kase);
+				(w.getPunishments() || []).forEach((p) => p.setCase(kase));
+			});
+
+			// Standalone punishments in case
+			const punRes = await this._client.query(
+				`SELECT 
+						pun.punishment_id AS pun_id,
+						pun.user_id AS pun_user_id,
+						pun.moderator_id AS pun_moderator_id,
+						pun.timestamp AS pun_timestamp,
+						pun.punishment_type AS pun_type,
+						pun.punishment_duration AS pun_duration,
+						-- Target user (punished)
+						u_user.user_id AS u_user_id,
+						u_user.discord_id AS u_user_discord_id,
+						u_user.discord_avatar AS u_user_avatar,
+						u_user.user_name AS u_user_name,
+						u_user.mle_id AS u_user_mle_id,
+						-- Moderator
+						u_mod.user_id AS u_mod_id,
+						u_mod.discord_id AS u_mod_discord_id,
+						u_mod.discord_avatar AS u_mod_avatar,
+						u_mod.user_name AS u_mod_name,
+						u_mod.mle_id AS u_mod_mle_id
+					FROM Punishments pun
+					JOIN Users u_user ON u_user.user_id = pun.user_id
+					JOIN Users u_mod ON u_mod.user_id = pun.moderator_id
+					LEFT JOIN WarningPunishments wp ON wp.punishment_id = pun.punishment_id
+					WHERE pun.case_id = $1 AND wp.punishment_id IS NULL
+					ORDER BY pun.timestamp DESC`,
+				[caseId],
+			);
+			const standalonePunishments = this.parseDatabasePunishmentResponse(punRes);
+			standalonePunishments.forEach((p) => p.setCase(kase));
+
+			// Assemble and return
+			kase.setReports(reports);
+			kase.setWarnings(warnings);
+			kase.setPunishments(standalonePunishments);
+			return kase;
+		} catch (error) {
+			logger.error('Error getting case by ID!');
+			logger.error(error);
+			throw new Error('Error getting case by ID');
+		}
 	}
 
 	/**
@@ -713,6 +967,86 @@ class DatabaseManager {
 	}
 
 	/**
+	 * Creates a Case row
+	 * @param {number|null} creatorId DB user_id of the reporter/creator (nullable)
+	 * @param {number|null} subjectUserId DB user_id of the target user (nullable)
+	 * @param {string} status Case status (e.g., 'open','closed')
+	 * @param {number|Date|string} createdAt Timestamp (default now)
+	 * @param {number|null} moderatorId Owning moderator (nullable)
+	 * @param {string|null} notes Notes (nullable)
+	 * @param {string|null} customResponse Custom response (nullable)
+	 * @returns {Promise<Case>}
+	 */
+	async createCase(
+		creatorId = null,
+		subjectUserId = null,
+		status = 'open',
+		createdAt = new Date().toISOString(),
+		moderatorId = null,
+		notes = null,
+		customResponse = null,
+	) {
+		if (this._status !== 'success') {
+			throw new Error('DB manager not initialized');
+		}
+		try {
+			const res = await this._client.query(
+				`INSERT INTO Cases (creator_id, subject_user_id, moderator_id, status, created_at, closed_at, notes, custom_response)
+				 VALUES ($1, $2, $3, $4, $5, NULL, $6, $7)
+				 RETURNING *`,
+				[creatorId, subjectUserId, moderatorId, status, createdAt, notes, customResponse],
+			);
+
+			const row = res.rows?.[0];
+			if (!row) throw new Error('Failed to create case');
+
+			const kase = new Case();
+			kase.setCaseId(row['case_id']);
+			kase.setStatus(row['status']);
+			kase.setCreatedAt(row['created_at']);
+			kase.setClosedAt(row['closed_at']);
+			kase.setNotes(row['notes']);
+			kase.setCustomResponse(row['custom_response']);
+			// Subject/creator/moderator objects can be resolved by caller if needed
+			return kase;
+		} catch (error) {
+			logger.error('Error creating case!');
+			logger.error(error);
+			throw new Error('Error creating case');
+		}
+	}
+
+	/**
+	 * Attach an existing report to a case
+	 */
+	async attachReportToCase(reportId, caseId) {
+		if (this._status !== 'success') {
+			throw new Error('DB manager not initialized');
+		}
+		await this._client.query('UPDATE Reports SET case_id = $1 WHERE report_id = $2', [caseId, reportId]);
+	}
+
+	/**
+	 * Attach an existing warning to a case
+	 */
+	async attachWarningToCase(warningId, caseId) {
+		if (this._status !== 'success') {
+			throw new Error('DB manager not initialized');
+		}
+		await this._client.query('UPDATE Warnings SET case_id = $1 WHERE warning_id = $2', [caseId, warningId]);
+	}
+
+	/**
+	 * Attach an existing punishment to a case
+	 */
+	async attachPunishmentToCase(punishmentId, caseId) {
+		if (this._status !== 'success') {
+			throw new Error('DB manager not initialized');
+		}
+		await this._client.query('UPDATE Punishments SET case_id = $1 WHERE punishment_id = $2', [caseId, punishmentId]);
+	}
+
+	/**
 	 * Parses raw database data into a User object
 	 *
 	 * @param {*} result The raw DB data
@@ -850,6 +1184,66 @@ class DatabaseManager {
 		}
 
 		return punishments;
+	}
+
+	/**
+	 * Parses raw database data into an array of Reports
+	 * @param {*} reportResult The raw DB data
+	 * @returns {Report[]} The parsed Reports
+	 */
+	parseDatabaseReportResponse(reportResult) {
+		const rows = reportResult.rows || [];
+		const reports = [];
+		for (const row of rows) {
+			const rep = new Report();
+			rep.setReportId(row['report_id']);
+			// Users
+			let reporterUser = null;
+			let subjectUser = null;
+			let moderatorUser = null;
+			if (row['u_rep_id']) {
+				reporterUser = new User(
+					row['u_rep_id'],
+					row['u_rep_discord_id'],
+					row['u_rep_avatar'],
+					row['u_rep_name'],
+					row['u_rep_mle_id'],
+				);
+			}
+			if (row['u_user_id']) {
+				subjectUser = new User(
+					row['u_user_id'],
+					row['u_user_discord_id'],
+					row['u_user_avatar'],
+					row['u_user_name'],
+					row['u_user_mle_id'],
+				);
+			}
+			if (row['u_mod_id']) {
+				moderatorUser = new User(
+					row['u_mod_id'],
+					row['u_mod_discord_id'],
+					row['u_mod_avatar'],
+					row['u_mod_name'],
+					row['u_mod_mle_id'],
+				);
+			}
+			if (reporterUser) rep.setReporter(reporterUser);
+			if (subjectUser) rep.setUser(subjectUser);
+			if (moderatorUser) rep.setModerator(moderatorUser);
+
+			rep.setReportTimestamp(row['report_timestamp']);
+			rep.setAcknowledgeTimestamp(row['acknowledge_timestamp']);
+			rep.setCloseTimestamp(row['close_timestamp']);
+			rep.setReportReason(row['report_reason']);
+			rep.setReportEvidence(row['report_evidence']);
+			rep.setStatus(row['status']);
+			rep.setModeratorNotes(row['moderator_notes']);
+			rep.setCustomResponse(row['custom_response']);
+
+			reports.push(rep);
+		}
+		return reports;
 	}
 }
 

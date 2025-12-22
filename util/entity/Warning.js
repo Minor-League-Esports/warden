@@ -276,6 +276,22 @@ class Warning {
 			.setColor('#ff0000');
 		return embed;
 	}
+
+	/**
+	 * Setter for Case object
+	 * @param {Case} kase
+	 */
+	setCase(kase) {
+		this._case = kase;
+	}
+
+	/**
+	 * Getter for Case object
+	 * @returns {Case}
+	 */
+	getCase() {
+		return this._case;
+	}
 }
 
 module.exports = Warning;
