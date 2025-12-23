@@ -27,7 +27,7 @@ module.exports = {
 			const embed = interaction.message.embeds[0];
 			const durationField = embed.fields.find((field) => field.name === 'Duration');
 			const durationStr = durationField ? durationField.value.split(' ')[0] : null;
-			const moderator = await globalThis.userUtility.fetchDatabaseUserByDiscordId(interaction.user.id);
+			const moderator = await globalThis.userUtility.fetchDatabaseUser(interaction.user.id);
 			logger.debug(`Processing punishment of type ${punishmentType} for user DB ID: ${dbId}`);
 
 			// Create the punishment in the database

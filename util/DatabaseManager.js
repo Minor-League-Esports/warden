@@ -4,6 +4,8 @@ const { database, logLevel } = require('../config.json');
 logger.level = logLevel;
 
 const { Client } = require('pg');
+const fs = require('node:fs');
+const path = require('node:path');
 const Warning = require('./entity/Warning');
 const User = require('./entity/User');
 const Punishment = require('./entity/Punishment');
@@ -14,6 +16,7 @@ const Report = require('./entity/Report');
 class DatabaseManager {
 	constructor() {
 		this._status = 'init';
+		this._sqlCache = new Map();
 		this._client = new Client({
 			user: database['username'],
 			password: database['password'],
@@ -27,6 +30,20 @@ class DatabaseManager {
 		});
 	}
 
+	_loadSql(relativePath) {
+		const fullPath = path.join(__dirname, '..', 'sql', relativePath);
+		const cached = this._sqlCache.get(fullPath);
+		if (cached) return cached;
+		const sql = fs.readFileSync(fullPath, 'utf8');
+		this._sqlCache.set(fullPath, sql);
+		return sql;
+	}
+
+	async _queryFile(relativePath, params = []) {
+		const sql = this._loadSql(relativePath);
+		return this._client.query(sql, params);
+	}
+
 	/**
 	 * Initializes the database connection
 	 * @param None
@@ -36,87 +53,25 @@ class DatabaseManager {
 		// Sets status to 'success' on success and 'failed' on fail
 		await this._client.connect();
 
-		// Drop existing tables for testing purposes
-		// await this._client.query('DROP TABLE IF EXISTS WarningPunishments');
-		// await this._client.query('DROP TABLE IF EXISTS Punishments');
-		// await this._client.query('DROP TABLE IF EXISTS Warnings');
-		// await this._client.query('DROP TABLE IF EXISTS Users');
+		// Drop existing tables for fresh start (development only)
+		// await this._client.query('DROP TABLE IF EXISTS Punishments CASCADE');
+		// await this._client.query('DROP TABLE IF EXISTS Warnings CASCADE');
+		// await this._client.query('DROP TABLE IF EXISTS Reports CASCADE');
+		// await this._client.query('DROP TABLE IF EXISTS Cases CASCADE');
 
-		await this._client.query(
-			`CREATE TABLE IF NOT EXISTS Users (
-				user_id SERIAL PRIMARY KEY,
-				discord_id TEXT NOT NULL UNIQUE,
-				discord_avatar TEXT,
-				user_name TEXT NOT NULL,
-				mle_id TEXT
-			)`,
-		);
+		await this._queryFile('init/Users.sql');
 
 		// New: Cases table to group reports and resulting actions
-		await this._client.query(
-			`CREATE TABLE IF NOT EXISTS Cases (
-				case_id SERIAL PRIMARY KEY,
-				creator_id INT REFERENCES Users(user_id),
-				subject_user_id INT REFERENCES Users(user_id),
-				moderator_id INT REFERENCES Users(user_id),
-				status TEXT NOT NULL,
-				created_at TIMESTAMPTZ NOT NULL,
-				closed_at TIMESTAMPTZ,
-				notes TEXT,
-				custom_response TEXT
-			)`,
-		);
+		await this._queryFile('init/Cases.sql');
 
-		await this._client.query(
-			`CREATE TABLE IF NOT EXISTS Reports (
-				report_id SERIAL PRIMARY KEY,
-				reporter_id INT REFERENCES Users(user_id) NOT NULL,
-				user_id INT REFERENCES Users(user_id),
-                moderator_id INT REFERENCES Users(user_id) NOT NULL,
-				report_timestamp TIMESTAMPTZ NOT NULL,
-                acknowledge_timestamp TIMESTAMPTZ NOT NULL,
-                close_timestamp TIMESTAMPTZ NOT NULL,
-                report_reason TEXT NOT NULL,
-                report_evidence TEXT NOT NULL,
-                status TEXT NOT NULL,
-                moderator_notes TEXT,
-                custom_response TEXT,
-                case_id INT REFERENCES Cases(case_id)
-			)`,
-		);
+		await this._queryFile('init/Reports.sql');
 
-		await this._client.query(
-			`CREATE TABLE IF NOT EXISTS Punishments (
-				punishment_id SERIAL PRIMARY KEY,
-				user_id INT REFERENCES Users(user_id) NOT NULL,
-				moderator_id INT REFERENCES Users(user_id) NOT NULL,
-				timestamp TIMESTAMPTZ NOT NULL,
-                punishment_type TEXT NOT NULL,
-                punishment_duration INT,
-                case_id INT REFERENCES Cases(case_id)
-			)`,
-		);
+		await this._queryFile('init/Punishments.sql');
 
-		await this._client.query(
-			`CREATE TABLE IF NOT EXISTS Warnings (
-				warning_id SERIAL PRIMARY KEY,
-				user_id INT REFERENCES Users(user_id) NOT NULL,
-				moderator_id INT REFERENCES Users(user_id) NOT NULL,
-				reporter_id INT REFERENCES Users(user_id),
-				timestamp TIMESTAMPTZ NOT NULL,
-				rules_broken TEXT NOT NULL,
-				violating_content TEXT NOT NULL,
-				points_added INT NOT NULL,
-				new_point_total INT NOT NULL,
-				moderator_notes TEXT,
-				case_id INT REFERENCES Cases(case_id)
-			)`,
-		);
+		await this._queryFile('init/Warnings.sql');
 
 		// New: Add supporting indexes
-		await this._client.query('CREATE INDEX IF NOT EXISTS idx_reports_case_id ON Reports(case_id)');
-		await this._client.query('CREATE INDEX IF NOT EXISTS idx_warnings_case_id ON Warnings(case_id)');
-		await this._client.query('CREATE INDEX IF NOT EXISTS idx_punishments_case_id ON Punishments(case_id)');
+		await this._queryFile('init/indexes.sql');
 
 		this._status = 'success';
 		logger.debug('Initialized the database connection');
@@ -139,46 +94,7 @@ class DatabaseManager {
 
 			// Fetch all users with their warnings in one pass
 			this._client
-				.query(
-					`WITH latest_ban AS (
-						SELECT user_id, MAX(timestamp) AS last_ban_at
-						FROM Punishments
-						WHERE punishment_type = 'ban'
-						GROUP BY user_id
-					),
-					latest_unban AS (
-						SELECT user_id, MAX(timestamp) AS last_unban_at
-						FROM Punishments
-						WHERE punishment_type = 'unban'
-						GROUP BY user_id
-					),
-					ban_status AS (
-						SELECT u.user_id,
-							CASE 
-								WHEN lb.last_ban_at IS NOT NULL AND (lu.last_unban_at IS NULL OR lb.last_ban_at > lu.last_unban_at)
-									THEN TRUE
-								ELSE FALSE
-							END AS is_banned
-						FROM Users u
-						LEFT JOIN latest_ban lb ON lb.user_id = u.user_id
-						LEFT JOIN latest_unban lu ON lu.user_id = u.user_id
-					)
-					SELECT 
-						u.user_id AS user_id,
-						u.discord_id AS discord_id,
-						u.discord_avatar AS discord_avatar,
-						u.user_name AS user_name,
-						u.mle_id AS mle_id,
-						w.warning_id AS warning_id,
-						w.timestamp AS timestamp,
-						w.points_added AS points_added,
-						bs.is_banned AS is_banned
-					FROM Users u
-					LEFT JOIN Warnings w ON w.user_id = u.user_id
-					LEFT JOIN ban_status bs ON bs.user_id = u.user_id
-					WHERE COALESCE(bs.is_banned, FALSE) = FALSE
-					ORDER BY u.user_id ASC, w.timestamp ASC NULLS LAST`,
-				)
+				.query(this._loadSql('queries/getUsersWithCurrentPointsAtOrAbove.sql'))
 				.then((result) => {
 					const rows = result.rows || [];
 					// Group by user_id
@@ -238,41 +154,7 @@ class DatabaseManager {
 			}
 
 			this._client
-				.query(
-					`WITH latest_ban AS (
-						SELECT user_id, MAX(timestamp) AS last_ban_at
-						FROM Punishments
-						WHERE punishment_type = 'ban'
-						GROUP BY user_id
-					),
-					latest_unban AS (
-						SELECT user_id, MAX(timestamp) AS last_unban_at
-						FROM Punishments
-						WHERE punishment_type = 'unban'
-						GROUP BY user_id
-					),
-					ban_status AS (
-						SELECT u.user_id,
-							CASE 
-								WHEN lb.last_ban_at IS NOT NULL AND (lu.last_unban_at IS NULL OR lb.last_ban_at > lu.last_unban_at)
-									THEN TRUE
-								ELSE FALSE
-							END AS is_banned
-						FROM Users u
-						LEFT JOIN latest_ban lb ON lb.user_id = u.user_id
-						LEFT JOIN latest_unban lu ON lu.user_id = u.user_id
-					)
-					SELECT 
-						u.user_id AS user_id,
-						u.discord_id AS discord_id,
-						u.discord_avatar AS discord_avatar,
-						u.user_name AS user_name,
-						u.mle_id AS mle_id
-					FROM Users u
-					JOIN ban_status bs ON bs.user_id = u.user_id
-					WHERE bs.is_banned = TRUE
-					ORDER BY u.user_name ASC`,
-				)
+				.query(this._loadSql('queries/getCurrentlyBannedUsers.sql'))
 				.then((result) => {
 					const users = (result.rows || []).map(
 						(row) =>
@@ -300,43 +182,7 @@ class DatabaseManager {
 
 		try {
 			// Load case core + related users
-			const caseRes = await this._client.query(
-				`SELECT 
-						c.case_id,
-						c.creator_id,
-						c.subject_user_id,
-						c.moderator_id,
-						c.status,
-						c.created_at,
-						c.closed_at,
-						c.notes,
-						c.custom_response,
-						-- Creator
-						u_cre.user_id AS cre_id,
-						u_cre.discord_id AS cre_discord_id,
-						u_cre.discord_avatar AS cre_avatar,
-						u_cre.user_name AS cre_name,
-						u_cre.mle_id AS cre_mle_id,
-						-- Subject
-						u_sub.user_id AS sub_id,
-						u_sub.discord_id AS sub_discord_id,
-						u_sub.discord_avatar AS sub_avatar,
-						u_sub.user_name AS sub_name,
-						u_sub.mle_id AS sub_mle_id,
-						-- Moderator
-						u_mod.user_id AS mod_id,
-						u_mod.discord_id AS mod_discord_id,
-						u_mod.discord_avatar AS mod_avatar,
-						u_mod.user_name AS mod_name,
-						u_mod.mle_id AS mod_mle_id
-					FROM Cases c
-					LEFT JOIN Users u_cre ON u_cre.user_id = c.creator_id
-					LEFT JOIN Users u_sub ON u_sub.user_id = c.subject_user_id
-					LEFT JOIN Users u_mod ON u_mod.user_id = c.moderator_id
-					WHERE c.case_id = $1
-					LIMIT 1`,
-				[caseId],
-			);
+			const caseRes = await this._queryFile('queries/getCaseById_case.sql', [caseId]);
 
 			if (!caseRes.rows || caseRes.rows.length === 0) {
 				throw new Error('Case not found');
@@ -369,97 +215,12 @@ class DatabaseManager {
 			}
 
 			// Reports in case
-			const repRes = await this._client.query(
-				`SELECT 
-						r.report_id,
-						r.reporter_id,
-						r.user_id,
-						r.moderator_id,
-						r.report_timestamp,
-						r.acknowledge_timestamp,
-						r.close_timestamp,
-						r.report_reason,
-						r.report_evidence,
-						r.status,
-						r.moderator_notes,
-						r.custom_response,
-						-- Reporter
-						u_rep.user_id AS u_rep_id,
-						u_rep.discord_id AS u_rep_discord_id,
-						u_rep.discord_avatar AS u_rep_avatar,
-						u_rep.user_name AS u_rep_name,
-						u_rep.mle_id AS u_rep_mle_id,
-						-- Subject (reported)
-						u_user.user_id AS u_user_id,
-						u_user.discord_id AS u_user_discord_id,
-						u_user.discord_avatar AS u_user_avatar,
-						u_user.user_name AS u_user_name,
-						u_user.mle_id AS u_user_mle_id,
-						-- Moderator
-						u_mod.user_id AS u_mod_id,
-						u_mod.discord_id AS u_mod_discord_id,
-						u_mod.discord_avatar AS u_mod_avatar,
-						u_mod.user_name AS u_mod_name,
-						u_mod.mle_id AS u_mod_mle_id
-					FROM Reports r
-					LEFT JOIN Users u_rep ON u_rep.user_id = r.reporter_id
-					LEFT JOIN Users u_user ON u_user.user_id = r.user_id
-					LEFT JOIN Users u_mod ON u_mod.user_id = r.moderator_id
-					WHERE r.case_id = $1
-					ORDER BY r.report_timestamp ASC`,
-				[caseId],
-			);
+			const repRes = await this._queryFile('queries/getCaseById_reports.sql', [caseId]);
 			const reports = this.parseDatabaseReportResponse(repRes);
 			reports.forEach((r) => r.setCase(kase));
 
 			// Warnings in case (with punishments via join)
-			const warnRes = await this._client.query(
-				`SELECT 
-						w.warning_id,
-						w.user_id,
-						w.moderator_id,
-						w.reporter_id,
-						w.timestamp,
-						w.rules_broken,
-						w.violating_content,
-						w.points_added,
-						w.new_point_total,
-						w.moderator_notes,
-						-- Target user (warned)
-						u_user.user_id AS u_user_id,
-						u_user.discord_id AS u_user_discord_id,
-						u_user.discord_avatar AS u_user_avatar,
-						u_user.user_name AS u_user_name,
-						u_user.mle_id AS u_user_mle_id,
-						-- Moderator
-						u_mod.user_id AS u_mod_id,
-						u_mod.discord_id AS u_mod_discord_id,
-						u_mod.discord_avatar AS u_mod_avatar,
-						u_mod.user_name AS u_mod_name,
-						u_mod.mle_id AS u_mod_mle_id,
-						-- Reporter (nullable)
-						u_rep.user_id AS u_rep_id,
-						u_rep.discord_id AS u_rep_discord_id,
-						u_rep.discord_avatar AS u_rep_avatar,
-						u_rep.user_name AS u_rep_name,
-						u_rep.mle_id AS u_rep_mle_id,
-						-- Linked punishments (nullable)
-						pun.punishment_id AS pun_id,
-						pun.user_id AS pun_user_id,
-						pun.moderator_id AS pun_moderator_id,
-						pun.timestamp AS pun_timestamp,
-						pun.punishment_type AS pun_type,
-						pun.punishment_duration AS pun_duration
-					FROM Warnings w
-					LEFT JOIN Users u_user ON u_user.user_id = w.user_id
-					LEFT JOIN Users u_mod ON u_mod.user_id = w.moderator_id
-					LEFT JOIN Users u_rep ON u_rep.user_id = w.reporter_id
-					LEFT JOIN WarningPunishments wp ON wp.warning_id = w.warning_id
-					LEFT JOIN Punishments pun ON pun.punishment_id = wp.punishment_id
-					WHERE w.case_id = $1
-					ORDER BY w.timestamp DESC, pun.timestamp DESC NULLS LAST`,
-				[caseId],
-			);
+			const warnRes = await this._queryFile('queries/getCaseById_warnings.sql', [caseId]);
 			const warnings = this.parseDatabaseWarningResponse(warnRes);
 			warnings.forEach((w) => {
 				w.setCase(kase);
@@ -467,34 +228,7 @@ class DatabaseManager {
 			});
 
 			// Standalone punishments in case
-			const punRes = await this._client.query(
-				`SELECT 
-						pun.punishment_id AS pun_id,
-						pun.user_id AS pun_user_id,
-						pun.moderator_id AS pun_moderator_id,
-						pun.timestamp AS pun_timestamp,
-						pun.punishment_type AS pun_type,
-						pun.punishment_duration AS pun_duration,
-						-- Target user (punished)
-						u_user.user_id AS u_user_id,
-						u_user.discord_id AS u_user_discord_id,
-						u_user.discord_avatar AS u_user_avatar,
-						u_user.user_name AS u_user_name,
-						u_user.mle_id AS u_user_mle_id,
-						-- Moderator
-						u_mod.user_id AS u_mod_id,
-						u_mod.discord_id AS u_mod_discord_id,
-						u_mod.discord_avatar AS u_mod_avatar,
-						u_mod.user_name AS u_mod_name,
-						u_mod.mle_id AS u_mod_mle_id
-					FROM Punishments pun
-					JOIN Users u_user ON u_user.user_id = pun.user_id
-					JOIN Users u_mod ON u_mod.user_id = pun.moderator_id
-					LEFT JOIN WarningPunishments wp ON wp.punishment_id = pun.punishment_id
-					WHERE pun.case_id = $1 AND wp.punishment_id IS NULL
-					ORDER BY pun.timestamp DESC`,
-				[caseId],
-			);
+			const punRes = await this._queryFile('queries/getCaseById_punishments.sql', [caseId]);
 			const standalonePunishments = this.parseDatabasePunishmentResponse(punRes);
 			standalonePunishments.forEach((p) => p.setCase(kase));
 
@@ -519,43 +253,14 @@ class DatabaseManager {
 	 * @param {String} userId The user's Discord ID
 	 * @returns {Promise<User>} A promise to return the User object
 	 */
-	async getUserByDiscordId(userId, type = 'discord') {
+	async getUserByIdentifier(identifier, type) {
 		return new Promise((resolve, reject) => {
 			if (this._status !== 'success') {
 				return reject('DB manager not initialized');
 			}
 
-			let whereClause;
-			if (type === 'discord') {
-				whereClause = 'u.discord_id = $1';
-			} else if (type === 'mle') {
-				whereClause = 'u.mle_id = $1';
-			} else if (type === 'db') {
-				whereClause = 'u.user_id = $1';
-			} else {
-				return reject('Invalid user ID type specified');
-			}
-
 			// Single query: get user row and all joined warnings with names
-			this._client
-				.query(
-					`SELECT 
-						u.user_id AS user_id,
-						u.discord_id AS discord_id,
-						u.discord_avatar AS discord_avatar,
-						u.user_name AS user_name,
-						u.mle_id AS mle_id,
-						w.warning_id AS warning_id,
-						w.user_id AS w_user_id,
-						w.timestamp AS timestamp,
-						w.points_added AS points_added
-					FROM Users u
-					LEFT JOIN Warnings w ON w.user_id = u.user_id
-					WHERE ${whereClause}
-					ORDER BY w.timestamp DESC NULLS LAST
-					`,
-					[userId],
-				)
+			this._queryFile(`queries/getUserByIdentifier_${type}.sql`, [identifier])
 				.then((result) => {
 					const rows = result.rows;
 					if (!rows || rows.length === 0) {
@@ -695,6 +400,49 @@ class DatabaseManager {
 	}
 
 	/**
+	 * Updates an existing user object and returns it
+	 * @param {String} userId The user's Database ID
+	 * @param {Object} fields An object containing fields to update (e.g., { user_name: 'NewName', discord_avatar: 'NewAvatarURL' })
+	 * @returns {Promise<User>} A promise to return the updated User object
+	 */
+	async updateUser(userId, fields) {
+		return new Promise((resolve, reject) => {
+			if (this._status !== 'success') {
+				return reject('DB manager not initialized');
+			}
+			if (!userId || !fields || Object.keys(fields).length === 0) {
+				return reject('userId and at least one field are required to update a user');
+			}
+
+			// Build dynamic UPDATE statement safely
+			const setClauses = Object.keys(fields)
+				.map((key, idx) => `${key} = $${idx + 2}`)
+				.join(', ');
+			const values = [userId, ...Object.values(fields)];
+
+			this._client
+				.query(
+					`UPDATE Users
+                     SET ${setClauses}
+                     WHERE user_id = $1
+                     RETURNING user_id, discord_id, discord_avatar, user_name, mle_id`,
+					values,
+				)
+				.then((result) => {
+					const user = this.parseDatabaseUserResponse(result);
+					logger.debug(`Updated user with user_id ${userId}: ` + JSON.stringify(fields));
+					if (user === null) return reject('Failed to update user');
+					return resolve(user);
+				})
+				.catch((error) => {
+					logger.error('Error updating user!');
+					logger.error(error);
+					return reject('Error updating user');
+				});
+		});
+	}
+
+	/**
 	 * Gets a user's warnings
 	 *
 	 * @param {String} userId The user's Database ID
@@ -706,57 +454,13 @@ class DatabaseManager {
 				return reject('DB manager not initialized');
 			}
 
-			this._client
-				.query(
-					`SELECT 
-						w.warning_id,
-						w.user_id,
-						w.moderator_id,
-						w.reporter_id,
-						w.timestamp,
-						w.rules_broken,
-						w.violating_content,
-						w.points_added,
-						w.new_point_total,
-						w.moderator_notes,
-						-- Target user (warned)
-						u_user.user_id AS u_user_id,
-						u_user.discord_id AS u_user_discord_id,
-						u_user.discord_avatar AS u_user_avatar,
-						u_user.user_name AS u_user_name,
-						u_user.mle_id AS u_user_mle_id,
-						-- Moderator
-						u_mod.user_id AS u_mod_id,
-						u_mod.discord_id AS u_mod_discord_id,
-						u_mod.discord_avatar AS u_mod_avatar,
-						u_mod.user_name AS u_mod_name,
-						u_mod.mle_id AS u_mod_mle_id,
-						-- Reporter (nullable)
-						u_rep.user_id AS u_rep_id,
-						u_rep.discord_id AS u_rep_discord_id,
-						u_rep.discord_avatar AS u_rep_avatar,
-						u_rep.user_name AS u_rep_name,
-						u_rep.mle_id AS u_rep_mle_id,
-						-- Linked punishments (nullable)
-						pun.punishment_id AS pun_id,
-						pun.user_id AS pun_user_id,
-						pun.moderator_id AS pun_moderator_id,
-						pun.timestamp AS pun_timestamp,
-						pun.punishment_type AS pun_type,
-						pun.punishment_duration AS pun_duration
-					FROM Warnings w
-					LEFT JOIN Users u_user ON u_user.user_id = w.user_id
-					LEFT JOIN Users u_mod ON u_mod.user_id = w.moderator_id
-					LEFT JOIN Users u_rep ON u_rep.user_id = w.reporter_id
-					LEFT JOIN WarningPunishments wp ON wp.warning_id = w.warning_id
-					LEFT JOIN Punishments pun ON pun.punishment_id = wp.punishment_id
-					WHERE w.user_id = $1
-					ORDER BY w.timestamp DESC, pun.timestamp DESC NULLS LAST
-                    ${limit ? `LIMIT ${limit}` : ''}`,
-					[userId],
-				)
+			this._queryFile('queries/getWarnings.sql', [userId])
 				.then((warningResult) => {
-					return resolve(this.parseDatabaseWarningResponse(warningResult));
+					let warnings = this.parseDatabaseWarningResponse(warningResult);
+					if (limit && Number.isInteger(limit)) {
+						warnings = warnings.slice(0, limit);
+					}
+					return resolve(warnings);
 				})
 				.catch((error) => {
 					logger.error('Error getting warnings!');
@@ -778,35 +482,7 @@ class DatabaseManager {
 				return reject('DB manager not initialized');
 			}
 
-			this._client
-				.query(
-					`SELECT 
-						pun.punishment_id AS pun_id,
-						pun.user_id AS pun_user_id,
-						pun.moderator_id AS pun_moderator_id,
-						pun.timestamp AS pun_timestamp,
-						pun.punishment_type AS pun_type,
-						pun.punishment_duration AS pun_duration,
-						-- Target user (punished)
-						u_user.user_id AS u_user_id,
-						u_user.discord_id AS u_user_discord_id,
-						u_user.discord_avatar AS u_user_avatar,
-						u_user.user_name AS u_user_name,
-						u_user.mle_id AS u_user_mle_id,
-						-- Moderator
-						u_mod.user_id AS u_mod_id,
-						u_mod.discord_id AS u_mod_discord_id,
-						u_mod.discord_avatar AS u_mod_avatar,
-						u_mod.user_name AS u_mod_name,
-						u_mod.mle_id AS u_mod_mle_id
-					FROM Punishments pun
-					JOIN Users u_user ON u_user.user_id = pun.user_id
-					JOIN Users u_mod ON u_mod.user_id = pun.moderator_id
-					LEFT JOIN WarningPunishments wp ON wp.punishment_id = pun.punishment_id
-					WHERE pun.user_id = $1 AND wp.punishment_id IS NULL
-					ORDER BY pun.timestamp DESC`,
-					[userId],
-				)
+			this._queryFile('queries/getStandalonePunishments.sql', [userId])
 				.then((punResult) => {
 					return resolve(this.parseDatabasePunishmentResponse(punResult));
 				})
@@ -851,23 +527,17 @@ class DatabaseManager {
 			const currentPoints = calculateCurrentPoints(existingWarnings, timestamp);
 			const newPointTotal = currentPoints + (pointsAdded || 0);
 
-			const result = await this._client.query(
-				`INSERT INTO Warnings 
-                (user_id, moderator_id, reporter_id, timestamp, rules_broken, violating_content, points_added, new_point_total, moderator_notes)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-                RETURNING *`,
-				[
-					userId,
-					moderatorId,
-					reporterId,
-					timestamp,
-					rulesBroken,
-					violatingContent,
-					pointsAdded,
-					newPointTotal,
-					moderatorNotes,
-				],
-			);
+			const result = await this._queryFile('queries/insertWarning.sql', [
+				userId,
+				moderatorId,
+				reporterId,
+				timestamp,
+				rulesBroken,
+				violatingContent,
+				pointsAdded,
+				newPointTotal,
+				moderatorNotes,
+			]);
 
 			const warnings = this.parseDatabaseWarningResponse(result);
 			if (warnings.length === 0) {
@@ -893,13 +563,13 @@ class DatabaseManager {
 		}
 		try {
 			// Create the punishment row and get the new ID
-			const insertResult = await this._client.query(
-				`INSERT INTO Punishments
-				(user_id, moderator_id, timestamp, punishment_type, punishment_duration)
-				VALUES ($1, $2, $3, $4, $5)
-				RETURNING punishment_id`,
-				[userId, moderatorId, timestamp, punishmentType, punishmentDuration],
-			);
+			const insertResult = await this._queryFile('queries/insertPunishment.sql', [
+				userId,
+				moderatorId,
+				timestamp,
+				punishmentType,
+				punishmentDuration,
+			]);
 
 			if (!insertResult.rows || insertResult.rows.length === 0) {
 				throw new Error('Failed to create punishment');
@@ -908,32 +578,7 @@ class DatabaseManager {
 			const createdPunishmentId = insertResult.rows[0]['punishment_id'];
 
 			// Load full context (user + moderator) for the newly created punishment
-			const joinedResult = await this._client.query(
-				`SELECT 
-					pun.punishment_id AS pun_id,
-					pun.user_id AS pun_user_id,
-					pun.moderator_id AS pun_moderator_id,
-					pun.timestamp AS pun_timestamp,
-					pun.punishment_type AS pun_type,
-					pun.punishment_duration AS pun_duration,
-					-- Target user (punished)
-					u_user.user_id AS u_user_id,
-					u_user.discord_id AS u_user_discord_id,
-					u_user.discord_avatar AS u_user_avatar,
-					u_user.user_name AS u_user_name,
-					u_user.mle_id AS u_user_mle_id,
-					-- Moderator
-					u_mod.user_id AS u_mod_id,
-					u_mod.discord_id AS u_mod_discord_id,
-					u_mod.discord_avatar AS u_mod_avatar,
-					u_mod.user_name AS u_mod_name,
-					u_mod.mle_id AS u_mod_mle_id
-				FROM Punishments pun
-				JOIN Users u_user ON u_user.user_id = pun.user_id
-				JOIN Users u_mod ON u_mod.user_id = pun.moderator_id
-				WHERE pun.punishment_id = $1`,
-				[createdPunishmentId],
-			);
+			const joinedResult = await this._queryFile('queries/getPunishmentById.sql', [createdPunishmentId]);
 
 			const punishments = this.parseDatabasePunishmentResponse(joinedResult);
 			if (!punishments || punishments.length === 0) {
@@ -944,25 +589,6 @@ class DatabaseManager {
 			logger.error('Error creating punishment!');
 			logger.error(error);
 			throw new Error('Error creating punishment');
-		}
-	}
-
-	async createWarningPunishmentLink(warningId, punishmentId) {
-		if (this._status !== 'success') {
-			throw new Error('DB manager not initialized');
-		}
-		try {
-			await this._client.query(
-				`INSERT INTO WarningPunishments
-                (warning_id, punishment_id)
-                VALUES ($1, $2)`,
-				[warningId, punishmentId],
-			);
-			logger.debug(`Linked punishment ID ${punishmentId} to warning ID ${warningId}`);
-		} catch (error) {
-			logger.error('Error linking warning and punishment!');
-			logger.error(error);
-			throw new Error('Error linking warning and punishment');
 		}
 	}
 
@@ -990,12 +616,15 @@ class DatabaseManager {
 			throw new Error('DB manager not initialized');
 		}
 		try {
-			const res = await this._client.query(
-				`INSERT INTO Cases (creator_id, subject_user_id, moderator_id, status, created_at, closed_at, notes, custom_response)
-				 VALUES ($1, $2, $3, $4, $5, NULL, $6, $7)
-				 RETURNING *`,
-				[creatorId, subjectUserId, moderatorId, status, createdAt, notes, customResponse],
-			);
+			const res = await this._queryFile('queries/insertCase.sql', [
+				creatorId,
+				subjectUserId,
+				moderatorId,
+				status,
+				createdAt,
+				notes,
+				customResponse,
+			]);
 
 			const row = res.rows?.[0];
 			if (!row) throw new Error('Failed to create case');
@@ -1023,7 +652,7 @@ class DatabaseManager {
 		if (this._status !== 'success') {
 			throw new Error('DB manager not initialized');
 		}
-		await this._client.query('UPDATE Reports SET case_id = $1 WHERE report_id = $2', [caseId, reportId]);
+		await this._queryFile('queries/attachReportToCase.sql', [caseId, reportId]);
 	}
 
 	/**
@@ -1033,7 +662,7 @@ class DatabaseManager {
 		if (this._status !== 'success') {
 			throw new Error('DB manager not initialized');
 		}
-		await this._client.query('UPDATE Warnings SET case_id = $1 WHERE warning_id = $2', [caseId, warningId]);
+		await this._queryFile('queries/attachWarningToCase.sql', [caseId, warningId]);
 	}
 
 	/**
@@ -1043,7 +672,7 @@ class DatabaseManager {
 		if (this._status !== 'success') {
 			throw new Error('DB manager not initialized');
 		}
-		await this._client.query('UPDATE Punishments SET case_id = $1 WHERE punishment_id = $2', [caseId, punishmentId]);
+		await this._queryFile('queries/attachPunishmentToCase.sql', [caseId, punishmentId]);
 	}
 
 	/**
@@ -1115,7 +744,7 @@ class DatabaseManager {
 
 				const warning = new Warning();
 				warning.setWarningId(wid);
-				warning.setUser(warnedUser);
+				warning.setSubject(warnedUser);
 				warning.setModerator(moderatorUser);
 				reporterUser ? warning.setReporter(reporterUser) : warning.setReporter(null);
 				warning.setTimestamp(row['timestamp']);
@@ -1138,7 +767,7 @@ class DatabaseManager {
 				p.setDuration(row['pun_duration']);
 				p.setTimestamp(row['pun_timestamp']);
 				// Attach context users (optional convenience)
-				p.setUser(entry.warning.getUser());
+				p.setSubject(entry.warning.getSubject());
 				p.setModerator(entry.warning.getModerator());
 
 				entry.warning.getPunishments().push(p);
@@ -1178,7 +807,7 @@ class DatabaseManager {
 				row['u_mod_name'],
 				row['u_mod_mle_id'],
 			);
-			p.setUser(punishedUser);
+			p.setSubject(punishedUser);
 			p.setModerator(moderatorUser);
 			punishments.push(p);
 		}
@@ -1229,7 +858,7 @@ class DatabaseManager {
 				);
 			}
 			if (reporterUser) rep.setReporter(reporterUser);
-			if (subjectUser) rep.setUser(subjectUser);
+			if (subjectUser) rep.setSubject(subjectUser);
 			if (moderatorUser) rep.setModerator(moderatorUser);
 
 			rep.setReportTimestamp(row['report_timestamp']);

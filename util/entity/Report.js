@@ -48,8 +48,8 @@ class Report {
 	 *
 	 * @param {User} user
 	 */
-	setUser(user) {
-		this._user = user;
+	setSubject(user) {
+		this._subject = user;
 	}
 
 	/**
@@ -57,8 +57,8 @@ class Report {
 	 *
 	 * @returns {User}
 	 */
-	getUser() {
-		return this._user;
+	getSubject() {
+		return this._subject;
 	}
 
 	/**
@@ -246,19 +246,19 @@ class Report {
 	 */
 	generatePrivateEmbed() {
 		const embed = new EmbedBuilder()
-			.setTitle(`${this.getUser()?.getUserName() ?? 'User'} | Report`)
+			.setTitle(`${this.getSubject()?.getUserName() ?? 'User'} | Report`)
 			.setTimestamp(new Date(this.getReportTimestamp() ?? new Date().toISOString()))
 			.addFields(
 				{
 					name: 'Reported User',
-					value: String(this.getUser() ? `<@${this.getUser().getDiscordId()}>` : 'Unknown'),
+					value: String(this.getSubject() ? `<@${this.getSubject().getDiscordId()}>` : 'Unknown'),
 					inline: true,
 				},
 				{ name: 'Reporter', value: String(this.getReporter()?.getUserName() ?? 'Unknown'), inline: true },
 				{ name: 'Status', value: String(this.getStatus() ?? 'Unknown'), inline: true },
 			)
-			.setFooter({ text: `ID: ${this.getUser()?.getDiscordId() ?? 'Unknown'}` })
-			.setThumbnail(this.getUser()?.getDiscordAvatar() ?? null)
+			.setFooter({ text: `ID: ${this.getSubject()?.getDiscordId() ?? 'Unknown'}` })
+			.setThumbnail(this.getSubject()?.getDiscordAvatar() ?? null)
 			.setColor('#ff761b');
 
 		// Report Reason (may be long)
@@ -327,7 +327,7 @@ class Report {
 			.addFields(
 				{
 					name: 'Reported User',
-					value: String(this.getUser() ? `<@${this.getUser().getDiscordId()}>` : 'Unknown'),
+					value: String(this.getSubject() ? `<@${this.getSubject().getDiscordId()}>` : 'Unknown'),
 					inline: true,
 				},
 				{ name: 'Status', value: String(this.getStatus() ?? 'Unknown'), inline: true },

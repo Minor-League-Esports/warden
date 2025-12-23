@@ -49,7 +49,7 @@ module.exports = {
 
 		// Fetch the user
 		const userId = interaction.options.getString('user');
-		const user = await globalThis.userUtility.fetchDatabaseUserByDiscordId(userId);
+		const user = await globalThis.userUtility.fetchDatabaseUser(userId);
 		const duration = interaction.options.getInteger('days');
 
 		const embed = generateConfirmationEmbed(user, duration);

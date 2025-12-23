@@ -29,15 +29,15 @@ module.exports = {
 				return;
 			}
 
-			const moderator = await globalThis.userUtility.fetchDatabaseUserByDiscordId(interaction.user.id);
+			const moderator = await globalThis.userUtility.fetchDatabaseUser(interaction.user.id);
 
 			let reporter = null;
 			if (reporterId.trim() !== '') {
-				reporter = await globalThis.userUtility.fetchDatabaseUserByDiscordId(reporterId);
+				reporter = await globalThis.userUtility.fetchDatabaseUser(reporterId);
 			}
 
 			globalThis.databaseManager
-				.getUserByDiscordId(dbId, 'db')
+				.getUserByIdentifier(dbId, 'db')
 				.then(async (dbUser) => {
 					// Fetch guild member to get join date
 					const mainServer = interaction.client.guilds.cache.get(mainGuild);

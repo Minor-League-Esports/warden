@@ -1,0 +1,1 @@
+UPDATE Punishments SET case_id = $1 WHERE punishment_id = $2;

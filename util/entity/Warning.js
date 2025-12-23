@@ -23,8 +23,8 @@ class Warning {
 	 *
 	 * @param {User} user
 	 */
-	setUser(user) {
-		this._user = user;
+	setSubject(subject) {
+		this._subject = subject;
 	}
 
 	/**
@@ -32,8 +32,8 @@ class Warning {
 	 *
 	 * @returns {User}
 	 */
-	getUser() {
-		return this._user;
+	getSubject() {
+		return this._subject;
 	}
 
 	/**
@@ -215,7 +215,7 @@ class Warning {
 	 */
 	generatePrivateEmbed() {
 		const embed = new EmbedBuilder()
-			.setTitle(`${this.getUser().getUserName()} | Warning`)
+			.setTitle(`${this.getSubject().getUserName()} | Warning`)
 			.setTimestamp(new Date(this.getTimestamp()))
 			.addFields(
 				{ name: 'Rule(s) Broken', value: String(this.getRulesBroken() ?? 'None') },
@@ -238,8 +238,8 @@ class Warning {
 				{ name: 'Reporter Name', value: String(this.getReporter()?.getUserName() ?? 'None'), inline: true },
 				{ name: 'Moderator Notes', value: String(this.getModeratorNotes() ?? 'None') },
 			)
-			.setFooter({ text: `ID: ${this.getUser().getDiscordId()}` })
-			.setThumbnail(this.getUser().getDiscordAvatar())
+			.setFooter({ text: `ID: ${this.getSubject().getDiscordId()}` })
+			.setThumbnail(this.getSubject().getDiscordAvatar())
 			.setColor('#ff761b');
 		return embed;
 	}
@@ -271,7 +271,7 @@ class Warning {
 					value: String(this.getPunishmentFriendlyStrings()),
 				},
 			)
-			.setFooter({ text: `ID: ${this.getUser().getDiscordId()}` })
+			.setFooter({ text: `ID: ${this.getSubject().getDiscordId()}` })
 			.setThumbnail('https://mlesports.gg/wp-content/uploads/logo-mle-256.png')
 			.setColor('#ff0000');
 		return embed;

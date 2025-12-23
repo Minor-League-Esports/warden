@@ -140,7 +140,7 @@ module.exports = {
 			}
 
 			// Get the director's user record
-			const director = await globalThis.userUtility.fetchDatabaseUserByDiscordId(interaction.user.id);
+			const director = await globalThis.userUtility.fetchDatabaseUser(interaction.user.id);
 
 			// Remove buttons after click
 			await interaction.update({
@@ -153,6 +153,7 @@ module.exports = {
 				.then(async () => {
 					logger.info(`Successfully executed ban for user with DB ID: ${dbId}`);
 					await interaction.followUp({ content: 'Successfully executed ban.' });
+					// TODO: Generate community announcement with confirmation
 				})
 				.catch((error) => {
 					logger.error(`Error executing ban for user with DB ID: ${dbId}: ${error}`);

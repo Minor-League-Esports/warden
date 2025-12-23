@@ -6,10 +6,10 @@ class CaseLogger {
 		this._channel = channel;
 	}
 
-	logWarn(warning, success, fmNotify) {
+	logWarn(warning, userNotify, fmNotify) {
 		const embed = warning.generatePrivateEmbed();
 		embed.addFields({ name: 'FM Notified', value: String(fmNotify) });
-		embed.addFields({ name: 'User Notified', value: String(success) });
+		embed.addFields({ name: 'User Notified', value: String(userNotify) });
 		this._channel.send({ embeds: [embed] });
 	}
 

@@ -30,8 +30,8 @@ class Punishment {
 	 *
 	 * @param {User} user
 	 */
-	setUser(user) {
-		this._user = user;
+	setSubject(user) {
+		this._subject = user;
 	}
 
 	/**
@@ -39,8 +39,8 @@ class Punishment {
 	 *
 	 * @returns {User}
 	 */
-	getUser() {
-		return this._user;
+	getSubject() {
+		return this._subject;
 	}
 
 	/**
@@ -148,7 +148,7 @@ class Punishment {
 	 */
 	generatePrivateEmbed() {
 		const embed = new EmbedBuilder()
-			.setTitle(`${this.getUser()?.getUserName() ?? 'User'} | Punishment`)
+			.setTitle(`${this.getSubject()?.getUserName() ?? 'User'} | Punishment`)
 			.setTimestamp(new Date(this.getTimestamp()))
 			.addFields(
 				{ name: 'Type', value: String(this.getType() ?? 'Unknown'), inline: true },
@@ -156,8 +156,8 @@ class Punishment {
 				{ name: 'Details', value: String(this.getFriendlyString() ?? 'None') },
 				{ name: 'Moderator Name', value: String(this.getModerator()?.getUserName() ?? 'None'), inline: true },
 			)
-			.setFooter({ text: `ID: ${this.getUser()?.getDiscordId() ?? 'Unknown'}` })
-			.setThumbnail(this.getUser()?.getDiscordAvatar() ?? null)
+			.setFooter({ text: `ID: ${this.getSubject()?.getDiscordId() ?? 'Unknown'}` })
+			.setThumbnail(this.getSubject()?.getDiscordAvatar() ?? null)
 			.setColor('#ff0000');
 		return embed;
 	}
@@ -211,7 +211,7 @@ class Punishment {
 			.setTimestamp()
 			.setThumbnail('https://mlesports.gg/wp-content/uploads/logo-mle-256.png');
 
-		const user = this.getUser();
+		const user = this.getSubject();
 		const asOf = this.getTimestamp() ?? new Date().toISOString();
 
 		const onProbation = Boolean(options.onProbation);

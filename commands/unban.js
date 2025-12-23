@@ -42,7 +42,7 @@ module.exports = {
 
 		// Fetch the user
 		const userId = interaction.options.getString('user');
-		const user = await globalThis.userUtility.fetchDatabaseUserByDiscordId(userId);
+		const user = await globalThis.userUtility.fetchDatabaseUser(userId);
 
 		const embed = generateConfirmationEmbed(user);
 		const components = generateConfirmationButtons(user.getUserId());

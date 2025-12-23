@@ -1,0 +1,1 @@
+UPDATE Reports SET case_id = $1 WHERE report_id = $2;

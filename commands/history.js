@@ -40,7 +40,7 @@ module.exports = {
 		await interaction.deferReply();
 
 		const userId = interaction.options.getString('user');
-		const user = await globalThis.userUtility.fetchDatabaseUserByDiscordId(userId);
+		const user = await globalThis.userUtility.fetchDatabaseUser(userId);
 
 		await interaction.editReply({
 			embeds: [user.generateUserSummaryEmbed()],
