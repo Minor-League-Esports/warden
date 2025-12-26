@@ -34,7 +34,7 @@ module.exports = {
 			const evidenceInput = new TextInputBuilder()
 				.setCustomId('evidence')
 				.setStyle(TextInputStyle.Paragraph)
-				.setPlaceholder('Paste links here if available. You can attach files in the next step after you submit.')
+				.setPlaceholder('Paste links here if available. You can attach files afterwards with `/report evidence`.')
 				.setRequired(false);
 			const evidenceInputLabel = new LabelBuilder().setLabel('Evidence (if any)').setTextInputComponent(evidenceInput);
 

@@ -4,7 +4,11 @@ const { logLevel } = require('../../config.json');
 logger.level = logLevel;
 
 const { EmbedBuilder } = require('discord.js');
-const { chunkTextPreserveNewlines } = require('../UtilFunctions');
+const {
+	chunkTextPreserveNewlines,
+	resolveEvidenceLinksForUser,
+	resolveEvidenceLinksForModerators,
+} = require('../UtilFunctions');
 
 class Report {
 	// Getters and setters
@@ -84,6 +88,14 @@ class Report {
 		this._reportEvidence = evidence;
 	}
 
+	addReportEvidence(evidence) {
+		if (this._reportEvidence && this._reportEvidence != 'N/A') {
+			this._reportEvidence += `\n${evidence}`;
+		} else {
+			this._reportEvidence = evidence;
+		}
+	}
+
 	getReportEvidence() {
 		return this._reportEvidence;
 	}
@@ -143,8 +155,15 @@ class Report {
 		}
 
 		// Evidence (may be long)
-		const evidence = String(this.getReportEvidence() ?? 'None');
-		const evidenceChunks = chunkTextPreserveNewlines(evidence, 1024);
+		let evidenceText = 'None';
+		try {
+			const lines = await resolveEvidenceLinksForModerators(this.getReportEvidence());
+			evidenceText = lines.length ? lines.join('\n') : 'None';
+		} catch (e) {
+			logger.error('Error building evidence for moderator embed', e);
+		}
+
+		const evidenceChunks = chunkTextPreserveNewlines(evidenceText, 1024);
 		for (let i = 0; i < evidenceChunks.length; i++) {
 			embed.addFields({ name: i === 0 ? 'Evidence' : 'Evidence (cont.)', value: evidenceChunks[i] });
 		}
@@ -191,6 +210,9 @@ class Report {
 		const embed = new EmbedBuilder()
 			.setTitle(`MLE Moderation Update: Report #${this.getReportId()}`)
 			.setTimestamp(new Date(this.getReportTimestamp() ?? new Date().toISOString()))
+			.setDescription(
+				'To attach evidence to this report, use the `/report evidence` command. To add more details, use `/report update`.',
+			)
 			.addFields(
 				{
 					name: 'Reported User',
@@ -199,7 +221,7 @@ class Report {
 				},
 				{ name: 'Status', value: String(this.getStatus() ?? 'Unknown'), inline: true },
 			)
-			.setFooter({ text: 'Thank you for your report!' })
+			.setFooter({ text: 'Note: Evidence links expire. Run `/report status` to view the latest evidence.' })
 			.setThumbnail('https://mlesports.gg/wp-content/uploads/logo-mle-256.png')
 			.setColor('#ff0000');
 
@@ -211,8 +233,15 @@ class Report {
 		}
 
 		// Evidence (may be long)
-		const evidence = String(this.getReportEvidence() ?? 'None');
-		const evidenceChunks = chunkTextPreserveNewlines(evidence, 1024);
+		let evidenceText = 'None';
+		try {
+			const cdnOnly = await resolveEvidenceLinksForUser(this.getReportEvidence());
+			evidenceText = cdnOnly.length ? cdnOnly.join('\n') : 'None';
+		} catch (e) {
+			logger.error('Error building evidence for user embed', e);
+		}
+
+		const evidenceChunks = chunkTextPreserveNewlines(evidenceText, 1024);
 		for (let i = 0; i < evidenceChunks.length; i++) {
 			embed.addFields({ name: i === 0 ? 'Evidence' : 'Evidence (cont.)', value: evidenceChunks[i] });
 		}
@@ -222,7 +251,7 @@ class Report {
 		if (response) {
 			const respChunks = chunkTextPreserveNewlines(String(response), 1024);
 			for (let i = 0; i < respChunks.length; i++) {
-				embed.addFields({ name: i === 0 ? 'Response' : 'Response (cont.)', value: respChunks[i] });
+				embed.addFields({ name: i === 0 ? 'Response from MLE Moderation' : 'Response (cont.)', value: respChunks[i] });
 			}
 		}
 
