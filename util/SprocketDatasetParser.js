@@ -1,11 +1,11 @@
 const log4js = require('log4js');
-const logger = log4js.getLogger('DataParser');
+const logger = log4js.getLogger('SprocketDatasetParser');
 const { logLevel } = require('../config.json');
 logger.level = logLevel;
 
 const path = require('node:path');
 
-class DataParser {
+class SprocketDatasetParser {
 	constructor(remoteManager) {
 		this._playersUrl = 'https://sprocket-public-datasets.nyc3.cdn.digitaloceanspaces.com/datasets/players.csv';
 		this._membersUrl = 'https://sprocket-public-datasets.nyc3.cdn.digitaloceanspaces.com/datasets/members.csv';
@@ -171,5 +171,5 @@ class DataParser {
 }
 
 module.exports = {
-	DataParser,
+	SprocketDatasetParser,
 };

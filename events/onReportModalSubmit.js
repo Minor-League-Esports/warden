@@ -4,6 +4,7 @@ const { logLevel, modmailUserId } = require('../config.json');
 logger.level = logLevel;
 
 const { Events, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { chunkTextPreserveNewlines } = require('../util/UtilFunctions');
 
 module.exports = {
 	name: Events.InteractionCreate,
@@ -16,12 +17,13 @@ module.exports = {
 			const [, dbId] = modalId.split(':');
 			await interaction.deferReply();
 
-			const subjectInput = interaction.fields.getTextInputValue('subject');
-			const reason = interaction.fields.getTextInputValue('reason');
-			const evidenceText = interaction.fields.getTextInputValue('evidence');
+			const subjectInput = interaction.fields.getTextInputValue('subject').trim();
+			const reason = interaction.fields.getTextInputValue('reason').trim();
+			let evidenceText = interaction.fields.getTextInputValue('evidence').trim();
+			if (evidenceText.length === 0) evidenceText = 'N/A';
 
 			try {
-				const subject = await globalThis.userUtility.fetchDatabaseUserUnknownType(subjectInput);
+				const subject = await globalThis.userUtility.fetchDatabaseUser(subjectInput);
 				const confirmationEmbed = generateUserReportConfirmationEmbed(subject, reason, evidenceText);
 				const buttons = generateConfirmationButtons(subject.getUserId(), dbId);
 				await interaction.editReply({
@@ -62,7 +64,7 @@ function generateFailedUserReportEmbed(subjectInput) {
 }
 
 function generateUserReportConfirmationEmbed(dbUser, reason, evidence) {
-	return new EmbedBuilder()
+	const embed = new EmbedBuilder()
 		.setColor('#ff761b')
 		.setTitle(`${dbUser.getUserName()} | Report Confirmation`)
 		.setFooter({ text: `ID: ${dbUser.getDiscordId()}` })
@@ -74,9 +76,21 @@ function generateUserReportConfirmationEmbed(dbUser, reason, evidence) {
 		.addFields(
 			{ name: 'User', value: `<@${dbUser.getDiscordId()}>`, inline: true },
 			{ name: 'MLE ID', value: dbUser.getMleId() ?? 'N/A', inline: true },
-			{ name: 'Report Reason', value: String(reason ?? 'N/A') },
-			{ name: 'Report Evidence', value: String(evidence?.trim() === '' ? 'None' : evidence.trim()) },
 		);
+
+	// Report Reason (may be long)
+	const reasonChunks = chunkTextPreserveNewlines(reason, 1024);
+	for (let i = 0; i < reasonChunks.length; i++) {
+		embed.addFields({ name: i === 0 ? 'Report Reason' : 'Report Reason (cont.)', value: reasonChunks[i] });
+	}
+
+	// Evidence (may be long)
+	const evidenceChunks = chunkTextPreserveNewlines(evidence, 1024);
+	for (let i = 0; i < evidenceChunks.length; i++) {
+		embed.addFields({ name: i === 0 ? 'Evidence' : 'Evidence (cont.)', value: evidenceChunks[i] });
+	}
+
+	return embed;
 }
 
 function generateConfirmationButtons(subjectId, reporterId) {

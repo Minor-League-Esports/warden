@@ -4,7 +4,8 @@ const { Client, Collection, GatewayIntentBits } = require('discord.js');
 const { token } = require('./config.json');
 const { DatabaseManager } = require('./util/DatabaseManager');
 const { RemoteManager } = require('./util/RemoteManager.js');
-const { DataParser } = require('./util/DataParser.js');
+const { SprocketDatasetParser } = require('./util/SprocketDatasetParser.js');
+const { DatabaseResponseParser } = require('./util/DatabaseResponseParser.js');
 
 const client = new Client({
 	intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
@@ -40,8 +41,9 @@ for (const file of eventFiles) {
 client.login(token);
 
 globalThis.databaseManager = new DatabaseManager();
+globalThis.databaseResponseParser = new DatabaseResponseParser();
 globalThis.remoteManager = new RemoteManager();
-globalThis.dataParser = new DataParser(globalThis.remoteManager);
+globalThis.sprocketDatasetParser = new SprocketDatasetParser(globalThis.remoteManager);
 globalThis.discordLogger = null;
 globalThis.caseLogger = null;
 globalThis.punishmentExecutor = null;

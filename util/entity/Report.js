@@ -7,236 +7,109 @@ const { EmbedBuilder } = require('discord.js');
 const { chunkTextPreserveNewlines } = require('../UtilFunctions');
 
 class Report {
-	/**
-	 * Setter for report ID
-	 *
-	 * @param {String} reportId
-	 */
+	// Getters and setters
 	setReportId(reportId) {
 		this._reportId = reportId;
 	}
 
-	/**
-	 * Getter for report ID
-	 *
-	 * @returns {String}
-	 */
 	getReportId() {
 		return this._reportId;
 	}
 
-	/**
-	 * Setter for reporter object
-	 *
-	 * @param {User} reporter
-	 */
-	setReporter(reporter) {
-		this._reporter = reporter;
+	setReporterId(reporterId) {
+		this._reporterId = reporterId;
 	}
 
-	/**
-	 * Getter for reporter object
-	 *
-	 * @returns {User}
-	 */
-	getReporter() {
-		return this._reporter;
+	getReporterId() {
+		return this._reporterId;
 	}
 
-	/**
-	 * Setter for user object
-	 *
-	 * @param {User} user
-	 */
-	setSubject(user) {
-		this._subject = user;
+	setSubjectId(userId) {
+		this._subjectId = userId;
 	}
 
-	/**
-	 * Getter for user object
-	 *
-	 * @returns {User}
-	 */
-	getSubject() {
-		return this._subject;
+	getSubjectId() {
+		return this._subjectId;
 	}
 
-	/**
-	 * Setter for moderator object
-	 *
-	 * @param {User} moderator
-	 */
-	setModerator(moderator) {
-		this._moderator = moderator;
+	setModeratorId(moderatorId) {
+		this._moderatorId = moderatorId;
 	}
 
-	/**
-	 * Getter for moderator object
-	 *
-	 * @returns {User}
-	 */
-	getModerator() {
-		return this._moderator;
+	getModeratorId() {
+		return this._moderatorId;
 	}
 
-	/**
-	 * Setter for report timestamp
-	 *
-	 * @param {Number|Date} timestamp
-	 */
+	setCaseId(caseId) {
+		this._caseId = caseId;
+	}
+
+	getCaseId() {
+		return this._caseId;
+	}
+
 	setReportTimestamp(timestamp) {
 		this._reportTimestamp = timestamp;
 	}
 
-	/**
-	 * Getter for report timestamp
-	 *
-	 * @returns {Number|Date}
-	 */
 	getReportTimestamp() {
 		return this._reportTimestamp;
 	}
 
-	/**
-	 * Setter for acknowledge timestamp
-	 *
-	 * @param {Number|Date} timestamp
-	 */
 	setAcknowledgeTimestamp(timestamp) {
 		this._acknowledgeTimestamp = timestamp;
 	}
 
-	/**
-	 * Getter for acknowledge timestamp
-	 *
-	 * @returns {Number|Date}
-	 */
 	getAcknowledgeTimestamp() {
 		return this._acknowledgeTimestamp;
 	}
 
-	/**
-	 * Setter for close timestamp
-	 *
-	 * @param {Number|Date} timestamp
-	 */
 	setCloseTimestamp(timestamp) {
 		this._closeTimestamp = timestamp;
 	}
 
-	/**
-	 * Getter for close timestamp
-	 *
-	 * @returns {Number|Date}
-	 */
 	getCloseTimestamp() {
 		return this._closeTimestamp;
 	}
 
-	/**
-	 * Setter for report reason
-	 *
-	 * @param {String} reason
-	 */
 	setReportReason(reason) {
 		this._reportReason = reason;
 	}
 
-	/**
-	 * Getter for report reason
-	 *
-	 * @returns {String}
-	 */
 	getReportReason() {
 		return this._reportReason;
 	}
 
-	/**
-	 * Setter for report evidence
-	 *
-	 * @param {String} evidence
-	 */
 	setReportEvidence(evidence) {
 		this._reportEvidence = evidence;
 	}
 
-	/**
-	 * Getter for report evidence
-	 *
-	 * @returns {String}
-	 */
 	getReportEvidence() {
 		return this._reportEvidence;
 	}
 
-	/**
-	 * Setter for status
-	 *
-	 * @param {String} status
-	 */
 	setStatus(status) {
 		this._status = status;
 	}
 
-	/**
-	 * Getter for status
-	 *
-	 * @returns {String}
-	 */
 	getStatus() {
 		return this._status;
 	}
 
-	/**
-	 * Setter for moderator notes
-	 *
-	 * @param {String} notes
-	 */
 	setModeratorNotes(notes) {
 		this._moderatorNotes = notes;
 	}
 
-	/**
-	 * Getter for moderator notes
-	 *
-	 * @returns {String}
-	 */
 	getModeratorNotes() {
 		return this._moderatorNotes;
 	}
 
-	/**
-	 * Setter for custom response
-	 *
-	 * @param {String} response
-	 */
-	setCustomResponse(response) {
-		this._customResponse = response;
+	setResponse(response) {
+		this._response = response;
 	}
 
-	/**
-	 * Getter for custom response
-	 *
-	 * @returns {String}
-	 */
-	getCustomResponse() {
-		return this._customResponse;
-	}
-
-	/**
-	 * Setter for Case object
-	 * @param {Case} kase
-	 */
-	setCase(kase) {
-		this._case = kase;
-	}
-
-	/**
-	 * Getter for Case object
-	 * @returns {Case}
-	 */
-	getCase() {
-		return this._case;
+	getResponse() {
+		return this._response;
 	}
 
 	/**
@@ -244,21 +117,22 @@ class Report {
 	 *
 	 * @returns {EmbedBuilder}
 	 */
-	generatePrivateEmbed() {
+	async generatePrivateEmbed() {
+		const subject = await globalThis.databaseManager.getUserByIdentifier(this.getSubjectId(), 'db');
+		const reporter = await globalThis.databaseManager.getUserByIdentifier(this.getReporterId(), 'db');
+		const moderator = await globalThis.databaseManager.getUserByIdentifier(this.getModeratorId(), 'db');
 		const embed = new EmbedBuilder()
-			.setTitle(`${this.getSubject()?.getUserName() ?? 'User'} | Report`)
+			.setTitle(`${subject?.getUserName() ?? 'User'} | Report`)
 			.setTimestamp(new Date(this.getReportTimestamp() ?? new Date().toISOString()))
 			.addFields(
-				{
-					name: 'Reported User',
-					value: String(this.getSubject() ? `<@${this.getSubject().getDiscordId()}>` : 'Unknown'),
-					inline: true,
-				},
-				{ name: 'Reporter', value: String(this.getReporter()?.getUserName() ?? 'Unknown'), inline: true },
-				{ name: 'Status', value: String(this.getStatus() ?? 'Unknown'), inline: true },
+				{ name: 'Reporter', value: String(reporter?.getUserName() ?? 'Unknown'), inline: true },
+				{ name: 'Moderator', value: String(moderator?.getUserName() ?? 'N/A'), inline: true },
+				{ name: 'Status', value: String(this.getStatus() ?? 'Unknown') },
+				{ name: 'Case ID', value: String(this.getCaseId() ?? 'None'), inline: true },
+				{ name: 'Report ID', value: String(this.getReportId() ?? 'None'), inline: true },
 			)
-			.setFooter({ text: `ID: ${this.getSubject()?.getDiscordId() ?? 'Unknown'}` })
-			.setThumbnail(this.getSubject()?.getDiscordAvatar() ?? null)
+			.setFooter({ text: `ID: ${subject?.getDiscordId() ?? 'Unknown'}` })
+			.setThumbnail(subject?.getDiscordAvatar() ?? null)
 			.setColor('#ff761b');
 
 		// Report Reason (may be long)
@@ -282,12 +156,12 @@ class Report {
 			embed.addFields({ name: i === 0 ? 'Moderator Notes' : 'Moderator Notes (cont.)', value: notesChunks[i] });
 		}
 
-		// Custom response (optional)
-		const customResp = this.getCustomResponse();
-		if (customResp) {
-			const respChunks = chunkTextPreserveNewlines(String(customResp), 1024);
+		// Response (optional)
+		const response = this.getResponse();
+		if (response) {
+			const respChunks = chunkTextPreserveNewlines(String(response), 1024);
 			for (let i = 0; i < respChunks.length; i++) {
-				embed.addFields({ name: i === 0 ? 'Custom Response' : 'Custom Response (cont.)', value: respChunks[i] });
+				embed.addFields({ name: i === 0 ? 'Response' : 'Response (cont.)', value: respChunks[i] });
 			}
 		}
 
@@ -303,14 +177,6 @@ class Report {
 			embed.addFields({ name: 'Closed At', value: new Date(this.getCloseTimestamp()).toISOString(), inline: true });
 		}
 
-		if (this.getModerator()) {
-			embed.addFields({
-				name: 'Moderator Name',
-				value: String(this.getModerator()?.getUserName() ?? 'Unknown'),
-				inline: true,
-			});
-		}
-
 		return embed;
 	}
 
@@ -320,19 +186,20 @@ class Report {
 	 *
 	 * @returns {EmbedBuilder}
 	 */
-	generateUserEmbed() {
+	async generateUserEmbed() {
+		const subject = await globalThis.databaseManager.getUserByIdentifier(this.getSubjectId(), 'db');
 		const embed = new EmbedBuilder()
-			.setTitle('MLE Moderation Update: Your Report')
+			.setTitle(`MLE Moderation Update: Report #${this.getReportId()}`)
 			.setTimestamp(new Date(this.getReportTimestamp() ?? new Date().toISOString()))
 			.addFields(
 				{
 					name: 'Reported User',
-					value: String(this.getSubject() ? `<@${this.getSubject().getDiscordId()}>` : 'Unknown'),
+					value: String(subject ? `<@${subject.getDiscordId()}>` : 'Unknown'),
 					inline: true,
 				},
 				{ name: 'Status', value: String(this.getStatus() ?? 'Unknown'), inline: true },
 			)
-			.setFooter({ text: `ID: ${this.getReporter()?.getDiscordId() ?? 'Unknown'}` })
+			.setFooter({ text: 'Thank you for your report!' })
 			.setThumbnail('https://mlesports.gg/wp-content/uploads/logo-mle-256.png')
 			.setColor('#ff0000');
 
@@ -350,15 +217,12 @@ class Report {
 			embed.addFields({ name: i === 0 ? 'Evidence' : 'Evidence (cont.)', value: evidenceChunks[i] });
 		}
 
-		// Custom response from moderation (optional; shown to reporter)
-		const customResp = this.getCustomResponse();
-		if (customResp) {
-			const respChunks = chunkTextPreserveNewlines(String(customResp), 1024);
+		// Response (optional)
+		const response = this.getResponse();
+		if (response) {
+			const respChunks = chunkTextPreserveNewlines(String(response), 1024);
 			for (let i = 0; i < respChunks.length; i++) {
-				embed.addFields({
-					name: i === 0 ? 'Response from Moderation' : 'Response from Moderation (cont.)',
-					value: respChunks[i],
-				});
+				embed.addFields({ name: i === 0 ? 'Response' : 'Response (cont.)', value: respChunks[i] });
 			}
 		}
 

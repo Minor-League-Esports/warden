@@ -6,148 +6,69 @@ logger.level = logLevel;
 const { EmbedBuilder } = require('discord.js');
 
 class Case {
-	/**
-	 * Setter for case ID
-	 * @param {String} caseId
-	 */
+	// Getters and setters
 	setCaseId(caseId) {
 		this._caseId = caseId;
 	}
 
-	/**
-	 * Getter for case ID
-	 * @returns {String}
-	 */
 	getCaseId() {
 		return this._caseId;
 	}
 
-	/**
-	 * Setter for creator (reporting user or opener)
-	 * @param {User} user
-	 */
-	setCreator(user) {
-		this._creator = user;
+	setCreatorId(userId) {
+		this._creatorId = userId;
 	}
 
-	/**
-	 * Getter for creator
-	 * @returns {User}
-	 */
-	getCreator() {
-		return this._creator;
+	getCreatorId() {
+		return this._creatorId;
 	}
 
-	/**
-	 * Setter for subject (user under investigation)
-	 * @param {User} user
-	 */
-	setSubjectUser(user) {
-		this._subjectUser = user;
+	setSubjectId(userId) {
+		this._subjectId = userId;
 	}
 
-	/**
-	 * Getter for subject user
-	 * @returns {User}
-	 */
-	getSubjectUser() {
-		return this._subjectUser;
+	getSubjectId() {
+		return this._subjectId;
 	}
 
-	/**
-	 * Setter for assigned/acting moderator
-	 * @param {User} user
-	 */
-	setModerator(user) {
-		this._moderator = user;
+	setModeratorId(userId) {
+		this._moderatorId = userId;
 	}
 
-	/**
-	 * Getter for moderator
-	 * @returns {User}
-	 */
-	getModerator() {
-		return this._moderator;
+	getModeratorId() {
+		return this._moderatorId ?? 'N/A';
 	}
 
-	/**
-	 * Setter for case status
-	 * @param {String} status
-	 */
 	setStatus(status) {
 		this._status = status;
 	}
 
-	/**
-	 * Getter for case status
-	 * @returns {String}
-	 */
 	getStatus() {
 		return this._status;
 	}
 
-	/**
-	 * Setter for creation timestamp
-	 * @param {Number|Date} ts
-	 */
 	setCreatedAt(ts) {
 		this._createdAt = ts;
 	}
 
-	/**
-	 * Getter for creation timestamp
-	 * @returns {Number|Date}
-	 */
 	getCreatedAt() {
 		return this._createdAt;
 	}
 
-	/**
-	 * Setter for close timestamp
-	 * @param {Number|Date} ts
-	 */
 	setClosedAt(ts) {
 		this._closedAt = ts;
 	}
 
-	/**
-	 * Getter for close timestamp
-	 * @returns {Number|Date}
-	 */
 	getClosedAt() {
-		return this._closedAt;
+		return this._closedAt ?? null;
 	}
 
-	/**
-	 * Setter for internal notes
-	 * @param {String} notes
-	 */
 	setNotes(notes) {
 		this._notes = notes;
 	}
 
-	/**
-	 * Getter for internal notes
-	 * @returns {String}
-	 */
 	getNotes() {
-		return this._notes;
-	}
-
-	/**
-	 * Setter for user-visible custom response
-	 * @param {String} resp
-	 */
-	setCustomResponse(resp) {
-		this._customResponse = resp;
-	}
-
-	/**
-	 * Getter for user-visible custom response
-	 * @returns {String}
-	 */
-	getCustomResponse() {
-		return this._customResponse;
+		return this._notes ?? 'None';
 	}
 
 	/**

@@ -7,112 +7,61 @@ const { EmbedBuilder } = require('discord.js');
 const { getContributingWarnings, chunkTextPreserveNewlines } = require('../UtilFunctions');
 
 class Punishment {
-	/**
-	 * Setter for punishment ID
-	 *
-	 * @param {String} punishmentId
-	 */
+	// Getters and setters
 	setPunishmentId(punishmentId) {
 		this._punishmentId = punishmentId;
 	}
 
-	/**
-	 * Getter for punishment ID
-	 *
-	 * @returns {String}
-	 */
 	getPunishmentId() {
 		return this._punishmentId;
 	}
 
-	/**
-	 * Setter for user object
-	 *
-	 * @param {User} user
-	 */
-	setSubject(user) {
-		this._subject = user;
+	setSubjectId(subjectId) {
+		this._subjectId = subjectId;
 	}
 
-	/**
-	 * Getter for user object
-	 *
-	 * @returns {User}
-	 */
-	getSubject() {
-		return this._subject;
+	getSubjectId() {
+		return this._subjectId;
 	}
 
-	/**
-	 * Setter for moderator object
-	 *
-	 * @param {User} moderator
-	 */
-	setModerator(moderator) {
-		this._moderator = moderator;
+	setModeratorId(moderatorId) {
+		this._moderatorId = moderatorId;
 	}
 
-	/**
-	 * Getter for moderator object
-	 *
-	 * @returns {User}
-	 */
-	getModerator() {
-		return this._moderator;
+	getModeratorId() {
+		return this._moderatorId;
 	}
 
-	/**
-	 * Setter for timestamp
-	 *
-	 * @param {Date} timestamp
-	 */
+	setCaseId(caseId) {
+		this._caseId = caseId;
+	}
+
+	getCaseId() {
+		return this._caseId ?? 'N/A';
+	}
+
 	setTimestamp(timestamp) {
 		this._timestamp = timestamp;
 	}
 
-	/**
-	 * Getter for timestamp
-	 *
-	 * @returns {Date}
-	 */
 	getTimestamp() {
 		return this._timestamp;
 	}
 
-	/**
-	 * Setter for punishment type
-	 *
-	 * @param {String} type
-	 */
 	setType(type) {
 		this._type = type;
 	}
 
-	/**
-	 * Getter for punishment type
-	 *
-	 * @returns {String}
-	 */
 	getType() {
 		return this._type;
 	}
 
-	/**
-	 * Setter for duration
-	 *
-	 * @param {Number} duration
-	 */
 	setDuration(duration) {
 		this._duration = duration;
 	}
 
-	/**
-	 * Getter for duration
-	 *
-	 * @returns {Number}
-	 */
 	getDuration() {
-		return this._duration;
+		return this._duration ?? null;
 	}
 
 	/**
@@ -184,9 +133,9 @@ class Punishment {
 			.setThumbnail('https://mlesports.gg/wp-content/uploads/logo-mle-256.png');
 
 		if (this._type === 'mute') {
-			embed.setDescription(`You have been muted in MLE for ${this._duration} day(s).`);
+			embed.setDescription(`You have been muted in MLE for ${this.getDuration()} day(s).`);
 		} else if (this._type === 'suspension') {
-			embed.setDescription(`You have been suspended from all MLE League Play for ${this._duration} week(s).`);
+			embed.setDescription(`You have been suspended from all MLE League Play for ${this.getDuration()} week(s).`);
 		} else if (this._type === 'ban') {
 			embed.setDescription('You have been banned from the Minor League Esports Community and League.');
 		} else if (this._type === 'unmute') {
@@ -257,22 +206,6 @@ class Punishment {
 		// Footer
 		embed.setFooter({ text: `ID: ${user?.getDiscordId() ?? 'Unknown'}` });
 		return embed;
-	}
-
-	/**
-	 * Setter for Case object
-	 * @param {Case} kase
-	 */
-	setCase(kase) {
-		this._case = kase;
-	}
-
-	/**
-	 * Getter for Case object
-	 * @returns {Case}
-	 */
-	getCase() {
-		return this._case;
 	}
 }
 

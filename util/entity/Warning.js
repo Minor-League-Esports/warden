@@ -1,201 +1,84 @@
 const { EmbedBuilder } = require('discord.js');
 
 class Warning {
-	/**
-	 * Sets the warning ID
-	 *
-	 * @param {String} warningId
-	 */
+	// Getters and setters
 	setWarningId(warningId) {
 		this._warningId = warningId;
 	}
 
-	/**
-	 * Gets the warning ID
-	 * @returns {String}
-	 */
 	getWarningId() {
 		return this._warningId;
 	}
 
-	/**
-	 * Sets the user object
-	 *
-	 * @param {User} user
-	 */
-	setSubject(subject) {
-		this._subject = subject;
+	setSubjectId(subjectId) {
+		this._subjectId = subjectId;
 	}
 
-	/**
-	 * Gets the user object
-	 *
-	 * @returns {User}
-	 */
-	getSubject() {
-		return this._subject;
+	getSubjectId() {
+		return this._subjectId;
 	}
 
-	/**
-	 * Sets the moderator object
-	 *
-	 * @param {User} moderator
-	 */
-	setModerator(moderator) {
-		this._moderator = moderator;
+	setModeratorId(moderatorId) {
+		this._moderatorId = moderatorId;
 	}
 
-	/**
-	 * Gets the moderator
-	 *
-	 * @returns {User}
-	 */
-	getModerator() {
-		return this._moderator;
+	getModeratorId() {
+		return this._moderatorId;
 	}
 
-	/**
-	 * Sets the repoter
-	 *
-	 * @param {User} reporter
-	 */
-	setReporter(reporter) {
-		this._reporter = reporter;
+	setCaseId(caseId) {
+		this._caseId = caseId;
 	}
 
-	/**
-	 * Gets the reporter
-	 *
-	 * @returns {User}
-	 */
-	getReporter() {
-		return this._reporter;
+	getCaseId() {
+		return this._caseId ?? 'N/A';
 	}
 
-	/**
-	 * Setter for timestamp
-	 *
-	 * @param {Number|Date} timestamp
-	 */
 	setTimestamp(timestamp) {
 		this._timestamp = timestamp;
 	}
 
-	/**
-	 * Getter for timestamp
-	 *
-	 * @returns {Number|Date}
-	 */
 	getTimestamp() {
 		return this._timestamp;
 	}
 
-	/**
-	 * Setter for rules broken
-	 *
-	 * @param {String} rulesBroken
-	 */
 	setRulesBroken(rulesBroken) {
 		this._rulesBroken = rulesBroken;
 	}
 
-	/**
-	 * Getter for rules broken
-	 *
-	 * @returns {String}
-	 */
 	getRulesBroken() {
 		return this._rulesBroken;
 	}
 
-	/**
-	 * Setter for violating content
-	 *
-	 * @param {String} violatingContent
-	 */
 	setViolatingContent(violatingContent) {
 		this._violatingContent = violatingContent;
 	}
 
-	/**
-	 * Getter for violating content
-	 *
-	 * @returns {String}
-	 */
 	getViolatingContent() {
 		return this._violatingContent;
 	}
 
-	/**
-	 * Setter for points added
-	 *
-	 * @param {Number} pointsAdded
-	 */
 	setPointsAdded(pointsAdded) {
 		this._pointsAdded = pointsAdded;
 	}
 
-	/**
-	 * Getter for points added
-	 *
-	 * @returns {Number}
-	 */
 	getPointsAdded() {
 		return this._pointsAdded;
 	}
 
-	/**
-	 * Setter for new point total
-	 *
-	 * @param {Number} newPointTotal
-	 */
 	setNewPointTotal(newPointTotal) {
 		this._newPointTotal = newPointTotal;
 	}
-
-	/**
-	 * Getter for new point total
-	 *
-	 * @returns {Number}
-	 */
 	getNewPointTotal() {
 		return this._newPointTotal;
 	}
 
-	/**
-	 * Setter for moderator notes
-	 *
-	 * @param {String} moderatorNotes
-	 */
 	setModeratorNotes(moderatorNotes) {
 		this._moderatorNotes = moderatorNotes;
 	}
 
-	/**
-	 * Getter for moderator notes
-	 *
-	 * @returns {String}
-	 */
 	getModeratorNotes() {
-		return this._moderatorNotes;
-	}
-
-	/**
-	 * Setter for punishments
-	 *
-	 * @param {Array<Punishment>} punishments
-	 */
-	setPunishments(punishments) {
-		this._punishments = punishments;
-	}
-
-	/**
-	 * Getter for punishments
-	 *
-	 * @returns {Array<Punishment>}
-	 */
-	getPunishments() {
-		return this._punishments;
+		return this._moderatorNotes ?? 'None';
 	}
 
 	/**

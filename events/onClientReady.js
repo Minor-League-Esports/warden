@@ -1,6 +1,12 @@
 const log4js = require('log4js');
 const logger = log4js.getLogger('onClientReady');
-const { logLevel, opsLogChannelId, caseLogChannelId } = require('../config.json');
+const {
+	logLevel,
+	opsLogChannelId,
+	caseLogChannelId,
+	reportChannelId,
+	reportEvidenceChannelId,
+} = require('../config.json');
 logger.level = logLevel;
 
 const { Events } = require('discord.js');
@@ -55,6 +61,10 @@ module.exports = {
 			const caseLogChannel = await client.channels.fetch(caseLogChannelId);
 			globalThis.caseLogger = new CaseLogger(caseLogChannel);
 			globalThis.punishmentExecutor = new PunishmentExecutor(client, globalThis.caseLogger);
+			const reportChannel = await client.channels.fetch(reportChannelId);
+			const reportEvidenceChannel = await client.channels.fetch(reportEvidenceChannelId);
+			globalThis.reportChannel = reportChannel;
+			globalThis.reportEvidenceChannel = reportEvidenceChannel;
 			await discordLogger.logMessage('Case Logger initialized');
 		} catch (error) {
 			logger.error('Failed to initialize CaseLogger', error);

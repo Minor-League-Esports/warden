@@ -21,6 +21,9 @@ class UserUtility {
 		if (this._discordRegex.test(identifier)) {
 			try {
 				const user = await this._databaseManager.getUserByIdentifier(identifier, 'discord');
+				if (user === null) {
+					throw 'User not found';
+				}
 				const updatedUser = await this.updateDiscordAvatarFromDatabaseUser(user);
 				return updatedUser;
 			} catch (error) {

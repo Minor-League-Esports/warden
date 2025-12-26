@@ -2,75 +2,61 @@ const { EmbedBuilder } = require('discord.js');
 const { calculateCurrentPoints, getNextPointExpiry } = require('../UtilFunctions.js');
 
 class User {
-	constructor(userId, discordId, discordAvatar, userName, mleId) {
+	// Getters and setters
+	setUserId(userId) {
 		this._userId = userId;
-		this._discordId = discordId;
-		this._discordAvatar = discordAvatar;
-		this._userName = userName;
-		this._mleId = mleId;
-		this._warnings = [];
 	}
 
-	/**
-	 * Getter for user ID
-	 * @returns {String}
-	 */
 	getUserId() {
 		return this._userId;
 	}
 
-	/**
-	 * Getter for Discord ID
-	 * @returns {String}
-	 */
+	setDiscordId(discordId) {
+		this._discordId = discordId;
+	}
+
 	getDiscordId() {
 		return this._discordId;
 	}
 
-	/**
-	 * Getter for Discord Avatar
-	 * @returns {String}
-	 */
-	getDiscordAvatar() {
-		return this._discordAvatar;
+	setDiscordAvatar(discordAvatar) {
+		this._discordAvatar = discordAvatar;
 	}
 
-	/**
-	 * Getter for user name
-	 * @returns {String}
-	 */
+	getDiscordAvatar() {
+		return this._discordAvatar ?? null;
+	}
+
+	setUserName(userName) {
+		this._userName = userName;
+	}
+
 	getUserName() {
 		return this._userName;
 	}
 
-	/**
-	 * Getter for MLE ID
-	 * @returns {String}
-	 */
+	setMleId(mleId) {
+		this._mleId = mleId;
+	}
+
 	getMleId() {
-		return this._mleId;
+		return this._mleId ?? 'N/A';
 	}
 
-	/**
-	 * Getter for Warnings
-	 * @returns {Warning[]}
-	 */
-	getWarnings() {
-		return this._warnings;
-	}
-
-	/**
-	 * Setter for Warnings
-	 */
-	setWarnings(warnings) {
-		this._warnings = warnings;
-	}
-
-	/**
-	 * Adds a Warning
-	 */
-	addWarning(warning) {
-		this._warnings.push(warning);
+	generateUserInfoEmbed() {
+		return new EmbedBuilder()
+			.setColor('#0000ff')
+			.setTitle(`${this._userName} | Info`)
+			.setFooter({ text: `ID: ${this.getDiscordId()}` })
+			.setTimestamp()
+			.setThumbnail(this.getDiscordAvatar())
+			.addFields(
+				{ name: 'User Name', value: this.getUserName() },
+				{ name: 'MLE ID', value: this.getMleId() },
+				{ name: 'Discord User', value: `<@${this.getDiscordId()}>` },
+				{ name: 'Discord ID', value: this.getDiscordId() },
+				{ name: 'Warden ID', value: this.getUserId() },
+			);
 	}
 
 	generateUserSummaryEmbed() {

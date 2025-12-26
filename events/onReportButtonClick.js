@@ -1,6 +1,6 @@
 const log4js = require('log4js');
 const logger = log4js.getLogger('onReportButtonClick');
-const { logLevel } = require('../config.json');
+const { logLevel, moderatorRoleId } = require('../config.json');
 logger.level = logLevel;
 
 const { Events, ModalBuilder, TextInputBuilder, LabelBuilder, TextInputStyle } = require('discord.js');
@@ -45,19 +45,73 @@ module.exports = {
 
 		if (buttonId.startsWith('confirmReportSubmit:')) {
 			const [, subjectId, reporterId] = buttonId.split(':');
-			await interaction.deferReply();
+			const embed = interaction.message.embeds[0];
 
-			try {
-				await globalThis.reportUtility.submitReportFromInteraction(interaction, subjectId, reporterId);
-				await interaction.editReply({
-					content: 'Your report has been submitted to MLE Moderation. Thank you for helping keep the community safe!',
+			if (!embed) {
+				logger.warn('No embed found in the interaction message during report confirmation.');
+				await interaction.reply({
+					content: 'There was an error with the report submission. Please try again later.',
 				});
-			} catch (error) {
-				logger.error(`Error submitting report: ${error}`);
-				await interaction.editReply({
-					content: 'There was an error submitting your report. Please try again later.',
-				});
+				return;
 			}
+			const reasonFields = embed.fields.filter((field) => field.name.startsWith('Report Reason'));
+			const evidenceFields = embed.fields.filter((field) => field.name.startsWith('Evidence'));
+
+			if (!(reasonFields.length > 0 && evidenceFields.length > 0)) {
+				logger.warn('Required fields missing in the embed during report confirmation.');
+				await interaction.reply({
+					content: 'There was an error with the report submission. Please try again later.',
+				});
+				return;
+			}
+
+			const reason = reasonFields
+				.map((field) => field.value)
+				.join('\n')
+				.trim();
+			if (reason.length === 0) {
+				logger.warn('Empty report reason provided during report confirmation.');
+				await interaction.reply({
+					content: 'The report reason cannot be empty. Please try again.',
+				});
+				return;
+			}
+			const evidence = evidenceFields
+				.map((field) => field.value)
+				.join('\n')
+				.trim();
+			if (evidence.length === 0) {
+				logger.warn('Empty report evidence provided during report confirmation.');
+				await interaction.reply({
+					content: 'The report evidence cannot be empty. Please try again.',
+				});
+				return;
+			}
+
+			await interaction.deferUpdate();
+
+			globalThis.databaseManager
+				.createReport(subjectId, reporterId, reason, evidence)
+				.then(async (report) => {
+					const reportModEmbed = await report.generatePrivateEmbed();
+					await globalThis.reportChannel.send({
+						content: `<@&${moderatorRoleId}>\nNew report submitted`,
+						embeds: [reportModEmbed],
+					});
+
+					const reportUserEmbed = await report.generateUserEmbed();
+					await interaction.editReply({ components: [] });
+					await interaction.followUp({
+						content: 'Your report has been submitted to MLE Moderation. Thank you for helping keep the community safe!',
+						embeds: [reportUserEmbed],
+						components: [],
+					});
+				})
+				.catch(async (error) => {
+					logger.error(`Error creating report in database: ${error}`);
+					await interaction.editReply({ components: [] });
+					await interaction.followUp({ content: 'There was an error submitting your report. Please try again later.' });
+				});
 		}
 	},
 };

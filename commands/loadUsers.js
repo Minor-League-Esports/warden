@@ -29,7 +29,7 @@ module.exports = {
 
 		await interaction.deferReply();
 
-		const membersData = await globalThis.dataParser.getMembersData();
+		const membersData = await globalThis.sprocketDatasetParser.getMembersData();
 
 		let created = 0;
 		let updated = 0;
@@ -43,7 +43,7 @@ module.exports = {
 				'Loading users with avatar fetching. This will take a while (30+ minutes)... A log will be sent when complete.',
 			);
 		}
-
+		const startTime = Date.now();
 		await Promise.all(
 			membersData.map(async (member) => {
 				try {
@@ -58,6 +58,7 @@ module.exports = {
 						}
 					}
 
+					logger.debug(`Loading user ${member.name} (${member.discord_id}) with avatar URL: ${avatarUrl}`);
 					const { action } = await globalThis.databaseManager.createUser(
 						member.discord_id,
 						member.name,
@@ -74,7 +75,9 @@ module.exports = {
 				}
 			}),
 		);
-
+		const endTime = Date.now();
+		const duration = ((endTime - startTime) / 1000).toFixed(2);
+		logger.info(`LoadUsersCommand completed in ${duration} seconds.`);
 		const message = `Created: ${created} users\nUpdated: ${updated} users\nUnchanged: ${unchanged} users\nFailed: ${failed} users\nUpdate avatars: ${fetchAvatars}`;
 
 		if (!fetchAvatars) {

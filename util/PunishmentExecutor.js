@@ -79,8 +79,10 @@ class PunishmentExecutor {
 		try {
 			const user = await this._discordClient.users.fetch(userDiscordId);
 			const userEmbed = warning.generateUserEmbed();
-			const fmDiscordId = await globalThis.dataParser.getPlayerFranchiseManagerDiscordIdByDiscordId(userDiscordId);
-			const fmName = await globalThis.dataParser.getMemberNameByDiscordId(fmDiscordId);
+			const fmDiscordId = await globalThis.sprocketDatasetParser.getPlayerFranchiseManagerDiscordIdByDiscordId(
+				userDiscordId,
+			);
+			const fmName = await globalThis.sprocketDatasetParser.getMemberNameByDiscordId(fmDiscordId);
 			await user.send({ embeds: [userEmbed] });
 			if (fmDiscordId) {
 				const fmUser = await this._discordClient.users.fetch(fmDiscordId);

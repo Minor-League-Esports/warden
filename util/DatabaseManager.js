@@ -8,11 +8,12 @@ const fs = require('node:fs');
 const path = require('node:path');
 const Warning = require('./entity/Warning');
 const User = require('./entity/User');
-const Punishment = require('./entity/Punishment');
 const Case = require('./entity/Case');
 const { calculateCurrentPoints } = require('./UtilFunctions');
-const Report = require('./entity/Report');
 
+/**
+ * Class for database CRUD operations
+ */
 class DatabaseManager {
 	constructor() {
 		this._status = 'init';
@@ -25,7 +26,8 @@ class DatabaseManager {
 			database: database['database'],
 			ssl: {
 				rejectUnauthorized: true,
-				servername: database['hostname'],
+				// servername: database['hostname'],
+				ca: fs.readFileSync(database['caCertPath']).toString(),
 			},
 		});
 	}
@@ -94,7 +96,7 @@ class DatabaseManager {
 
 			// Fetch all users with their warnings in one pass
 			this._client
-				.query(this._loadSql('queries/getUsersWithCurrentPointsAtOrAbove.sql'))
+				.query(this._loadSql('queries/get/getUsersWithCurrentPointsAtOrAbove.sql'))
 				.then((result) => {
 					const rows = result.rows || [];
 					// Group by user_id
@@ -154,7 +156,7 @@ class DatabaseManager {
 			}
 
 			this._client
-				.query(this._loadSql('queries/getCurrentlyBannedUsers.sql'))
+				.query(this._loadSql('queries/get/getCurrentlyBannedUsers.sql'))
 				.then((result) => {
 					const users = (result.rows || []).map(
 						(row) =>
@@ -182,7 +184,7 @@ class DatabaseManager {
 
 		try {
 			// Load case core + related users
-			const caseRes = await this._queryFile('queries/getCaseById_case.sql', [caseId]);
+			const caseRes = await this._queryFile('queries/get/getCaseById_case.sql', [caseId]);
 
 			if (!caseRes.rows || caseRes.rows.length === 0) {
 				throw new Error('Case not found');
@@ -215,21 +217,21 @@ class DatabaseManager {
 			}
 
 			// Reports in case
-			const repRes = await this._queryFile('queries/getCaseById_reports.sql', [caseId]);
-			const reports = this.parseDatabaseReportResponse(repRes);
+			const repRes = await this._queryFile('queries/get/getCaseById_reports.sql', [caseId]);
+			const reports = globalThis.databaseResponseParser.parseDatabaseReportResponse(repRes);
 			reports.forEach((r) => r.setCase(kase));
 
 			// Warnings in case (with punishments via join)
-			const warnRes = await this._queryFile('queries/getCaseById_warnings.sql', [caseId]);
-			const warnings = this.parseDatabaseWarningResponse(warnRes);
+			const warnRes = await this._queryFile('queries/get/getCaseById_warnings.sql', [caseId]);
+			const warnings = globalThis.databaseResponseParser.parseDatabaseWarningResponse(warnRes);
 			warnings.forEach((w) => {
 				w.setCase(kase);
 				(w.getPunishments() || []).forEach((p) => p.setCase(kase));
 			});
 
 			// Standalone punishments in case
-			const punRes = await this._queryFile('queries/getCaseById_punishments.sql', [caseId]);
-			const standalonePunishments = this.parseDatabasePunishmentResponse(punRes);
+			const punRes = await this._queryFile('queries/get/getCaseById_punishments.sql', [caseId]);
+			const standalonePunishments = globalThis.databaseResponseParser.parseDatabasePunishmentResponse(punRes);
 			standalonePunishments.forEach((p) => p.setCase(kase));
 
 			// Assemble and return
@@ -245,634 +247,358 @@ class DatabaseManager {
 	}
 
 	/**
-	 * Gets a user object.
-	 * Returns basic user data and basic info of warnings
-	 * Enough to display user summary
-	 * Count of warnings and point calculation done in User object
-	 *
-	 * @param {String} userId The user's Discord ID
-	 * @returns {Promise<User>} A promise to return the User object
-	 */
-	async getUserByIdentifier(identifier, type) {
-		return new Promise((resolve, reject) => {
-			if (this._status !== 'success') {
-				return reject('DB manager not initialized');
-			}
-
-			// Single query: get user row and all joined warnings with names
-			this._queryFile(`queries/getUserByIdentifier_${type}.sql`, [identifier])
-				.then((result) => {
-					const rows = result.rows;
-					if (!rows || rows.length === 0) {
-						return reject('User not found');
-					}
-
-					// Build user from first row
-					const first = rows[0];
-					const user = new User(
-						first['user_id'],
-						first['discord_id'],
-						first['discord_avatar'],
-						first['user_name'],
-						first['mle_id'],
-					);
-
-					// Aggregate warnings from all rows where a warning exists
-					const warnings = [];
-					for (const row of rows) {
-						if (row['warning_id'] == null) continue;
-						const w = new Warning();
-						w.setTimestamp(row['timestamp']);
-						w.setPointsAdded(row['points_added']);
-						warnings.push(w);
-					}
-
-					user.setWarnings(warnings);
-					return resolve(user);
-				})
-				.catch((error) => {
-					logger.error('Error getting user!');
-					logger.error(error);
-					return reject('Error getting user');
-				});
-		});
-	}
-
-	/**
 	 * Creates a new user object and returns it
+	 * Updates name and avatar if already exists
 	 *
 	 * @param {String} userId The user's Discord ID
 	 * @param {String} userName The user's Discord username
-	 * @param {String} mleId The user's MLE ID (optional)
-	 * @param {String} discordAvatar The user's Discord avatar URL (optional)
-	 * @returns {Promise<User>} A promise to return the newly created User object
+	 * @param {String|null} mleId The user's MLE ID (optional)
+	 * @param {String|null} discordAvatar The user's Discord avatar URL (optional)
+	 * @returns {Object} An Object with {user, action, ?reason}
 	 */
 	async createUser(discordId, userName, mleId = null, discordAvatar = null) {
-		return new Promise((resolve, reject) => {
-			if (this._status !== 'success') {
-				return reject('DB manager not initialized');
+		if (this._status !== 'success') {
+			throw new Error('DB manager not initialized');
+		}
+
+		if (!discordId || !userName) {
+			throw new Error('discordId and userName are required to create a user');
+		}
+
+		// First check if the user already exists
+		const existing = await this._queryFile('queries/get/getUserByIdentifier_discord.sql', [discordId]);
+		const users = globalThis.databaseResponseParser.parseDatabaseUserResponse(existing);
+
+		if (users.length === 1) {
+			const user = users[0];
+
+			// User exists, check if we need to update
+			let updateName = false;
+			let updateAvatar = true;
+			if (userName != user.getUserName()) {
+				updateName = true;
+			}
+			if (discordAvatar != null && discordAvatar != user.getDiscordAvatar()) {
+				updateAvatar = true;
 			}
 
-			if (!discordId || !userName) {
-				return reject('discordId and userName are required to create a user');
-			}
-
-			// Check if a user with this discord_id already exists
-			this._client
-				.query(
-					`SELECT user_id, discord_id, discord_avatar, user_name, mle_id
-                     FROM Users
-                     WHERE discord_id = $1
-                     LIMIT 1`,
-					[discordId],
-				)
-				.then(async (existing) => {
-					if (existing.rows.length > 0) {
-						// If exists, update fields only if different
-						const current = existing.rows[0];
-						const currentName = current.user_name;
-						const currentAvatar = current.discord_avatar;
-						let needsUpdate = false;
-						const updates = [];
-						if (userName && currentName !== userName) {
-							updates.push({ key: 'user_name', value: userName });
-							needsUpdate = true;
-						}
-						if (discordAvatar !== null && discordAvatar !== undefined && currentAvatar !== discordAvatar) {
-							updates.push({ key: 'discord_avatar', value: discordAvatar });
-							needsUpdate = true;
-						}
-
-						if (needsUpdate) {
-							// Build dynamic UPDATE statement safely
-							const setClauses = updates.map((u, idx) => `${u.key} = $${idx + 2}`).join(', ');
-							const values = [discordId, ...updates.map((u) => u.value)];
-							const updateRes = await this._client.query(
-								`UPDATE Users
-								 SET ${setClauses}
-								 WHERE discord_id = $1
-								 RETURNING user_id, discord_id, discord_avatar, user_name, mle_id`,
-								values,
-							);
-							const user = this.parseDatabaseUserResponse(updateRes);
-							logger.debug(
-								`Updated user for discord_id ${discordId}: ` + updates.map((u) => `${u.key} -> ${u.value}`).join(', '),
-							);
-							return resolve({
-								user,
-								action: 'updated',
-								reason: 'discord_id existed; fields updated to match dataset',
-							});
-						}
-
-						const user = this.parseDatabaseUserResponse(existing);
-						return resolve({
-							user,
-							action: 'unchanged',
-							reason: 'discord_id already in use; no field changes',
-						});
-					}
-
-					// Insert new user
-					return this._client
-						.query(
-							`INSERT INTO Users (discord_id, user_name, mle_id, discord_avatar)
-                             VALUES ($1, $2, $3, $4)
-                             RETURNING user_id, discord_id, discord_avatar, user_name, mle_id`,
-							[discordId, userName, mleId, discordAvatar],
-						)
-						.then((result) => {
-							const user = this.parseDatabaseUserResponse(result);
-							logger.debug(`Created new user with discord_id ${discordId} and user_name "${userName}"`);
-							if (user === null) return reject('Failed to create user');
-							return resolve({
-								user,
-								action: 'created',
-							});
-						});
-				})
-				.catch((error) => {
-					logger.error('Error creating user!');
-					logger.error(error);
-					return reject('Error creating user');
+			if (updateName && updateAvatar) {
+				const updated = await this.updateUser(user.getUserId(), {
+					user_name: userName,
+					discord_avatar: discordAvatar,
 				});
-		});
+				if (updated.length !== 1) throw new Error('Failed to update user');
+				logger.info(`Updated user ${user.getUserId()} with new name and avatar.`);
+				return {
+					user: updated[0],
+					action: 'updated',
+					reason: 'discord_id existed; updated name and avatar',
+				};
+			} else if (updateName) {
+				const updated = await this.updateUser(user.getUserId(), { user_name: userName });
+				if (updated.length !== 1) throw new Error('Failed to update user');
+				logger.info(`Updated user ${user.getUserId()} with new name.`);
+				return {
+					user: updated[0],
+					action: 'updated',
+					reason: 'discord_id existed; updated name',
+				};
+			} else if (updateAvatar) {
+				const updated = await this.updateUser(user.getUserId(), { discord_avatar: discordAvatar });
+				if (updated.length !== 1) throw new Error('Failed to update user');
+				logger.info(`Updated user ${user.getUserId()} with new avatar.`);
+				return {
+					user: updated[0],
+					action: 'updated',
+					reason: 'discord_id existed; updated avatar',
+				};
+			} else {
+				return {
+					user: user,
+					action: 'unchanged',
+					reason: 'discord_id existed; no changes needed',
+				};
+			}
+		} else {
+			// User doesn't exist, create them
+			const res = await this._queryFile('queries/insert/insertUser.sql', [discordId, discordAvatar, userName, mleId]);
+			const created = globalThis.databaseResponseParser.parseDatabaseUserResponse(res);
+			if (created.length !== 1) throw new Error('Failed to create user');
+			logger.info(`Created user ${created[0].getUserId()} with discord_id ${discordId}`);
+			return {
+				user: created[0],
+				action: 'created',
+			};
+		}
 	}
 
 	/**
-	 * Updates an existing user object and returns it
-	 * @param {String} userId The user's Database ID
-	 * @param {Object} fields An object containing fields to update (e.g., { user_name: 'NewName', discord_avatar: 'NewAvatarURL' })
-	 * @returns {Promise<User>} A promise to return the updated User object
+	 * Creates a Case row
+	 * @param {String} creatorId DB user_id of the reporter/creator
+	 * @param {String} subjectId DB user_id of the target user
+	 * @param {String} status Case status (e.g., 'open','closed')
+	 * @param {number|Date|string} createdAt Timestamp (default now)
+	 * @param {number|null} moderatorId Owning moderator (nullable)
+	 * @param {string|null} notes Notes (nullable)
+	 * @returns {Promise<Case>}
 	 */
-	async updateUser(userId, fields) {
-		return new Promise((resolve, reject) => {
-			if (this._status !== 'success') {
-				return reject('DB manager not initialized');
-			}
-			if (!userId || !fields || Object.keys(fields).length === 0) {
-				return reject('userId and at least one field are required to update a user');
-			}
+	async createCase(
+		creatorId,
+		subjectId,
+		status = 'OPEN',
+		createdAt = new Date().toISOString(),
+		moderatorId = null,
+		notes = null,
+	) {
+		if (this._status !== 'success') {
+			throw new Error('DB manager not initialized');
+		}
 
-			// Build dynamic UPDATE statement safely
-			const setClauses = Object.keys(fields)
-				.map((key, idx) => `${key} = $${idx + 2}`)
-				.join(', ');
-			const values = [userId, ...Object.values(fields)];
+		const res = await this._queryFile('queries/insert/insertCase.sql', [
+			creatorId,
+			subjectId,
+			moderatorId,
+			status,
+			createdAt,
+			notes,
+		]);
 
-			this._client
-				.query(
-					`UPDATE Users
-                     SET ${setClauses}
-                     WHERE user_id = $1
-                     RETURNING user_id, discord_id, discord_avatar, user_name, mle_id`,
-					values,
-				)
-				.then((result) => {
-					const user = this.parseDatabaseUserResponse(result);
-					logger.debug(`Updated user with user_id ${userId}: ` + JSON.stringify(fields));
-					if (user === null) return reject('Failed to update user');
-					return resolve(user);
-				})
-				.catch((error) => {
-					logger.error('Error updating user!');
-					logger.error(error);
-					return reject('Error updating user');
-				});
-		});
+		const cases = globalThis.databaseResponseParser.parseDatabaseCaseResponse(res);
+		if (cases.length !== 1) throw new Error('Failed to create case');
+		logger.info(`Created case ${cases[0].getCaseId()} for subject ${subjectId}`);
+		return cases[0];
+	}
+
+	/**
+	 * Creates a new warning for a user
+	 *
+	 * @param {String} subjectId DB ID of the user being warned
+	 * @param {String} moderatorId DB ID of the moderator issuing the warning
+	 * @param {String} rulesBroken The rules broken by the user
+	 * @param {String} violatingContent The content that violated the rules
+	 * @param {Number} pointsAdded Number of points added by this warning
+	 * @param {String} moderatorNotes Private notes for moderator reference (optional)
+	 * @param {String} timestamp Optional timestamp; defaults to now (ex 2025-12-12 20:23:22.611 -0600)
+	 * @param {String} caseId DB ID of the Case the warning is associated with (optional)
+	 * @returns {Warning} The newly created warning object
+	 */
+	async createWarning(
+		subjectId,
+		moderatorId,
+		rulesBroken,
+		violatingContent,
+		pointsAdded,
+		moderatorNotes = null,
+		timestamp = new Date().toISOString(),
+		caseId = null,
+	) {
+		if (this._status !== 'success') {
+			throw new Error('DB manager not initialized');
+		}
+
+		// Get existing warnings to compute current points at time of warn
+		const existingWarnings = await this.getWarnings(subjectId);
+		const currentPoints = calculateCurrentPoints(existingWarnings, timestamp);
+		const newPointTotal = currentPoints + (pointsAdded || 0);
+
+		const res = await this._queryFile('queries/insert/insertWarning.sql', [
+			subjectId,
+			moderatorId,
+			caseId,
+			timestamp,
+			rulesBroken,
+			violatingContent,
+			pointsAdded,
+			newPointTotal,
+			moderatorNotes,
+		]);
+
+		const warnings = globalThis.databaseResponseParser.parseDatabaseWarningResponse(res);
+		if (warnings.length !== 1) throw new Error('Failed to create warning');
+		logger.info(`Created warning ${warnings[0].getWarningId()} for user ${subjectId}`);
+		return warnings[0];
+	}
+
+	/**
+	 * Creates a new Punishment object
+	 *
+	 * @param {String} subjectId DB ID of the user getting the punishment
+	 * @param {String} moderatorId DB ID of the moderator who executed the punishment
+	 * @param {String} punishmentType Type of punishment (mute, ban, etc)
+	 * @param {Number} punishmentDuration How long the punishment is for (mutes in days, suspensions in weeks)
+	 * @param {String} caseId DB ID of the associated case
+	 * @param {String} timestamp ISO timestamp of the punishment (defaults to now)
+	 * @returns {Promise<Punishment>} A promise with the created punishment
+	 */
+	async createPunishment(
+		subjectId,
+		moderatorId,
+		punishmentType,
+		punishmentDuration = null,
+		caseId = null,
+		timestamp = new Date().toISOString(),
+	) {
+		if (this._status !== 'success') {
+			throw new Error('DB manager not initialized');
+		}
+
+		// Create the punishment row
+		const res = await this._queryFile('queries/insert/insertPunishment.sql', [
+			subjectId,
+			moderatorId,
+			caseId,
+			timestamp,
+			punishmentType,
+			punishmentDuration,
+		]);
+
+		const punishments = globalThis.databaseResponseParser.parseDatabasePunishmentResponse(res);
+		if (punishments.length !== 1) throw new Error('Failed to create punishment');
+		logger.info(`Created punishment ${punishments[0].getPunishmentId()} for user ${subjectId}`);
+		return punishments[0];
+	}
+
+	/**
+	 * Creates a new Report object
+	 *
+	 * @param {String} subjectId DB ID of the user being reported
+	 * @param {String} reporterId DB ID of the user making the report
+	 * @param {String} reportReason User description of the report
+	 * @param {String} evidence Evidence provided by the user
+	 * @param {String} timestamp ISO timestamp of the punishment (defaults to now)
+	 * @returns {Promise<Report>} A promise with the created report
+	 */
+	async createReport(subjectId, reporterId, reportReason, evidence = null, timestamp = new Date().toISOString()) {
+		if (this._status !== 'success') {
+			throw new Error('DB manager not initialized');
+		}
+
+		// Create the report row
+		const res = await this._queryFile('queries/insert/insertReport.sql', [
+			subjectId,
+			reporterId,
+			timestamp,
+			reportReason,
+			evidence,
+			'OPEN',
+		]);
+
+		const reports = globalThis.databaseResponseParser.parseDatabaseReportResponse(res);
+		if (reports.length !== 1) throw new Error('Failed to create report');
+		logger.info(`Created report ${reports[0].getReportId()} by ${reporterId} against user ${subjectId}`);
+		return reports[0];
+	}
+
+	/**
+	 * Gets a user object.
+	 *
+	 * @param {String} identifier The user's identifier (name, mle id, db id, etc)
+	 * @returns {Promise<User|null>} A promise to return the User object (may be null)
+	 */
+	async getUserByIdentifier(identifier, type) {
+		if (this._status !== 'success') {
+			throw new Error('DB manager not initialized');
+		}
+
+		const res = await this._queryFile(`queries/get/getUserByIdentifier_${type}.sql`, [identifier]);
+		const users = globalThis.databaseResponseParser.parseDatabaseUserResponse(res);
+		if (users.length !== 1) return null;
+		return users[0];
 	}
 
 	/**
 	 * Gets a user's warnings
 	 *
 	 * @param {String} userId The user's Database ID
+	 * @param {Number|null} limit Optional limit on number of warnings to return
 	 * @returns {Promise<Warning[]>} A promise to return an array of Warning objects
 	 */
 	async getWarnings(userId, limit = null) {
-		return new Promise((resolve, reject) => {
-			if (this._status !== 'success') {
-				return reject('DB manager not initialized');
-			}
+		if (this._status !== 'success') {
+			throw new Error('DB manager not initialized');
+		}
 
-			this._queryFile('queries/getWarnings.sql', [userId])
-				.then((warningResult) => {
-					let warnings = this.parseDatabaseWarningResponse(warningResult);
-					if (limit && Number.isInteger(limit)) {
-						warnings = warnings.slice(0, limit);
-					}
-					return resolve(warnings);
-				})
-				.catch((error) => {
-					logger.error('Error getting warnings!');
-					logger.error(error);
-					return reject('Error getting warnings');
-				});
-		});
+		const res = await this._queryFile('queries/get/getWarnings.sql', [userId]);
+		let warnings = globalThis.databaseResponseParser.parseDatabaseWarningResponse(res);
+		if (limit && Number.isInteger(limit)) {
+			warnings = warnings.slice(0, limit);
+		}
+		return warnings;
 	}
 
 	/**
-	 * Gets a user's standalone punishments (not linked to any warning)
+	 * Updates an existing user object and returns it
 	 *
 	 * @param {String} userId The user's Database ID
-	 * @returns {Promise<Punishment[]>} A promise to return an array of Punishment objects
+	 * @param {Object} fields An object containing fields to update (e.g., { user_name: 'NewName', discord_avatar: 'NewAvatarURL' })
+	 * @returns {Promise<User>} A promise to return the updated User object
 	 */
-	async getStandalonePunishments(userId) {
-		return new Promise((resolve, reject) => {
-			if (this._status !== 'success') {
-				return reject('DB manager not initialized');
-			}
-
-			this._queryFile('queries/getStandalonePunishments.sql', [userId])
-				.then((punResult) => {
-					return resolve(this.parseDatabasePunishmentResponse(punResult));
-				})
-				.catch((error) => {
-					logger.error('Error getting standalone punishments!');
-					logger.error(error);
-					return reject('Error getting standalone punishments');
-				});
-		});
-	}
-
-	/**
-	 * Creates a new warning for a user
-	 *
-	 * @param {String} userId DB ID of the user being warned
-	 * @param {String} moderatorId DB ID of the moderator issuing the warning
-	 * @param {String} reporterId DB ID of the reporter (can be null)
-	 * @param {String} rulesBroken The rules broken by the user
-	 * @param {String} violatingContent The content that violated the rules
-	 * @param {Number} pointsAdded Number of points added by this warning
-	 * @param {String} moderatorNotes Private notes for moderator reference (optional)
-	 * @param {String} timestamp Optional timestamp; defaults to now (ex 2025-12-12 20:23:22.611 -0600)
-	 * @returns {Warning} The newly created warning object
-	 */
-	async createWarning(
-		userId,
-		moderatorId,
-		reporterId,
-		rulesBroken,
-		violatingContent,
-		pointsAdded,
-		moderatorNotes = null,
-		timestamp = new Date().toISOString(),
-	) {
+	async updateUser(userId, fields) {
 		if (this._status !== 'success') {
 			throw new Error('DB manager not initialized');
 		}
 
-		try {
-			// Get existing warnings to compute current points at time of warn
-			const existingWarnings = await this.getWarnings(userId);
-			const currentPoints = calculateCurrentPoints(existingWarnings, timestamp);
-			const newPointTotal = currentPoints + (pointsAdded || 0);
-
-			const result = await this._queryFile('queries/insertWarning.sql', [
-				userId,
-				moderatorId,
-				reporterId,
-				timestamp,
-				rulesBroken,
-				violatingContent,
-				pointsAdded,
-				newPointTotal,
-				moderatorNotes,
-			]);
-
-			const warnings = this.parseDatabaseWarningResponse(result);
-			if (warnings.length === 0) {
-				throw new Error('Failed to create warning');
-			}
-			return warnings[0];
-		} catch (error) {
-			logger.error('Error creating warning!');
-			logger.error(error);
-			throw new Error('Error creating warning');
+		if (!userId || !fields || Object.keys(fields).length === 0) {
+			throw new Error('userId and at least one field are required to update a user');
 		}
-	}
 
-	async createPunishment(
-		userId,
-		moderatorId,
-		punishmentType,
-		punishmentDuration = null,
-		timestamp = new Date().toISOString(),
-	) {
-		if (this._status !== 'success') {
-			throw new Error('DB manager not initialized');
-		}
-		try {
-			// Create the punishment row and get the new ID
-			const insertResult = await this._queryFile('queries/insertPunishment.sql', [
-				userId,
-				moderatorId,
-				timestamp,
-				punishmentType,
-				punishmentDuration,
-			]);
+		// Build dynamic UPDATE statement safely
+		const setClauses = Object.keys(fields)
+			.map((key, idx) => `${key} = $${idx + 2}`)
+			.join(', ');
+		const values = [userId, ...Object.values(fields)];
 
-			if (!insertResult.rows || insertResult.rows.length === 0) {
-				throw new Error('Failed to create punishment');
-			}
+		const res = await this._client.query(
+			`UPDATE Users
+                SET ${setClauses}
+                WHERE user_id = $1
+                RETURNING *`,
+			values,
+		);
 
-			const createdPunishmentId = insertResult.rows[0]['punishment_id'];
-
-			// Load full context (user + moderator) for the newly created punishment
-			const joinedResult = await this._queryFile('queries/getPunishmentById.sql', [createdPunishmentId]);
-
-			const punishments = this.parseDatabasePunishmentResponse(joinedResult);
-			if (!punishments || punishments.length === 0) {
-				throw new Error('Failed to load created punishment');
-			}
-			return punishments[0];
-		} catch (error) {
-			logger.error('Error creating punishment!');
-			logger.error(error);
-			throw new Error('Error creating punishment');
-		}
-	}
-
-	/**
-	 * Creates a Case row
-	 * @param {number|null} creatorId DB user_id of the reporter/creator (nullable)
-	 * @param {number|null} subjectUserId DB user_id of the target user (nullable)
-	 * @param {string} status Case status (e.g., 'open','closed')
-	 * @param {number|Date|string} createdAt Timestamp (default now)
-	 * @param {number|null} moderatorId Owning moderator (nullable)
-	 * @param {string|null} notes Notes (nullable)
-	 * @param {string|null} customResponse Custom response (nullable)
-	 * @returns {Promise<Case>}
-	 */
-	async createCase(
-		creatorId = null,
-		subjectUserId = null,
-		status = 'open',
-		createdAt = new Date().toISOString(),
-		moderatorId = null,
-		notes = null,
-		customResponse = null,
-	) {
-		if (this._status !== 'success') {
-			throw new Error('DB manager not initialized');
-		}
-		try {
-			const res = await this._queryFile('queries/insertCase.sql', [
-				creatorId,
-				subjectUserId,
-				moderatorId,
-				status,
-				createdAt,
-				notes,
-				customResponse,
-			]);
-
-			const row = res.rows?.[0];
-			if (!row) throw new Error('Failed to create case');
-
-			const kase = new Case();
-			kase.setCaseId(row['case_id']);
-			kase.setStatus(row['status']);
-			kase.setCreatedAt(row['created_at']);
-			kase.setClosedAt(row['closed_at']);
-			kase.setNotes(row['notes']);
-			kase.setCustomResponse(row['custom_response']);
-			// Subject/creator/moderator objects can be resolved by caller if needed
-			return kase;
-		} catch (error) {
-			logger.error('Error creating case!');
-			logger.error(error);
-			throw new Error('Error creating case');
-		}
+		const users = globalThis.databaseResponseParser.parseDatabaseUserResponse(res);
+		if (users.length !== 1) throw new Error('Failed to update user');
+		logger.info(`Updated user with user_id ${userId}: ` + JSON.stringify(fields));
+		return users[0];
 	}
 
 	/**
 	 * Attach an existing report to a case
+	 *
+	 * @param {String} reportId The ID of the report to attach
+	 * @param {String} caseId The ID of the case to attach the report to
 	 */
 	async attachReportToCase(reportId, caseId) {
 		if (this._status !== 'success') {
 			throw new Error('DB manager not initialized');
 		}
-		await this._queryFile('queries/attachReportToCase.sql', [caseId, reportId]);
+		await this._queryFile('queries/attach/attachReportToCase.sql', [caseId, reportId]);
 	}
 
 	/**
 	 * Attach an existing warning to a case
+	 *
+	 * @param {String} warningId The ID of the warning to attach
+	 * @param {String} caseId The ID of the case to attach the warning to
 	 */
 	async attachWarningToCase(warningId, caseId) {
 		if (this._status !== 'success') {
 			throw new Error('DB manager not initialized');
 		}
-		await this._queryFile('queries/attachWarningToCase.sql', [caseId, warningId]);
+		await this._queryFile('queries/attach/attachWarningToCase.sql', [caseId, warningId]);
 	}
 
 	/**
 	 * Attach an existing punishment to a case
+	 *
+	 * @param {String} punishmentId The ID of the punishment to attach
+	 * @param {String} caseId The ID of the case to attach the punishment to
 	 */
 	async attachPunishmentToCase(punishmentId, caseId) {
 		if (this._status !== 'success') {
 			throw new Error('DB manager not initialized');
 		}
-		await this._queryFile('queries/attachPunishmentToCase.sql', [caseId, punishmentId]);
-	}
-
-	/**
-	 * Parses raw database data into a User object
-	 *
-	 * @param {*} result The raw DB data
-	 * @returns {User} The parsed User
-	 */
-	parseDatabaseUserResponse(userResult) {
-		const rows = userResult.rows;
-
-		if (rows.length === 0) {
-			return null;
-		}
-
-		const userRow = rows[0];
-		const userId = userRow['user_id'];
-		const discordId = userRow['discord_id'];
-		const discordAvatar = userRow['discord_avatar'];
-		const userName = userRow['user_name'];
-		const mleId = userRow['mle_id'];
-
-		const user = new User(userId, discordId, discordAvatar, userName, mleId);
-
-		return user;
-	}
-
-	/**
-	 * Parses raw database data into an array of Warnings
-	 *
-	 * @param {*} result The raw DB data
-	 * @returns {Warning[]} The parsed Warnings
-	 */
-	parseDatabaseWarningResponse(warningResult) {
-		const rows = warningResult.rows;
-
-		// Group rows by warning_id to aggregate punishments per warning
-		const byId = new Map();
-
-		for (const row of rows) {
-			const wid = row['warning_id'];
-			let entry = byId.get(wid);
-			if (!entry) {
-				// Build full User objects
-				const warnedUser = new User(
-					row['u_user_id'],
-					row['u_user_discord_id'],
-					row['u_user_avatar'],
-					row['u_user_name'],
-					row['u_user_mle_id'],
-				);
-				const moderatorUser = new User(
-					row['u_mod_id'],
-					row['u_mod_discord_id'],
-					row['u_mod_avatar'],
-					row['u_mod_name'],
-					row['u_mod_mle_id'],
-				);
-				let reporterUser = null;
-				if (row['u_rep_id']) {
-					reporterUser = new User(
-						row['u_rep_id'],
-						row['u_rep_discord_id'],
-						row['u_rep_avatar'],
-						row['u_rep_name'],
-						row['u_rep_mle_id'],
-					);
-				}
-
-				const warning = new Warning();
-				warning.setWarningId(wid);
-				warning.setSubject(warnedUser);
-				warning.setModerator(moderatorUser);
-				reporterUser ? warning.setReporter(reporterUser) : warning.setReporter(null);
-				warning.setTimestamp(row['timestamp']);
-				warning.setRulesBroken(row['rules_broken']);
-				warning.setViolatingContent(row['violating_content']);
-				warning.setPointsAdded(row['points_added']);
-				warning.setNewPointTotal(row['new_point_total']);
-				warning.setModeratorNotes(row['moderator_notes']);
-				warning.setPunishments([]);
-
-				entry = { warning };
-				byId.set(wid, entry);
-			}
-
-			// Add punishment if present
-			if (row['pun_id']) {
-				const p = new Punishment();
-				p.setPunishmentId(row['pun_id']);
-				p.setType(row['pun_type']);
-				p.setDuration(row['pun_duration']);
-				p.setTimestamp(row['pun_timestamp']);
-				// Attach context users (optional convenience)
-				p.setSubject(entry.warning.getSubject());
-				p.setModerator(entry.warning.getModerator());
-
-				entry.warning.getPunishments().push(p);
-			}
-		}
-
-		return Array.from(byId.values()).map((e) => e.warning);
-	}
-
-	/**
-	 * Parses raw database data into an array of Punishments
-	 *
-	 * @param {*} punResult The raw DB data
-	 * @returns {Punishment[]} The parsed Punishments
-	 */
-	parseDatabasePunishmentResponse(punResult) {
-		const rows = punResult.rows;
-		const punishments = [];
-		for (const row of rows) {
-			const p = new Punishment();
-			p.setPunishmentId(row['pun_id']);
-			p.setType(row['pun_type']);
-			p.setDuration(row['pun_duration']);
-			p.setTimestamp(row['pun_timestamp']);
-			// Build user context
-			const punishedUser = new User(
-				row['u_user_id'],
-				row['u_user_discord_id'],
-				row['u_user_avatar'],
-				row['u_user_name'],
-				row['u_user_mle_id'],
-			);
-			const moderatorUser = new User(
-				row['u_mod_id'],
-				row['u_mod_discord_id'],
-				row['u_mod_avatar'],
-				row['u_mod_name'],
-				row['u_mod_mle_id'],
-			);
-			p.setSubject(punishedUser);
-			p.setModerator(moderatorUser);
-			punishments.push(p);
-		}
-
-		return punishments;
-	}
-
-	/**
-	 * Parses raw database data into an array of Reports
-	 * @param {*} reportResult The raw DB data
-	 * @returns {Report[]} The parsed Reports
-	 */
-	parseDatabaseReportResponse(reportResult) {
-		const rows = reportResult.rows || [];
-		const reports = [];
-		for (const row of rows) {
-			const rep = new Report();
-			rep.setReportId(row['report_id']);
-			// Users
-			let reporterUser = null;
-			let subjectUser = null;
-			let moderatorUser = null;
-			if (row['u_rep_id']) {
-				reporterUser = new User(
-					row['u_rep_id'],
-					row['u_rep_discord_id'],
-					row['u_rep_avatar'],
-					row['u_rep_name'],
-					row['u_rep_mle_id'],
-				);
-			}
-			if (row['u_user_id']) {
-				subjectUser = new User(
-					row['u_user_id'],
-					row['u_user_discord_id'],
-					row['u_user_avatar'],
-					row['u_user_name'],
-					row['u_user_mle_id'],
-				);
-			}
-			if (row['u_mod_id']) {
-				moderatorUser = new User(
-					row['u_mod_id'],
-					row['u_mod_discord_id'],
-					row['u_mod_avatar'],
-					row['u_mod_name'],
-					row['u_mod_mle_id'],
-				);
-			}
-			if (reporterUser) rep.setReporter(reporterUser);
-			if (subjectUser) rep.setSubject(subjectUser);
-			if (moderatorUser) rep.setModerator(moderatorUser);
-
-			rep.setReportTimestamp(row['report_timestamp']);
-			rep.setAcknowledgeTimestamp(row['acknowledge_timestamp']);
-			rep.setCloseTimestamp(row['close_timestamp']);
-			rep.setReportReason(row['report_reason']);
-			rep.setReportEvidence(row['report_evidence']);
-			rep.setStatus(row['status']);
-			rep.setModeratorNotes(row['moderator_notes']);
-			rep.setCustomResponse(row['custom_response']);
-
-			reports.push(rep);
-		}
-		return reports;
+		await this._queryFile('queries/attach/attachPunishmentToCase.sql', [caseId, punishmentId]);
 	}
 }
 
