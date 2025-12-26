@@ -3,7 +3,17 @@ const logger = log4js.getLogger('onReportButtonClick');
 const { logLevel, moderatorRoleId } = require('../config.json');
 logger.level = logLevel;
 
-const { Events, ModalBuilder, TextInputBuilder, LabelBuilder, TextInputStyle } = require('discord.js');
+const {
+	Events,
+	ModalBuilder,
+	TextInputBuilder,
+	LabelBuilder,
+	TextInputStyle,
+	MessageFlags,
+	ButtonBuilder,
+	ButtonStyle,
+	ActionRowBuilder,
+} = require('discord.js');
 
 module.exports = {
 	name: Events.InteractionCreate,
@@ -51,6 +61,7 @@ module.exports = {
 				logger.warn('No embed found in the interaction message during report confirmation.');
 				await interaction.reply({
 					content: 'There was an error with the report submission. Please try again later.',
+					flags: MessageFlags.Ephemeral,
 				});
 				return;
 			}
@@ -61,6 +72,7 @@ module.exports = {
 				logger.warn('Required fields missing in the embed during report confirmation.');
 				await interaction.reply({
 					content: 'There was an error with the report submission. Please try again later.',
+					flags: MessageFlags.Ephemeral,
 				});
 				return;
 			}
@@ -73,6 +85,7 @@ module.exports = {
 				logger.warn('Empty report reason provided during report confirmation.');
 				await interaction.reply({
 					content: 'The report reason cannot be empty. Please try again.',
+					flags: MessageFlags.Ephemeral,
 				});
 				return;
 			}
@@ -84,6 +97,7 @@ module.exports = {
 				logger.warn('Empty report evidence provided during report confirmation.');
 				await interaction.reply({
 					content: 'The report evidence cannot be empty. Please try again.',
+					flags: MessageFlags.Ephemeral,
 				});
 				return;
 			}
@@ -94,24 +108,56 @@ module.exports = {
 				.createReport(subjectId, reporterId, reason, evidence)
 				.then(async (report) => {
 					const reportModEmbed = await report.generatePrivateEmbed();
-					await globalThis.reportChannel.send({
+					const reportMessage = await globalThis.reportChannel.send({
 						content: `<@&${moderatorRoleId}>\nNew report submitted`,
 						embeds: [reportModEmbed],
 					});
+					report.setReportLink(reportMessage.url);
+					await globalThis.databaseManager.updateReport(report.getReportId(), { report_link: report.getReportLink() });
 
 					const reportUserEmbed = await report.generateUserEmbed();
 					await interaction.editReply({ components: [] });
 					await interaction.followUp({
 						content: 'Your report has been submitted to MLE Moderation. Thank you for helping keep the community safe!',
 						embeds: [reportUserEmbed],
-						components: [],
+						components: generateReportUpdateButton(report.getReportId()),
+						flags: MessageFlags.Ephemeral,
 					});
 				})
 				.catch(async (error) => {
 					logger.error(`Error creating report in database: ${error}`);
 					await interaction.editReply({ components: [] });
-					await interaction.followUp({ content: 'There was an error submitting your report. Please try again later.' });
+					await interaction.followUp({
+						content: 'There was an error submitting your report. Please try again later.',
+						flags: MessageFlags.Ephemeral,
+					});
 				});
+		}
+
+		if (buttonId.startsWith('reportUpdateButton:')) {
+			const [, reportId] = buttonId.split(':');
+
+			const modal = new ModalBuilder().setCustomId(`updateReportModal:${reportId}`).setTitle('Update Report');
+
+			const reasonInput = new TextInputBuilder()
+				.setCustomId('reason')
+				.setStyle(TextInputStyle.Paragraph)
+				.setPlaceholder('Please provide any additional details or updates regarding your report.')
+				.setRequired(true);
+			const reasonInputLabel = new LabelBuilder().setLabel('Reason for Report').setTextInputComponent(reasonInput);
+
+			modal.addLabelComponents(reasonInputLabel);
+
+			await interaction.showModal(modal);
 		}
 	},
 };
+
+function generateReportUpdateButton(reportId) {
+	const updateButton = new ButtonBuilder()
+		.setCustomId(`reportUpdateButton:${reportId}`)
+		.setLabel('Update Report')
+		.setStyle(ButtonStyle.Primary);
+	const actionRow = new ActionRowBuilder().addComponents(updateButton);
+	return [actionRow];
+}

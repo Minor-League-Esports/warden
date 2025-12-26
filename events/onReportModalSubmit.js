@@ -1,9 +1,9 @@
 const log4js = require('log4js');
 const logger = log4js.getLogger('onReportModalSubmit');
-const { logLevel, modmailUserId } = require('../config.json');
+const { logLevel, modmailUserId, moderatorRoleId } = require('../config.json');
 logger.level = logLevel;
 
-const { Events, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { Events, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, MessageFlags } = require('discord.js');
 const { chunkTextPreserveNewlines } = require('../util/UtilFunctions');
 
 module.exports = {
@@ -14,8 +14,13 @@ module.exports = {
 		const modalId = interaction.customId;
 
 		if (modalId.startsWith('reportUserModal:')) {
+			if (interaction.inGuild()) {
+				await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+			} else {
+				await interaction.deferReply();
+			}
+
 			const [, dbId] = modalId.split(':');
-			await interaction.deferReply();
 
 			const subjectInput = interaction.fields.getTextInputValue('subject').trim();
 			const reason = interaction.fields.getTextInputValue('reason').trim();
@@ -37,6 +42,54 @@ module.exports = {
 					embeds: [embed],
 				});
 			}
+		}
+
+		if (modalId.startsWith('updateReportModal:')) {
+			if (interaction.inGuild()) {
+				await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+			} else {
+				await interaction.deferReply();
+			}
+
+			const [, reportId] = modalId.split(':');
+
+			const updatedReason = interaction.fields.getTextInputValue('reason').trim();
+			const report = await globalThis.databaseManager.getReportById(reportId);
+			const user = await globalThis.userUtility.fetchDatabaseUser(interaction.user.id);
+
+			if (!report || report.getReporterId() !== user.getUserId()) {
+				await interaction.editReply({
+					content: `No report found with ID ${reportId}. Use the \`/report list\` command to see your submitted reports.`,
+				});
+				return;
+			}
+			report.addReasonDetails(updatedReason);
+
+			const reportMessageUrl = report.getReportLink();
+			const updatedModEmbed = await report.generatePrivateEmbed();
+			try {
+				if (!reportMessageUrl) throw new Error('No report message URL found');
+				const reportMessage = await globalThis.reportChannel.messages.fetch(reportMessageUrl.split('/').pop());
+				await reportMessage.edit({ embeds: [updatedModEmbed] });
+			} catch (e) {
+				logger.warn(`Failed to update report message for report ID ${reportId}`, e);
+				const newMessage = await globalThis.reportChannel.send({
+					content: `<@&${moderatorRoleId}>\nPlease note that the report #${reportId} submitted by <@${user.getDiscordId()}> has been updated, but I was unable to update the original report message. Here is the updated report:`,
+					embeds: [updatedModEmbed],
+				});
+				report.setReportLink(newMessage.url);
+				await globalThis.databaseManager.updateReport(report.getReportId(), { report_link: report.getReportLink() });
+			}
+
+			await globalThis.databaseManager.updateReport(report.getReportId(), {
+				report_reason: report.getReportReason(),
+			});
+			const embed = await report.generateUserEmbed();
+			await interaction.editReply({
+				content: `Your report #${reportId} has been updated.`,
+				embeds: [embed],
+				components: generateReportUpdateButton(reportId),
+			});
 		}
 	},
 };
@@ -103,5 +156,14 @@ function generateConfirmationButtons(subjectId, reporterId) {
 		.setLabel('Cancel')
 		.setStyle(ButtonStyle.Danger);
 	const actionRow = new ActionRowBuilder().addComponents(confirmButton, cancelButton);
+	return [actionRow];
+}
+
+function generateReportUpdateButton(reportId) {
+	const updateButton = new ButtonBuilder()
+		.setCustomId(`reportUpdateButton:${reportId}`)
+		.setLabel('Update Report')
+		.setStyle(ButtonStyle.Primary);
+	const actionRow = new ActionRowBuilder().addComponents(updateButton);
 	return [actionRow];
 }

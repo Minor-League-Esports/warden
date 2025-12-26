@@ -3,60 +3,6 @@ const logger = log4js.getLogger('UtilFunctions');
 const { logLevel } = require('../config.json');
 logger.level = logLevel;
 
-// Resolve stored Discord message URLs into a list of links for display.
-// Preference: include the original message jump URL first, then any current CDN attachment URLs.
-// Falls back gracefully if fetching fails.
-async function resolveEvidenceLinks(rawEvidence) {
-	try {
-		if (!rawEvidence || rawEvidence === 'N/A') {
-			return [];
-		}
-
-		const lines = String(rawEvidence)
-			.split('\n')
-			.map((l) => l.trim())
-			.filter((l) => l.length > 0);
-
-		const results = [];
-		for (const url of lines) {
-			// Always include the message jump URL first
-			results.push(url);
-
-			const match = url.match(/discord\.com\/channels\/(\d+)\/(\d+)\/(\d+)/);
-			const messageId = match ? match[3] : null;
-
-			if (!messageId) {
-				continue;
-			}
-
-			if (!globalThis.reportEvidenceChannel) {
-				continue;
-			}
-
-			try {
-				const message = await globalThis.reportEvidenceChannel.messages.fetch(messageId);
-				const attachCount = message?.attachments?.size ?? 0;
-				logger.debug(`resolveEvidenceLinks: fetched message ${messageId}; attachments=${attachCount}`);
-
-				if (attachCount > 0) {
-					for (const attachment of message.attachments.values()) {
-						results.push(String(attachment.url));
-					}
-				}
-			} catch (err) {
-				logger.warn(`resolveEvidenceLinks: failed to fetch message ${messageId}: ${err}`);
-				// Keep just the message URL on failure
-			}
-		}
-
-		logger.debug(`resolveEvidenceLinks: completed with ${results.length} link(s)`);
-		return results;
-	} catch (e) {
-		logger.error('resolveEvidenceLinks: unexpected error', e);
-		return [];
-	}
-}
-
 // Resolve evidence for user-facing embeds: only include current CDN attachment URLs.
 // Users typically cannot access the evidence channel, so omit jump URLs entirely.
 async function resolveEvidenceLinksForUser(rawEvidence) {
@@ -68,14 +14,21 @@ async function resolveEvidenceLinksForUser(rawEvidence) {
 			.split('\n')
 			.map((l) => l.trim())
 			.filter((l) => l.length > 0);
-		const cdnLinks = [];
-		for (const url of lines) {
-			const match = url.match(/discord\.com\/channels\/(\d+)\/(\d+)\/(\d+)/);
+		const results = [];
+		for (const line of lines) {
+			const match = line.match(/discord\.com\/channels\/(\d+)\/(\d+)\/(\d+)/);
 			const messageId = match ? match[3] : null;
+			const hasAnyUrl = /https?:\/\/\S+/.test(line);
 			if (!messageId) {
+				// Not a Discord message jump URL. Include the line as-is (plain text or other link).
+				results.push(line);
 				continue;
 			}
 			if (!globalThis.reportEvidenceChannel) {
+				logger.warn('resolveEvidenceLinksForUser: evidence channel not initialized; skipping CDN resolution');
+				// Do not include jump URLs for users; omit line if it's only a jump URL.
+				// pure text safety
+				if (!hasAnyUrl) results.push(line);
 				continue;
 			}
 			try {
@@ -83,15 +36,19 @@ async function resolveEvidenceLinksForUser(rawEvidence) {
 				const attachCount = message?.attachments?.size ?? 0;
 				if (attachCount > 0) {
 					for (const attachment of message.attachments.values()) {
-						cdnLinks.push(String(attachment.url));
+						results.push(String(attachment.url));
 					}
+				} else if (!hasAnyUrl) {
+					// No attachments; do not include jump URL for users, but preserve plain text.
+					results.push(line);
 				}
 			} catch (err) {
 				logger.warn(`resolveEvidenceLinksForUser: failed to fetch message ${messageId}: ${err}`);
+				// Do not include jump URLs for users; preserve plain text if any
+				if (!hasAnyUrl) results.push(line);
 			}
 		}
-		logger.debug(`resolveEvidenceLinksForUser: completed with ${cdnLinks.length} CDN link(s)`);
-		return cdnLinks;
+		return results;
 	} catch (e) {
 		logger.error('resolveEvidenceLinksForUser: unexpected error', e);
 		return [];
@@ -105,7 +62,6 @@ async function resolveEvidenceLinksForModerators(rawEvidence) {
 	try {
 		logger.debug('resolveEvidenceLinksForModerators: start');
 		if (!rawEvidence || rawEvidence === 'N/A') {
-			logger.debug('resolveEvidenceLinksForModerators: no evidence provided');
 			return [];
 		}
 		const lines = String(rawEvidence)
@@ -113,37 +69,33 @@ async function resolveEvidenceLinksForModerators(rawEvidence) {
 			.map((l) => l.trim())
 			.filter((l) => l.length > 0);
 		const results = [];
-		for (const url of lines) {
-			logger.debug(`resolveEvidenceLinksForModerators: processing URL ${url}`);
-			const match = url.match(/discord\.com\/channels\/(\d+)\/(\d+)\/(\d+)/);
+		for (const line of lines) {
+			const match = line.match(/discord\.com\/channels\/(\d+)\/(\d+)\/(\d+)/);
 			const messageId = match ? match[3] : null;
 			if (!messageId) {
-				logger.debug('resolveEvidenceLinksForModerators: no messageId parsed; adding jump URL only');
-				results.push(url);
+				// Not a Discord message jump URL; include line as-is (plain text or other link)
+				results.push(line);
 				continue;
 			}
 			if (!globalThis.reportEvidenceChannel) {
-				logger.warn('resolveEvidenceLinksForModerators: reportEvidenceChannel not initialized; adding jump URL only');
-				results.push(url);
+				results.push(line);
 				continue;
 			}
 			try {
 				const message = await globalThis.reportEvidenceChannel.messages.fetch(messageId);
 				const attachCount = message?.attachments?.size ?? 0;
-				logger.debug(`resolveEvidenceLinksForModerators: message ${messageId} attachments=${attachCount}`);
 				if (attachCount > 0) {
 					for (const attachment of message.attachments.values()) {
-						results.push(`${String(attachment.url)} (${url})`);
+						results.push(`${String(attachment.url)} (${line})`);
 					}
 				} else {
-					results.push(url);
+					results.push(line);
 				}
 			} catch (err) {
 				logger.warn(`resolveEvidenceLinksForModerators: failed to fetch message ${messageId}: ${err}`);
-				results.push(url);
+				results.push(line);
 			}
 		}
-		logger.debug(`resolveEvidenceLinksForModerators: completed with ${results.length} link line(s)`);
 		return results;
 	} catch (e) {
 		logger.error('resolveEvidenceLinksForModerators: unexpected error', e);
@@ -334,7 +286,6 @@ module.exports = {
 	calculateCurrentPoints,
 	getNextPointExpiry,
 	chunkTextPreserveNewlines,
-	resolveEvidenceLinks,
 	resolveEvidenceLinksForUser,
 	resolveEvidenceLinksForModerators,
 };

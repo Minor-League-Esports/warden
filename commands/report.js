@@ -1,6 +1,6 @@
 const log4js = require('log4js');
 const logger = log4js.getLogger('ReportCommand');
-const { logLevel, modmailUserId } = require('../config.json');
+const { logLevel, modmailUserId, moderatorRoleId } = require('../config.json');
 logger.level = logLevel;
 
 const {
@@ -10,10 +10,6 @@ const {
 	ButtonStyle,
 	ActionRowBuilder,
 	EmbedBuilder,
-	ModalBuilder,
-	TextInputBuilder,
-	LabelBuilder,
-	TextInputStyle,
 } = require('discord.js');
 
 module.exports = {
@@ -39,14 +35,6 @@ module.exports = {
 				)
 				.addAttachmentOption((option) =>
 					option.setName('evidence_file_3').setDescription('Third evidence file to attach to the report'),
-				),
-		)
-		.addSubcommand((subcommand) =>
-			subcommand
-				.setName('update')
-				.setDescription('Update an existing report')
-				.addIntegerOption((option) =>
-					option.setName('report_id').setDescription('The ID of the report you want to update').setRequired(true),
 				),
 		)
 		.addSubcommand((subcommand) =>
@@ -89,12 +77,10 @@ module.exports = {
 			try {
 				const reportEmbed = generateReportEmbed();
 				const buttons = generateReportButtons(user.getUserId());
-				await interaction.user.send({
+				await interaction.editReply({
+					content: 'Read the information below and click the button to report a user.',
 					embeds: [reportEmbed],
 					components: buttons,
-				});
-				await interaction.editReply({
-					content: 'The report form has been sent to your DMs!',
 				});
 			} catch (error) {
 				logger.error(`Error executing report command: ${error}`);
@@ -108,16 +94,15 @@ module.exports = {
 			const report = await globalThis.databaseManager.getReportById(reportId);
 			if (!report || report.getReporterId() !== user.getUserId()) {
 				await interaction.editReply({
-					content: `No report found with ID ${reportId}. Use the /report list command to see your submitted reports.`,
+					content: `No report found with ID ${reportId}. Use the \`/report list\` command to see your submitted reports.`,
 				});
 				return;
 			}
 			const embed = await report.generateUserEmbed();
-			await interaction.user.send({
-				embeds: [embed],
-			});
 			await interaction.editReply({
-				content: `The report with ID ${reportId} has been sent to your DMs.`,
+				content: `Here is the status of your report #${reportId}`,
+				embeds: [embed],
+				components: generateReportUpdateButton(reportId),
 			});
 		} else if (subcommand === 'list') {
 			const allReports = await globalThis.databaseManager.getReportsByUserId(user.getUserId(), 'reporter');
@@ -156,11 +141,11 @@ module.exports = {
 
 			reportList += '\nUse the `/report status` command with a Report ID to view more details about a specific report.';
 
-			await interaction.user.send({
-				content: reportList,
-			});
+			if (reportList.length > 2000) {
+				reportList = reportList.slice(0, 1990) + '\n... (truncated)';
+			}
 			await interaction.editReply({
-				content: 'Your report list has been sent to your DMs.',
+				content: reportList,
 			});
 		} else if (subcommand === 'evidence') {
 			const reportId = interaction.options.getInteger('report_id');
@@ -201,6 +186,22 @@ module.exports = {
 				return;
 			}
 
+			const reportMessageUrl = report.getReportLink();
+			const updatedModEmbed = await report.generatePrivateEmbed();
+			try {
+				if (!reportMessageUrl) throw new Error('No report message URL found');
+				const reportMessage = await globalThis.reportChannel.messages.fetch(reportMessageUrl.split('/').pop());
+				await reportMessage.edit({ embeds: [updatedModEmbed] });
+			} catch (e) {
+				logger.warn(`Failed to update report message for report ID ${reportId}`, e);
+				const newMessage = await globalThis.reportChannel.send({
+					content: `<@&${moderatorRoleId}>\nPlease note that the report #${reportId} submitted by <@${user.getDiscordId()}> has been updated, but I was unable to update the original report message. Here is the updated report:`,
+					embeds: [updatedModEmbed],
+				});
+				report.setReportLink(newMessage.url);
+				await globalThis.databaseManager.updateReport(report.getReportId(), { report_link: report.getReportLink() });
+			}
+
 			const message = await globalThis.reportEvidenceChannel.send({
 				content: `Evidence for Report ID ${reportId} submitted by ${user.getUserName()} (DB ID: ${user.getUserId()})`,
 				files: files,
@@ -217,38 +218,8 @@ module.exports = {
 			await interaction.editReply({
 				content: `Evidence has been successfully attached to report ID ${reportId}. Here is the updated report:`,
 				embeds: [embed],
+				components: generateReportUpdateButton(reportId),
 			});
-		} else if (subcommand === 'update') {
-			const reportId = interaction.options.getInteger('report_id');
-			const report = await globalThis.databaseManager.getReportById(reportId);
-			if (!report || report.getReporterId() !== user.getUserId()) {
-				await interaction.editReply({
-					content: `No report found with ID ${reportId}. Use the /report list command to see your submitted reports.`,
-				});
-				return;
-			}
-
-			const modal = new ModalBuilder()
-				.setCustomId(`reportUpdateModal:${reportId}`)
-				.setTitle(`Update Report #${reportId}`);
-
-			const reasonInput = new TextInputBuilder()
-				.setCustomId('reason')
-				.setStyle(TextInputStyle.Paragraph)
-				.setPlaceholder('Please enter any additional details or updates regarding your report.')
-				.setRequired(true);
-			const reasonInputLabel = new LabelBuilder().setLabel('Reason for Report').setTextInputComponent(reasonInput);
-
-			const evidenceInput = new TextInputBuilder()
-				.setCustomId('evidence')
-				.setStyle(TextInputStyle.Paragraph)
-				.setPlaceholder('Enter any additional evidence links here if available.')
-				.setRequired(false);
-			const evidenceInputLabel = new LabelBuilder().setLabel('Evidence (if any)').setTextInputComponent(evidenceInput);
-
-			modal.addLabelComponents(reasonInputLabel, evidenceInputLabel);
-
-			await interaction.showModal(modal);
 		} else {
 			logger.error(`Unknown /report subcommand: ${subcommand}`);
 			await interaction.editReply({
@@ -279,5 +250,14 @@ function generateReportButtons(dbId) {
 		.setLabel('Report User')
 		.setStyle(ButtonStyle.Success);
 	const actionRow = new ActionRowBuilder().addComponents(reportButton);
+	return [actionRow];
+}
+
+function generateReportUpdateButton(reportId) {
+	const updateButton = new ButtonBuilder()
+		.setCustomId(`reportUpdateButton:${reportId}`)
+		.setLabel('Update Report')
+		.setStyle(ButtonStyle.Primary);
+	const actionRow = new ActionRowBuilder().addComponents(updateButton);
 	return [actionRow];
 }

@@ -76,8 +76,24 @@ class Report {
 		return this._closeTimestamp;
 	}
 
+	setReportLink(link) {
+		this._reportLink = link;
+	}
+
+	getReportLink() {
+		return this._reportLink;
+	}
+
 	setReportReason(reason) {
 		this._reportReason = reason;
+	}
+
+	addReasonDetails(details) {
+		if (this._reportReason && this._reportReason != 'N/A') {
+			this._reportReason += `\n__${new Date().toISOString()}__\n${details}`;
+		} else {
+			this._reportReason = `__${new Date().toISOString()}__\n${details}`;
+		}
 	}
 
 	getReportReason() {
@@ -90,9 +106,9 @@ class Report {
 
 	addReportEvidence(evidence) {
 		if (this._reportEvidence && this._reportEvidence != 'N/A') {
-			this._reportEvidence += `\n${evidence}`;
+			this._reportEvidence += `\n__${new Date().toISOString()}__\n${evidence}`;
 		} else {
-			this._reportEvidence = evidence;
+			this._reportEvidence = `__${new Date().toISOString()}__\n${evidence}`;
 		}
 	}
 
@@ -210,9 +226,7 @@ class Report {
 		const embed = new EmbedBuilder()
 			.setTitle(`MLE Moderation Update: Report #${this.getReportId()}`)
 			.setTimestamp(new Date(this.getReportTimestamp() ?? new Date().toISOString()))
-			.setDescription(
-				'To attach evidence to this report, use the `/report evidence` command. To add more details, use `/report update`.',
-			)
+			.setDescription('To attach evidence to this report, use the `/report evidence` command.')
 			.addFields(
 				{
 					name: 'Reported User',
