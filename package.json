@@ -1,6 +1,6 @@
 {
 	"name": "warden",
-	"version": "1.2.0",
+	"version": "2.0.0",
 	"description": "MLE Moderation Bot",
 	"homepage": "https://github.com/Minor-League-Esports/warden",
 	"bugs": {
@@ -13,28 +13,14 @@
 		"url": "https://github.com/Minor-League-Esports/warden"
 	},
 	"scripts": {
-		"start": "NODE_VERSION=22 node index.js",
-		"dev:start": "NODE_VERSION=22 node --trace-warnings index.js",
-		"dev": "yarn install && yarn dev:start",
-		"lint:js": "eslint .",
-		"lint:md": "markdownlint-cli2",
-		"lint": "yarn lint:js && yarn lint:md",
-		"prepare": "husky"
+		"start": "NODE_VERSION=24 node index.js",
+		"dev:start": "NODE_VERSION=24 node --trace-warnings index.js",
+		"dev": "yarn install && yarn dev:start"
 	},
 	"dependencies": {
-		"discord.js": "^14.19.1"
-	},
-	"devDependencies": {
-		"@eslint/eslintrc": "^3.3.1",
-		"@eslint/js": "^9.25.1",
-		"eslint": "^9.25.1",
-		"globals": "^16.0.0",
-		"husky": "^9.1.7",
-		"markdownlint": "^0.37.4",
-		"markdownlint-cli2": "^0.17.2"
+		"discord.js": "^14.26.4"
 	},
 	"engines": {
-		"node": "^22.15.0"
-	},
-	"packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
+		"node": "^24.0.0"
+	}
 }
