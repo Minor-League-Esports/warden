@@ -1,5 +1,5 @@
 # Base Image: Start with a Nodejs base image
-FROM node:22-alpine
+FROM node:24-alpine
 
 # Setup directories
 RUN mkdir -p /home/node/app/node_modules && chown -R node:node /home/node/app
