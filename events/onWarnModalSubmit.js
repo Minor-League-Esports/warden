@@ -39,6 +39,8 @@ module.exports = {
 			globalThis.databaseManager
 				.getUserByIdentifier(dbId, 'db')
 				.then(async (dbUser) => {
+					dbUser.setWarnings(await globalThis.databaseManager.getWarnings(dbUser.getUserId()));
+
 					// Fetch guild member to get join date
 					const mainServer = interaction.client.guilds.cache.get(mainGuild);
 					let guildMember;

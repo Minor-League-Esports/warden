@@ -439,6 +439,7 @@ class DatabaseManager {
 	 *
 	 * @param {String} subjectId DB ID of the user being warned
 	 * @param {String} moderatorId DB ID of the moderator issuing the warning
+	 * @param {String} reporterId DB ID of the user who reported the incident (optional)
 	 * @param {String} rulesBroken The rules broken by the user
 	 * @param {String} violatingContent The content that violated the rules
 	 * @param {Number} pointsAdded Number of points added by this warning
@@ -450,6 +451,7 @@ class DatabaseManager {
 	async createWarning(
 		subjectId,
 		moderatorId,
+		reporterId,
 		rulesBroken,
 		violatingContent,
 		pointsAdded,
@@ -469,6 +471,7 @@ class DatabaseManager {
 		const res = await this._queryFile('queries/insert/insertWarning.sql', [
 			subjectId,
 			moderatorId,
+			reporterId,
 			caseId,
 			timestamp,
 			rulesBroken,
@@ -629,6 +632,21 @@ class DatabaseManager {
 			warnings = warnings.slice(0, limit);
 		}
 		return warnings;
+	}
+
+	/**
+	 * Gets a user's standalone punishments (punishments not attached to a case)
+	 *
+	 * @param {String} userId The user's Database ID
+	 * @returns {Promise<Punishment[]>} A promise to return an array of Punishment objects
+	 */
+	async getStandalonePunishments(userId) {
+		if (this._status !== 'success') {
+			throw new Error('DB manager not initialized');
+		}
+
+		const res = await this._queryFile('queries/get/getStandalonePunishments.sql', [userId]);
+		return globalThis.databaseResponseParser.parseDatabasePunishmentResponse(res);
 	}
 
 	/**

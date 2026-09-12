@@ -43,6 +43,22 @@ class User {
 		return this._mleId ?? 'N/A';
 	}
 
+	/**
+	 * Setter for warnings collection
+	 * @param {Warning[]} warnings
+	 */
+	setWarnings(warnings) {
+		this._warnings = warnings;
+	}
+
+	/**
+	 * Getter for warnings collection
+	 * @returns {Warning[]}
+	 */
+	getWarnings() {
+		return this._warnings ?? [];
+	}
+
 	generateUserInfoEmbed() {
 		return new EmbedBuilder()
 			.setColor('#0000ff')
@@ -60,8 +76,9 @@ class User {
 	}
 
 	generateUserSummaryEmbed() {
-		const currentPoints = calculateCurrentPoints(this._warnings);
-		const expiry = getNextPointExpiry(this._warnings);
+		const warnings = this.getWarnings();
+		const currentPoints = calculateCurrentPoints(warnings);
+		const expiry = getNextPointExpiry(warnings);
 		const pointExpiration = expiry ? expiry.toISOString().slice(0, 10) : 'N/A';
 		return new EmbedBuilder()
 			.setColor('#ff761b')
@@ -78,8 +95,7 @@ class User {
 				},
 				{
 					name: 'Warnings',
-					value:
-						this._warnings.length > 0 ? `${this._warnings.length.toString()} warning(s) found` : 'No warnings found',
+					value: warnings.length > 0 ? `${warnings.length.toString()} warning(s) found` : 'No warnings found',
 				},
 			);
 	}

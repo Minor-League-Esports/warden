@@ -9,6 +9,18 @@ const Warning = require('./entity/Warning');
 const Punishment = require('./entity/Punishment');
 const Report = require('./entity/Report');
 
+// Builds a User from a joined row's prefixed columns (e.g. prefix 'u_mod' -> u_mod_id, u_mod_discord_id, ...)
+function buildUserFromPrefix(row, prefix) {
+	if (!row[`${prefix}_id`]) return null;
+	const u = new User();
+	u.setUserId(row[`${prefix}_id`]);
+	u.setDiscordId(row[`${prefix}_discord_id`]);
+	u.setDiscordAvatar(row[`${prefix}_avatar`]);
+	u.setUserName(row[`${prefix}_name`]);
+	u.setMleId(row[`${prefix}_mle_id`]);
+	return u;
+}
+
 class DatabaseResponseParser {
 	/**
 	 * Parses raw database data into an array of Users
@@ -80,6 +92,9 @@ class DatabaseResponseParser {
 			w.setPointsAdded(row['points_added']);
 			w.setNewPointTotal(row['new_point_total']);
 			w.setModeratorNotes(row['moderator_notes']);
+			w.setSubject(buildUserFromPrefix(row, 'u_user'));
+			w.setModerator(buildUserFromPrefix(row, 'u_mod'));
+			w.setReporter(buildUserFromPrefix(row, 'u_rep'));
 			warnings.push(w);
 		}
 
@@ -104,6 +119,8 @@ class DatabaseResponseParser {
 			p.setTimestamp(row['timestamp']);
 			p.setType(row['punishment_type']);
 			p.setDuration(row['punishment_duration']);
+			p.setSubject(buildUserFromPrefix(row, 'u_user'));
+			p.setModerator(buildUserFromPrefix(row, 'u_mod'));
 			punishments.push(p);
 		}
 

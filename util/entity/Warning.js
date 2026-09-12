@@ -26,6 +26,54 @@ class Warning {
 		return this._moderatorId;
 	}
 
+	/**
+	 * Setter for the User who was warned
+	 * @param {User} user
+	 */
+	setSubject(user) {
+		this._subject = user;
+	}
+
+	/**
+	 * Getter for the User who was warned
+	 * @returns {User}
+	 */
+	getSubject() {
+		return this._subject;
+	}
+
+	/**
+	 * Setter for the User who issued the warning
+	 * @param {User} user
+	 */
+	setModerator(user) {
+		this._moderator = user;
+	}
+
+	/**
+	 * Getter for the User who issued the warning
+	 * @returns {User}
+	 */
+	getModerator() {
+		return this._moderator;
+	}
+
+	/**
+	 * Setter for the User who reported the incident
+	 * @param {User} user
+	 */
+	setReporter(user) {
+		this._reporter = user;
+	}
+
+	/**
+	 * Getter for the User who reported the incident
+	 * @returns {User}
+	 */
+	getReporter() {
+		return this._reporter;
+	}
+
 	setReporterId(reporterId) {
 		this._reporterId = reporterId;
 	}

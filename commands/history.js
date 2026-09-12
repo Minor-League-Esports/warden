@@ -41,6 +41,7 @@ module.exports = {
 
 		const userId = interaction.options.getString('user');
 		const user = await globalThis.userUtility.fetchDatabaseUser(userId);
+		user.setWarnings(await globalThis.databaseManager.getWarnings(user.getUserId()));
 
 		await interaction.editReply({
 			embeds: [user.generateUserSummaryEmbed()],

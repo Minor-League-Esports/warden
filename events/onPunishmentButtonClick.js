@@ -37,6 +37,9 @@ module.exports = {
 				punishmentType,
 				durationStr ? Number.parseInt(durationStr, 10) : null,
 			);
+			// createPunishment's return value has no joined user data, so hydrate it manually for embed rendering
+			punishment.setSubject(await globalThis.databaseManager.getUserByIdentifier(dbId, 'db'));
+			punishment.setModerator(moderator);
 
 			// Execute the punishment
 			globalThis.punishmentExecutor

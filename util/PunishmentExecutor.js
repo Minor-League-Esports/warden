@@ -27,6 +27,9 @@ class PunishmentExecutor {
 
 			logger.debug(`Created warning with ID: ${warning.getWarningId()} for user ID: ${dbUserId}`);
 			const punishments = [];
+			// createPunishment's return value has no joined user data, so hydrate it manually for embed rendering
+			const subjectUser = await globalThis.databaseManager.getUserByIdentifier(dbUserId, 'db');
+			const executorUser = await globalThis.databaseManager.getUserByIdentifier(punishmentExecutorId, 'db');
 			// For each punishment in the action string, create the punishment and link it to the warning
 			for (const pun of action.split(';')) {
 				const [type, durationStr] = pun.split('=');
@@ -37,6 +40,8 @@ class PunishmentExecutor {
 					type,
 					durationStr ? Number.parseInt(durationStr, 10) : null,
 				);
+				punishment.setSubject(subjectUser);
+				punishment.setModerator(executorUser);
 				logger.debug(
 					`Created punishment with ID: ${punishment.getPunishmentId()} of type: ${type} for user ID: ${dbUserId}`,
 				);
@@ -256,7 +261,7 @@ class PunishmentExecutor {
 		const moderatorNotesField = proposalEmbed.fields.find((field) => field.name === 'Moderator Notes');
 		const moderatorNotes = moderatorNotesField ? moderatorNotesField.value : 'None';
 		const reporterField = proposalEmbed.fields.find((field) => field.name === 'Reporter');
-		const reporter = reporterField?.value.split(':')[1] || null;
+		const reporter = reporterField && reporterField.value !== 'None' ? reporterField.value : null;
 
 		return {
 			userName,

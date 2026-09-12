@@ -32,6 +32,38 @@ class Punishment {
 		return this._moderatorId;
 	}
 
+	/**
+	 * Setter for the User who was punished
+	 * @param {User} user
+	 */
+	setSubject(user) {
+		this._subject = user;
+	}
+
+	/**
+	 * Getter for the User who was punished
+	 * @returns {User}
+	 */
+	getSubject() {
+		return this._subject;
+	}
+
+	/**
+	 * Setter for the User who issued the punishment
+	 * @param {User} user
+	 */
+	setModerator(user) {
+		this._moderator = user;
+	}
+
+	/**
+	 * Getter for the User who issued the punishment
+	 * @returns {User}
+	 */
+	getModerator() {
+		return this._moderator;
+	}
+
 	setCaseId(caseId) {
 		this._caseId = caseId;
 	}
