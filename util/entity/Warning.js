@@ -26,6 +26,14 @@ class Warning {
 		return this._moderatorId;
 	}
 
+	setReporterId(reporterId) {
+		this._reporterId = reporterId;
+	}
+
+	getReporterId() {
+		return this._reporterId;
+	}
+
 	setCaseId(caseId) {
 		this._caseId = caseId;
 	}

@@ -6,5 +6,6 @@ CREATE TABLE IF NOT EXISTS Cases (
     status TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL,
     closed_at TIMESTAMPTZ,
-    moderator_notes TEXT
+    moderator_notes TEXT,
+    case_link TEXT
 );

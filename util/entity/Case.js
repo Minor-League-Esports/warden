@@ -39,6 +39,54 @@ class Case {
 		return this._moderatorId ?? 'N/A';
 	}
 
+	/**
+	 * Setter for the User who created this case
+	 * @param {User} user
+	 */
+	setCreator(user) {
+		this._creator = user;
+	}
+
+	/**
+	 * Getter for the User who created this case
+	 * @returns {User}
+	 */
+	getCreator() {
+		return this._creator;
+	}
+
+	/**
+	 * Setter for the User who is the subject of this case
+	 * @param {User} user
+	 */
+	setSubjectUser(user) {
+		this._subjectUser = user;
+	}
+
+	/**
+	 * Getter for the User who is the subject of this case
+	 * @returns {User}
+	 */
+	getSubjectUser() {
+		return this._subjectUser;
+	}
+
+	/**
+	 * Setter for the User who is the moderator assigned to this case
+	 * @param {User} user
+	 */
+	setModerator(user) {
+		this._moderator = user;
+	}
+
+	/**
+	 * Getter for the User who is the moderator assigned to this case
+	 * @returns {User}
+	 */
+	getModerator() {
+		return this._moderator;
+	}
+
 	setStatus(status) {
 		this._status = status;
 	}
@@ -69,6 +117,14 @@ class Case {
 
 	getNotes() {
 		return this._notes ?? 'None';
+	}
+
+	setCaseLink(link) {
+		this._caseLink = link;
+	}
+
+	getCaseLink() {
+		return this._caseLink ?? null;
 	}
 
 	/**
@@ -136,24 +192,12 @@ class Case {
 				inline: true,
 			},
 			{ name: 'Status', value: String(this.getStatus() ?? 'Unknown'), inline: true },
+			{ name: 'Moderator', value: String(this.getModerator()?.getUserName() ?? 'Unclaimed'), inline: true },
 		);
-
-		if (this.getModerator()) {
-			embed.addFields({
-				name: 'Moderator',
-				value: String(this.getModerator().getUserName() ?? 'Unknown'),
-				inline: true,
-			});
-		}
 
 		const notes = String(this.getNotes() ?? 'None');
 		if (notes && notes.trim().length > 0) {
 			embed.addFields({ name: 'Notes', value: notes });
-		}
-
-		const cr = String(this.getCustomResponse() ?? '');
-		if (cr && cr.trim().length > 0) {
-			embed.addFields({ name: 'Custom Response', value: cr });
 		}
 
 		return embed;

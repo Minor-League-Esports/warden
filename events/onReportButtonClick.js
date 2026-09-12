@@ -122,22 +122,14 @@ module.exports = {
 					const subject = await globalThis.databaseManager.getUserByIdentifier(subjectId, 'db');
 					const reporter = await globalThis.databaseManager.getUserByIdentifier(reporterId, 'db');
 
-					// Generate buttons "Create new case" and "Add to case"
-					const createNewCaseButton = new ButtonBuilder()
-						.setCustomId(`createNewCaseButton:${report.getReportId()}`)
-						.setLabel('Create New Case')
-						.setStyle(ButtonStyle.Success);
-					const addToCaseButton = new ButtonBuilder()
-						.setCustomId(`addToCaseButton:${report.getReportId()}`)
-						.setLabel('Add to Case')
-						.setStyle(ButtonStyle.Primary);
-					const actionRow = new ActionRowBuilder().addComponents(createNewCaseButton, addToCaseButton);
+					// Generate buttons "Create new case", "Add to case", and "Acknowledge Report"
+					const actionRow = generateReportModButtons(report.getReportId());
 
 					// Send the report message to the report channel with the moderator embed
 					const reportMessage = await globalThis.reportChannel.send({
 						content: `Report #${report.getReportId()} submitted by ${reporter.getUserName()}`,
 						embeds: [reportModEmbed],
-						components: [actionRow],
+						components: actionRow,
 					});
 					// Create a thread for the report message
 					const reportThread = await reportMessage.startThread({
@@ -196,4 +188,16 @@ function generateReportUpdateButton(reportId) {
 		.setStyle(ButtonStyle.Primary);
 	const actionRow = new ActionRowBuilder().addComponents(updateButton);
 	return [actionRow];
+}
+
+function generateReportModButtons(reportId) {
+	const createNewCaseButton = new ButtonBuilder()
+		.setCustomId(`createNewCaseButton:${reportId}`)
+		.setLabel('Create New Case')
+		.setStyle(ButtonStyle.Success);
+	const addToCaseButton = new ButtonBuilder()
+		.setCustomId(`addToCaseButton:${reportId}`)
+		.setLabel('Add to Case')
+		.setStyle(ButtonStyle.Primary);
+	return [new ActionRowBuilder().addComponents(createNewCaseButton, addToCaseButton)];
 }

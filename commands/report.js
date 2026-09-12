@@ -11,6 +11,7 @@ const {
 	ActionRowBuilder,
 	EmbedBuilder,
 } = require('discord.js');
+const { notifyCaseThread, getCaseLinkForReport } = require('../util/UtilFunctions');
 
 module.exports = {
 	data: new SlashCommandBuilder()
@@ -200,11 +201,16 @@ module.exports = {
 			await globalThis.databaseManager.updateReport(report.getReportId(), {
 				report_evidence: report.getReportEvidence(),
 			});
+			await notifyCaseThread(
+				interaction.client,
+				report.getCaseId(),
+				`Report #${reportId} was updated with new evidence: ${report.getReportLink() ?? 'N/A'}`,
+			);
 
 			// Generate the updated report embeds for the user and moderators
 			const reportMessageUrl = report.getReportLink();
 			const embed = await report.generateUserEmbed();
-			const updatedModEmbed = await report.generatePrivateEmbed();
+			const updatedModEmbed = await report.generatePrivateEmbed(await getCaseLinkForReport(report));
 
 			// Attempt to update the original report message in the report channel with the new evidence
 			try {

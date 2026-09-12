@@ -51,6 +51,7 @@ class DatabaseResponseParser {
 			c.setCreatedAt(row['created_at']);
 			c.setClosedAt(row['closed_at']);
 			c.setNotes(row['moderator_notes']);
+			c.setCaseLink(row['case_link']);
 			cases.push(c);
 		}
 
@@ -71,6 +72,7 @@ class DatabaseResponseParser {
 			w.setWarningId(row['warning_id']);
 			w.setSubjectId(row['subject_id']);
 			w.setModeratorId(row['moderator_id']);
+			w.setReporterId(row['reporter_id']);
 			w.setCase(row['case_id']);
 			w.setTimestamp(row['timestamp']);
 			w.setRulesBroken(row['rules_broken']);

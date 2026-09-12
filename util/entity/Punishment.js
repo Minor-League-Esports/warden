@@ -40,6 +40,22 @@ class Punishment {
 		return this._caseId ?? 'N/A';
 	}
 
+	/**
+	 * Setter for Case object
+	 * @param {Case} kase
+	 */
+	setCase(kase) {
+		this._case = kase;
+	}
+
+	/**
+	 * Getter for Case object
+	 * @returns {Case}
+	 */
+	getCase() {
+		return this._case;
+	}
+
 	setTimestamp(timestamp) {
 		this._timestamp = timestamp;
 	}

@@ -10,7 +10,7 @@ SELECT
     r.report_evidence,
     r.status,
     r.moderator_notes,
-    r.custom_response,
+    r.response,
     -- Reporter
     u_rep.user_id AS u_rep_id,
     u_rep.discord_id AS u_rep_discord_id,

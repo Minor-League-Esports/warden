@@ -66,6 +66,9 @@ globalThis.remoteManager = new RemoteManager();
 globalThis.sprocketDatasetParser = new SprocketDatasetParser(globalThis.remoteManager);
 globalThis.discordLogger = null;
 globalThis.caseLogger = null;
+globalThis.caseChannel = null;
+globalThis.reportChannel = null;
+globalThis.reportEvidenceChannel = null;
 globalThis.punishmentExecutor = null;
 globalThis.userUtility = null;
 

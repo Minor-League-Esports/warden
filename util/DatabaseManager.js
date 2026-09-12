@@ -198,22 +198,32 @@ class DatabaseManager {
 			kase.setCreatedAt(cRow['created_at']);
 			kase.setClosedAt(cRow['closed_at']);
 			kase.setNotes(cRow['notes']);
-			kase.setCustomResponse(cRow['custom_response']);
+			kase.setCaseLink(cRow['case_link']);
 
-			// Attach user objects if present
+			// Attach user objects if present (User has no constructor args, must use setters)
+			const buildUser = (id, discordId, avatar, name, mleId) => {
+				const u = new User();
+				u.setUserId(id);
+				u.setDiscordId(discordId);
+				u.setDiscordAvatar(avatar);
+				u.setUserName(name);
+				u.setMleId(mleId);
+				return u;
+			};
+
 			if (cRow['cre_id']) {
 				kase.setCreator(
-					new User(cRow['cre_id'], cRow['cre_discord_id'], cRow['cre_avatar'], cRow['cre_name'], cRow['cre_mle_id']),
+					buildUser(cRow['cre_id'], cRow['cre_discord_id'], cRow['cre_avatar'], cRow['cre_name'], cRow['cre_mle_id']),
 				);
 			}
 			if (cRow['sub_id']) {
 				kase.setSubjectUser(
-					new User(cRow['sub_id'], cRow['sub_discord_id'], cRow['sub_avatar'], cRow['sub_name'], cRow['sub_mle_id']),
+					buildUser(cRow['sub_id'], cRow['sub_discord_id'], cRow['sub_avatar'], cRow['sub_name'], cRow['sub_mle_id']),
 				);
 			}
 			if (cRow['mod_id']) {
 				kase.setModerator(
-					new User(cRow['mod_id'], cRow['mod_discord_id'], cRow['mod_avatar'], cRow['mod_name'], cRow['mod_mle_id']),
+					buildUser(cRow['mod_id'], cRow['mod_discord_id'], cRow['mod_avatar'], cRow['mod_name'], cRow['mod_mle_id']),
 				);
 			}
 
@@ -368,6 +378,60 @@ class DatabaseManager {
 		if (cases.length !== 1) throw new Error('Failed to create case');
 		logger.info(`Created case ${cases[0].getCaseId()} for subject ${subjectId}`);
 		return cases[0];
+	}
+
+	/**
+	 * Updates an existing case object and returns it
+	 *
+	 * @param {String} caseId The case's Database ID
+	 * @param {Object} fields An object containing fields to update (e.g., { status: 'CLOSED', moderator_id: 5 })
+	 * @returns {Promise<Case>} A promise to return the updated Case object
+	 */
+	async updateCase(caseId, fields) {
+		if (this._status !== 'success') {
+			throw new Error('DB manager not initialized');
+		}
+
+		if (!caseId || !fields || Object.keys(fields).length === 0) {
+			throw new Error('caseId and at least one field are required to update a case');
+		}
+
+		// Build dynamic UPDATE statement safely
+		const setClauses = Object.keys(fields)
+			.map((key, idx) => `${key} = $${idx + 2}`)
+			.join(', ');
+		const values = [caseId, ...Object.values(fields)];
+
+		const res = await this._client.query(
+			`UPDATE Cases
+                SET ${setClauses}
+                WHERE case_id = $1
+                RETURNING *`,
+			values,
+		);
+
+		const cases = globalThis.databaseResponseParser.parseDatabaseCaseResponse(res);
+		if (cases.length !== 1) throw new Error('Failed to update case');
+		logger.info(`Updated case with case_id ${caseId}: ` + JSON.stringify(fields));
+		return cases[0];
+	}
+
+	/**
+	 * Assigns a moderator to a case, cascading the assignment to every report attached to it
+	 *
+	 * @param {String} caseId The case's Database ID
+	 * @param {String} moderatorId DB user_id of the moderator claiming the case
+	 * @returns {Promise<Case>} A promise to return the updated Case object
+	 */
+	async claimCase(caseId, moderatorId) {
+		if (this._status !== 'success') {
+			throw new Error('DB manager not initialized');
+		}
+
+		const kase = await this.updateCase(caseId, { moderator_id: moderatorId });
+		await this._client.query('UPDATE Reports SET moderator_id = $1 WHERE case_id = $2', [moderatorId, caseId]);
+		logger.info(`Case ${caseId} claimed by moderator ${moderatorId}; cascaded to attached reports`);
+		return kase;
 	}
 
 	/**

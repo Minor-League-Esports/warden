@@ -288,7 +288,94 @@ module.exports = {
 	chunkTextPreserveNewlines,
 	resolveEvidenceLinksForUser,
 	resolveEvidenceLinksForModerators,
+	notifyCaseThread,
+	refreshReportMessage,
+	acknowledgeReport,
+	getCaseLinkForReport,
 };
+
+/**
+ * Posts a message into a case's discussion thread, if the case exists and has a thread.
+ * Threads created from a message share the message's ID, so the case's message ID doubles as its thread ID.
+ *
+ * @param {import('discord.js').Client} client
+ * @param {String|null} caseId
+ * @param {String} content
+ */
+async function notifyCaseThread(client, caseId, content) {
+	if (!caseId) return;
+	try {
+		const kase = await globalThis.databaseManager.getCaseById(caseId);
+		if (!kase.getCaseLink()) return;
+		const threadId = kase.getCaseLink().split('/').pop();
+		const thread = await client.channels.fetch(threadId);
+		await thread.send(content);
+	} catch (error) {
+		logger.warn(`Failed to notify case thread for case ${caseId}: ${error}`);
+	}
+}
+
+/**
+ * Re-renders a report's moderator-facing embed on its original message (e.g. after it's attached to a case).
+ *
+ * @param {import('discord.js').Client} client
+ * @param {Report} report
+ * @param {String|null} caseLink Optional jump link to the case's discussion thread
+ */
+async function refreshReportMessage(client, report, caseLink = null) {
+	if (!report.getReportLink()) return;
+	try {
+		const reportMessage = await globalThis.reportChannel.messages.fetch(report.getReportLink().split('/').pop());
+		const embed = await report.generatePrivateEmbed(caseLink);
+		await reportMessage.edit({ embeds: [embed] });
+	} catch (error) {
+		logger.warn(`Failed to refresh report message for report ${report.getReportId()}: ${error}`);
+	}
+}
+
+/**
+ * Marks a report as acknowledged and DMs the reporter to let them know moderators are on it.
+ *
+ * @param {import('discord.js').Client} client
+ * @param {String} reportId
+ * @returns {Promise<Report>} The updated Report
+ */
+async function acknowledgeReport(client, reportId) {
+	const report = await globalThis.databaseManager.updateReport(reportId, {
+		acknowledge_timestamp: new Date().toISOString(),
+		status: 'ACKNOWLEDGED',
+	});
+
+	try {
+		const reporter = await globalThis.databaseManager.getUserByIdentifier(report.getReporterId(), 'db');
+		const reporterDiscordUser = await client.users.fetch(reporter.getDiscordId());
+		await reporterDiscordUser.send({
+			content: `Your report #${report.getReportId()} has been acknowledged. Moderators are now discussing it. Thank you for helping keep the community safe!`,
+		});
+	} catch (dmError) {
+		logger.warn(`Could not DM reporter for report ${reportId}: ${dmError}`);
+	}
+
+	return report;
+}
+
+/**
+ * Resolves the jump link to a report's case discussion thread, if it has one.
+ *
+ * @param {Report} report
+ * @returns {Promise<String|null>}
+ */
+async function getCaseLinkForReport(report) {
+	if (!report.getCaseId()) return null;
+	try {
+		const kase = await globalThis.databaseManager.getCaseById(report.getCaseId());
+		return kase.getCaseLink();
+	} catch (error) {
+		logger.warn(`Failed to resolve case link for report ${report.getReportId()}: ${error}`);
+		return null;
+	}
+}
+
 /**
  * Determine which warnings contribute to the current point total at a given time.
  * Uses the same decay model as calculateCurrentPoints: 1 point decays every 90 days

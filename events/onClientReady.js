@@ -4,6 +4,7 @@ const {
 	logLevel,
 	opsLogChannelId,
 	caseLogChannelId,
+	caseChannelId,
 	reportChannelId,
 	reportEvidenceChannelId,
 } = require('../config.json');
@@ -63,8 +64,10 @@ module.exports = {
 			globalThis.punishmentExecutor = new PunishmentExecutor(client, globalThis.caseLogger);
 			const reportChannel = await client.channels.fetch(reportChannelId);
 			const reportEvidenceChannel = await client.channels.fetch(reportEvidenceChannelId);
+			const caseChannel = await client.channels.fetch(caseChannelId);
 			globalThis.reportChannel = reportChannel;
 			globalThis.reportEvidenceChannel = reportEvidenceChannel;
+			globalThis.caseChannel = caseChannel;
 			await discordLogger.logMessage('Case Logger initialized');
 		} catch (error) {
 			logger.error('Failed to initialize CaseLogger', error);

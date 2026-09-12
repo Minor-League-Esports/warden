@@ -52,6 +52,22 @@ class Report {
 		return this._caseId;
 	}
 
+	/**
+	 * Setter for Case object
+	 * @param {Case} kase
+	 */
+	setCase(kase) {
+		this._case = kase;
+	}
+
+	/**
+	 * Getter for Case object
+	 * @returns {Case}
+	 */
+	getCase() {
+		return this._case;
+	}
+
 	setReportTimestamp(timestamp) {
 		this._reportTimestamp = timestamp;
 	}
@@ -143,20 +159,20 @@ class Report {
 	/**
 	 * Generates an embed for moderator view of a report
 	 *
+	 * @param {String|null} caseLink Optional jump link to the case's discussion thread
 	 * @returns {EmbedBuilder}
 	 */
-	async generatePrivateEmbed() {
+	async generatePrivateEmbed(caseLink = null) {
 		const subject = await globalThis.databaseManager.getUserByIdentifier(this.getSubjectId(), 'db');
 		const reporter = await globalThis.databaseManager.getUserByIdentifier(this.getReporterId(), 'db');
-		const moderator = await globalThis.databaseManager.getUserByIdentifier(this.getModeratorId(), 'db');
+		const caseIdValue = this.getCaseId() ? (caseLink ? `[#${this.getCaseId()}](${caseLink})` : `#${this.getCaseId()}`) : 'None';
 		const embed = new EmbedBuilder()
 			.setTitle(`${subject?.getUserName() ?? 'User'} | Report`)
 			.setTimestamp(new Date(this.getReportTimestamp() ?? new Date().toISOString()))
 			.addFields(
 				{ name: 'Reporter', value: String(reporter?.getUserName() ?? 'Unknown'), inline: true },
-				{ name: 'Moderator', value: String(moderator?.getUserName() ?? 'N/A'), inline: true },
 				{ name: 'Status', value: String(this.getStatus() ?? 'Unknown') },
-				{ name: 'Case ID', value: String(this.getCaseId() ?? 'None'), inline: true },
+				{ name: 'Case ID', value: caseIdValue, inline: true },
 				{ name: 'Report ID', value: String(this.getReportId() ?? 'None'), inline: true },
 			)
 			.setFooter({ text: `ID: ${subject?.getDiscordId() ?? 'Unknown'}` })
