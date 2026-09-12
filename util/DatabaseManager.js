@@ -26,8 +26,9 @@ class DatabaseManager {
 			database: database['database'],
 			ssl: {
 				rejectUnauthorized: true,
-				// servername: database['hostname'],
-				ca: fs.readFileSync(database['caCertPath']).toString(),
+				// Only pin a custom CA if configured; otherwise trust Node's default root store
+				// (needed for publicly-issued certs, e.g. Let's Encrypt)
+				...(database['caCertPath'] ? { ca: fs.readFileSync(database['caCertPath']).toString() } : {}),
 			},
 		});
 	}

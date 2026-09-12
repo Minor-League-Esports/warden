@@ -57,6 +57,7 @@ module.exports = {
 			const [, subjectId, reporterId] = buttonId.split(':');
 			const embed = interaction.message.embeds[0];
 
+			// Ensure the interaction message contains an embed with the report details
 			if (!embed) {
 				logger.warn('No embed found in the interaction message during report confirmation.');
 				await interaction.reply({
@@ -65,9 +66,12 @@ module.exports = {
 				});
 				return;
 			}
+
+			// Extract the reason and evidence fields from the embed for validation
 			const reasonFields = embed.fields.filter((field) => field.name.startsWith('Report Reason'));
 			const evidenceFields = embed.fields.filter((field) => field.name.startsWith('Evidence'));
 
+			// Validate that both reason and evidence fields are present
 			if (!(reasonFields.length > 0 && evidenceFields.length > 0)) {
 				logger.warn('Required fields missing in the embed during report confirmation.');
 				await interaction.reply({
@@ -77,6 +81,7 @@ module.exports = {
 				return;
 			}
 
+			// Extract and validate the reason field
 			const reason = reasonFields
 				.map((field) => field.value)
 				.join('\n')
@@ -89,6 +94,8 @@ module.exports = {
 				});
 				return;
 			}
+
+			// Extract and validate the evidence field
 			const evidence = evidenceFields
 				.map((field) => field.value)
 				.join('\n')
@@ -102,19 +109,47 @@ module.exports = {
 				return;
 			}
 
+			// Defer the interaction update to acknowledge the button click before processing the report submission
 			await interaction.deferUpdate();
 
+			// Create the report in the database with the extracted reason and evidence fields
 			globalThis.databaseManager
 				.createReport(subjectId, reporterId, reason, evidence)
 				.then(async (report) => {
+					// Generate the private embed for the report and send it to the report channel
 					const reportModEmbed = await report.generatePrivateEmbed();
+					// Fetch the subject and reporter user objects from the database
+					const subject = await globalThis.databaseManager.getUserByIdentifier(subjectId, 'db');
+					const reporter = await globalThis.databaseManager.getUserByIdentifier(reporterId, 'db');
+
+					// Generate buttons "Create new case" and "Add to case"
+					const createNewCaseButton = new ButtonBuilder()
+						.setCustomId(`createNewCaseButton:${report.getReportId()}`)
+						.setLabel('Create New Case')
+						.setStyle(ButtonStyle.Success);
+					const addToCaseButton = new ButtonBuilder()
+						.setCustomId(`addToCaseButton:${report.getReportId()}`)
+						.setLabel('Add to Case')
+						.setStyle(ButtonStyle.Primary);
+					const actionRow = new ActionRowBuilder().addComponents(createNewCaseButton, addToCaseButton);
+
+					// Send the report message to the report channel with the moderator embed
 					const reportMessage = await globalThis.reportChannel.send({
-						content: `<@&${moderatorRoleId}>\nNew report submitted`,
+						content: `Report #${report.getReportId()} submitted by ${reporter.getUserName()}`,
 						embeds: [reportModEmbed],
+						components: [actionRow],
 					});
+					// Create a thread for the report message
+					const reportThread = await reportMessage.startThread({
+						name: `Report #${report.getReportId()} (${subject.getUserName()})`,
+					});
+					// Ping the moderators in the report thread
+					await reportThread.send(`<@&${moderatorRoleId}> A new report has been submitted.`);
+					// Set the report link in the report object and update it in the database
 					report.setReportLink(reportMessage.url);
 					await globalThis.databaseManager.updateReport(report.getReportId(), { report_link: report.getReportLink() });
 
+					// Generate the user-facing embed for the report and update the interaction reply
 					const reportUserEmbed = await report.generateUserEmbed();
 					await interaction.editReply({ components: [] });
 					await interaction.followUp({
@@ -125,6 +160,7 @@ module.exports = {
 					});
 				})
 				.catch(async (error) => {
+					// Handle any errors that occur during the report creation process
 					logger.error(`Error creating report in database: ${error}`);
 					await interaction.editReply({ components: [] });
 					await interaction.followUp({

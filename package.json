@@ -18,7 +18,9 @@
 		"dev": "yarn install && yarn dev:start"
 	},
 	"dependencies": {
-		"discord.js": "^14.26.4"
+		"discord.js": "^14.27.0",
+		"log4js": "^6.9.1",
+		"pg": "^8.23.0"
 	},
 	"engines": {
 		"node": "^24.0.0"
