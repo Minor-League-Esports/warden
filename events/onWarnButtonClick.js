@@ -6,15 +6,12 @@ logger.level = logLevel;
 const {
 	Events,
 	EmbedBuilder,
-	ModalBuilder,
-	TextInputBuilder,
-	LabelBuilder,
-	TextInputStyle,
 	ButtonBuilder,
 	ButtonStyle,
 	ActionRowBuilder,
 	PermissionFlagsBits,
 } = require('discord.js');
+const { buildWarnUserModal, notifyCaseThread } = require('../util/UtilFunctions');
 
 module.exports = {
 	name: Events.InteractionCreate,
@@ -26,66 +23,13 @@ module.exports = {
 		if (buttonId.startsWith('userConfirmWarnButton:')) {
 			const [, dbId] = buttonId.split(':');
 
-			const modal = new ModalBuilder().setCustomId(`warnUserModal:${dbId}`).setTitle('Issue Warning to User');
-
-			const rulesBrokenInput = new TextInputBuilder()
-				.setCustomId('rulesBroken')
-				.setStyle(TextInputStyle.Paragraph)
-				.setPlaceholder('1.2(1) Mildly offensive language')
-				.setRequired(true);
-			const rulesBrokenInputLabel = new LabelBuilder()
-				.setLabel('Rule(s) Broken')
-				.setTextInputComponent(rulesBrokenInput);
-
-			const violatingContentInput = new TextInputBuilder()
-				.setCustomId('violatingContent')
-				.setStyle(TextInputStyle.Paragraph)
-				.setPlaceholder('Direct quote or description of the violating content (shown to user)')
-				.setRequired(true);
-			const violatingContentInputLabel = new LabelBuilder()
-				.setLabel('Violating Content')
-				.setTextInputComponent(violatingContentInput);
-
-			const pointsAddedInput = new TextInputBuilder()
-				.setCustomId('pointsAdded')
-				.setStyle(TextInputStyle.Short)
-				.setPlaceholder('Number of points to add to user record')
-				.setMinLength(1)
-				.setMaxLength(2)
-				.setRequired(true);
-			const pointsAddedInputLabel = new LabelBuilder().setLabel('Points Added').setTextInputComponent(pointsAddedInput);
-
-			const moderatorNotesInput = new TextInputBuilder()
-				.setCustomId('moderatorNotes')
-				.setStyle(TextInputStyle.Paragraph)
-				.setPlaceholder('Additional notes from the moderator (not shown to user)')
-				.setRequired(false);
-			const moderatorNotesInputLabel = new LabelBuilder()
-				.setLabel('Moderator Notes')
-				.setTextInputComponent(moderatorNotesInput);
-
-			const reporterInput = new TextInputBuilder()
-				.setCustomId('reporterId')
-				.setStyle(TextInputStyle.Short)
-				.setMinLength(17)
-				.setMaxLength(19)
-				.setPlaceholder('Discord ID of reporter (e.g. 123456789012345678)')
-				.setRequired(false);
-			const reporterInputLabel = new LabelBuilder().setLabel('Reporter').setTextInputComponent(reporterInput);
-
-			modal.addLabelComponents(
-				rulesBrokenInputLabel,
-				violatingContentInputLabel,
-				pointsAddedInputLabel,
-				moderatorNotesInputLabel,
-				reporterInputLabel,
-			);
+			const modal = buildWarnUserModal(`warnUserModal:${dbId}`);
 
 			await interaction.showModal(modal);
 		}
 
 		if (buttonId.startsWith('executeWarnButton:')) {
-			const [, dbId, moderatorId, recommendedAction] = buttonId.split(':');
+			const [, dbId, moderatorId, recommendedAction, caseId] = buttonId.split(':');
 			logger.debug(`Executing recommended action: ${recommendedAction} for user with DB ID: ${dbId}`);
 			const buttonMessage = interaction.message;
 			const proposalEmbed = buttonMessage.embeds[0];
@@ -100,19 +44,28 @@ module.exports = {
 				const approvalEmbed = EmbedBuilder.from(proposalEmbed).setColor('#ff0000');
 				await interaction.channel.send({
 					embeds: [approvalEmbed],
-					components: [generateBanApprovalButtons(dbId, moderatorId)],
+					components: [generateBanApprovalButtons(dbId, moderatorId, caseId)],
 					content: `
                     <@&${directorRoleId}> please review the below ban request. 
                     Clicking "Approve Ban" will enact the ban. 
                     Ensure League Operations has moved the user to FP.`,
 				});
 			} else {
+				// Get the subject's user record
+				const subject = await globalThis.databaseManager.getUserByIdentifier(dbId, 'db');
 				// Execute other punishments directly
 				globalThis.punishmentExecutor
-					.execute(dbId, moderatorId, moderatorId, proposalEmbed, recommendedAction)
+					.execute(dbId, moderatorId, moderatorId, proposalEmbed, recommendedAction, caseId || null)
 					.then(async () => {
 						logger.info(`Successfully executed ${recommendedAction} for user with DB ID: ${dbId}`);
 						await interaction.followUp({ content: 'Successfully executed punishment.' });
+						if (caseId) {
+							await notifyCaseThread(
+								interaction.client,
+								caseId,
+								`Warning issued to <@${subject.getDiscordId()}> by <@${interaction.user.id}>: ${recommendedAction}`,
+							);
+						}
 						if (recommendedAction.includes('suspension')) {
 							await interaction.followUp({
 								content: `Note: Suspensions are not automatically executed by Warden yet. 
@@ -128,7 +81,7 @@ module.exports = {
 		}
 
 		if (buttonId.startsWith('approveBanButton:')) {
-			const [, dbId, moderatorId] = buttonId.split(':');
+			const [, dbId, moderatorId, caseId] = buttonId.split(':');
 			const buttonMessage = interaction.message;
 			const proposalEmbed = buttonMessage.embeds[0];
 
@@ -149,10 +102,13 @@ module.exports = {
 
 			// Execute ban
 			globalThis.punishmentExecutor
-				.execute(dbId, moderatorId, director.getUserId(), proposalEmbed, 'ban')
+				.execute(dbId, moderatorId, director.getUserId(), proposalEmbed, 'ban', caseId || null)
 				.then(async () => {
 					logger.info(`Successfully executed ban for user with DB ID: ${dbId}`);
 					await interaction.followUp({ content: 'Successfully executed ban.' });
+					if (caseId) {
+						await notifyCaseThread(interaction.client, caseId, `Ban approved and executed for <@${dbId}>.`);
+					}
 					// TODO: Generate community announcement with confirmation
 				})
 				.catch((error) => {
@@ -182,13 +138,13 @@ module.exports = {
 	},
 };
 
-function generateBanApprovalButtons(dbId, moderatorId) {
+function generateBanApprovalButtons(dbId, moderatorId, caseId) {
 	const approveButton = new ButtonBuilder()
-		.setCustomId(`approveBanButton:${dbId}:${moderatorId}`)
+		.setCustomId(`approveBanButton:${dbId}:${moderatorId}:${caseId ?? ''}`)
 		.setLabel('Approve Ban')
 		.setStyle(ButtonStyle.Success);
 	const denyButton = new ButtonBuilder()
-		.setCustomId(`denyBanButton:${dbId}:${moderatorId}`)
+		.setCustomId(`denyBanButton:${dbId}:${moderatorId}:${caseId ?? ''}`)
 		.setLabel('Deny Ban')
 		.setStyle(ButtonStyle.Danger);
 	return new ActionRowBuilder().addComponents(approveButton, denyButton);

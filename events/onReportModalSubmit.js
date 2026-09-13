@@ -4,7 +4,7 @@ const { logLevel, modmailUserId, moderatorRoleId } = require('../config.json');
 logger.level = logLevel;
 
 const { Events, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, MessageFlags } = require('discord.js');
-const { chunkTextPreserveNewlines, notifyCaseThread, getCaseLinkForReport } = require('../util/UtilFunctions');
+const { chunkTextPreserveNewlines, notifyCaseThread, getCaseLinkById } = require('../util/UtilFunctions');
 
 module.exports = {
 	name: Events.InteractionCreate,
@@ -71,7 +71,7 @@ module.exports = {
 
 			// Get the report message URL and the updated moderator embed
 			const reportMessageUrl = report.getReportLink();
-			const updatedModEmbed = await report.generatePrivateEmbed(await getCaseLinkForReport(report));
+			const updatedModEmbed = await report.generatePrivateEmbed(await getCaseLinkById(report.getCaseId()));
 
 			try {
 				if (!reportMessageUrl) throw new Error('No report message URL found');

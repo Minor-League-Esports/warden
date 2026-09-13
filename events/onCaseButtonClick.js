@@ -14,7 +14,7 @@ const {
 	ButtonStyle,
 	ActionRowBuilder,
 } = require('discord.js');
-const { notifyCaseThread, refreshReportMessage, acknowledgeReport } = require('../util/UtilFunctions');
+const { notifyCaseThread, refreshReportMessage, acknowledgeReport, buildWarnUserModal } = require('../util/UtilFunctions');
 
 module.exports = {
 	name: Events.InteractionCreate,
@@ -54,7 +54,7 @@ module.exports = {
 					const caseMessage = await globalThis.caseChannel.send({
 						content: `Case #${fullCase.getCaseId()} opened for ${subjectMention} (from Report #${reportId})`,
 						embeds: [caseEmbed],
-						components: [generateClaimButtonRow(fullCase.getCaseId())],
+						components: [generateCaseActionRow(fullCase.getCaseId())],
 					});
 					const caseThread = await caseMessage.startThread({
 						name: `Case #${fullCase.getCaseId()} (${fullCase.getSubjectUser()?.getUserName() ?? 'Unknown'})`,
@@ -119,7 +119,7 @@ module.exports = {
 					const updatedCase = await globalThis.databaseManager.getCaseById(caseId);
 					await interaction.message.edit({
 						embeds: [updatedCase.generatePrivateEmbed()],
-						components: [generateClaimedButtonRow(caseId)],
+						components: [generateCaseActionRow(caseId, { claimed: true })],
 					});
 					await interaction.followUp({
 						content: `Case #${caseId} claimed by <@${interaction.user.id}>. All reports attached to this case have been reassigned to this moderator.`,
@@ -127,6 +127,58 @@ module.exports = {
 				} catch (error) {
 					logger.error(`Error claiming case ${caseId}: ${error}`);
 					await interaction.followUp({ content: 'Error: Failed to claim case.' });
+				}
+				return;
+			}
+
+			if (buttonId.startsWith('caseCreateWarningButton:')) {
+				const [, caseId] = buttonId.split(':');
+
+				try {
+					const kase = await globalThis.databaseManager.getCaseById(caseId);
+					const modal = buildWarnUserModal(`warnUserModal:${kase.getSubjectId()}:${caseId}`);
+					await interaction.showModal(modal);
+				} catch (error) {
+					logger.error(`Error opening warn modal for case ${caseId}: ${error}`);
+					await interaction.reply({
+						content: 'Error: Failed to open the warning form for this case.',
+						flags: MessageFlags.Ephemeral,
+					});
+				}
+				return;
+			}
+
+			if (buttonId.startsWith('closeCaseButton:')) {
+				const [, caseId] = buttonId.split(':');
+
+				await interaction.deferUpdate();
+
+				try {
+					await globalThis.databaseManager.updateCase(caseId, {
+						status: 'CLOSED',
+						closed_at: new Date().toISOString(),
+					});
+
+					const updatedCase = await globalThis.databaseManager.getCaseById(caseId);
+					await interaction.message.edit({
+						embeds: [updatedCase.generatePrivateEmbed()],
+						components: [generateCaseActionRow(caseId, { claimed: !!updatedCase.getModerator(), closed: true })],
+					});
+					await notifyCaseThread(interaction.client, caseId, `Case #${caseId} has been closed by <@${interaction.user.id}>.`);
+
+					try {
+						const thread = await interaction.client.channels.fetch(updatedCase.getCaseLink()?.split('/').pop());
+						if (thread?.setArchived) {
+							await thread.setArchived(true);
+						}
+					} catch (archiveError) {
+						logger.warn(`Failed to archive thread for case ${caseId}: ${archiveError}`);
+					}
+
+					await interaction.followUp({ content: `Case #${caseId} has been closed.` });
+				} catch (error) {
+					logger.error(`Error closing case ${caseId}: ${error}`);
+					await interaction.followUp({ content: 'Error: Failed to close case.' });
 				}
 				return;
 			}
@@ -176,19 +228,21 @@ module.exports = {
 	},
 };
 
-function generateClaimButtonRow(caseId) {
+function generateCaseActionRow(caseId, { claimed = false, closed = false } = {}) {
 	const claimButton = new ButtonBuilder()
 		.setCustomId(`claimCaseButton:${caseId}`)
-		.setLabel('Claim Case')
-		.setStyle(ButtonStyle.Primary);
-	return new ActionRowBuilder().addComponents(claimButton);
-}
-
-function generateClaimedButtonRow(caseId) {
-	const claimedButton = new ButtonBuilder()
-		.setCustomId(`claimCaseButton:${caseId}`)
-		.setLabel('Claimed')
-		.setStyle(ButtonStyle.Success)
-		.setDisabled(true);
-	return new ActionRowBuilder().addComponents(claimedButton);
+		.setLabel(claimed ? 'Claimed' : 'Claim Case')
+		.setStyle(claimed ? ButtonStyle.Success : ButtonStyle.Primary)
+		.setDisabled(claimed || closed);
+	const createWarningButton = new ButtonBuilder()
+		.setCustomId(`caseCreateWarningButton:${caseId}`)
+		.setLabel('Create Warning')
+		.setStyle(ButtonStyle.Secondary)
+		.setDisabled(closed);
+	const closeButton = new ButtonBuilder()
+		.setCustomId(`closeCaseButton:${caseId}`)
+		.setLabel(closed ? 'Closed' : 'Close Case')
+		.setStyle(ButtonStyle.Danger)
+		.setDisabled(closed);
+	return new ActionRowBuilder().addComponents(claimButton, createWarningButton, closeButton);
 }

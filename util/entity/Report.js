@@ -28,6 +28,14 @@ class Report {
 		return this._reporterId;
 	}
 
+	setReporter(user) {
+		this._reporter = user;
+	}
+
+	getReporter() {
+		return this._reporter;
+	}
+
 	setSubjectId(userId) {
 		this._subjectId = userId;
 	}

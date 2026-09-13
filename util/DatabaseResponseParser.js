@@ -84,8 +84,7 @@ class DatabaseResponseParser {
 			w.setWarningId(row['warning_id']);
 			w.setSubjectId(row['subject_id']);
 			w.setModeratorId(row['moderator_id']);
-			w.setReporterId(row['reporter_id']);
-			w.setCase(row['case_id']);
+			w.setCaseId(row['case_id']);
 			w.setTimestamp(row['timestamp']);
 			w.setRulesBroken(row['rules_broken']);
 			w.setViolatingContent(row['violating_content']);
@@ -94,7 +93,6 @@ class DatabaseResponseParser {
 			w.setModeratorNotes(row['moderator_notes']);
 			w.setSubject(buildUserFromPrefix(row, 'u_user'));
 			w.setModerator(buildUserFromPrefix(row, 'u_mod'));
-			w.setReporter(buildUserFromPrefix(row, 'u_rep'));
 			warnings.push(w);
 		}
 
@@ -116,6 +114,7 @@ class DatabaseResponseParser {
 			p.setSubjectId(row['subject_id']);
 			p.setModeratorId(row['moderator_id']);
 			p.setCaseId(row['case_id']);
+			p.setWarningId(row['warning_id']);
 			p.setTimestamp(row['timestamp']);
 			p.setType(row['punishment_type']);
 			p.setDuration(row['punishment_duration']);
@@ -152,6 +151,7 @@ class DatabaseResponseParser {
 			r.setStatus(row['status']);
 			r.setModeratorNotes(row['moderator_notes']);
 			r.setResponse(row['response']);
+			r.setReporter(buildUserFromPrefix(row, 'u_rep'));
 			reports.push(r);
 		}
 

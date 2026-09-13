@@ -72,6 +72,14 @@ class Punishment {
 		return this._caseId ?? 'N/A';
 	}
 
+	setWarningId(warningId) {
+		this._warningId = warningId;
+	}
+
+	getWarningId() {
+		return this._warningId ?? null;
+	}
+
 	/**
 	 * Setter for Case object
 	 * @param {Case} kase
@@ -141,9 +149,14 @@ class Punishment {
 	/**
 	 * Generates an embed for moderator view of a standalone punishment
 	 *
+	 * @param {String|null} caseLink Optional jump link to the case's discussion thread
+	 * @param {String} reporters Names of reporters attached to the parent case
 	 * @returns {EmbedBuilder}
 	 */
-	generatePrivateEmbed() {
+	generatePrivateEmbed(caseLink = null, reporters = 'None') {
+		const caseValue = this.getCaseId() && this.getCaseId() !== 'N/A'
+			? (caseLink ? `[#${this.getCaseId()}](${caseLink})` : `#${this.getCaseId()}`)
+			: 'None';
 		const embed = new EmbedBuilder()
 			.setTitle(`${this.getSubject()?.getUserName() ?? 'User'} | Punishment`)
 			.setTimestamp(new Date(this.getTimestamp()))
@@ -152,6 +165,9 @@ class Punishment {
 				{ name: 'Duration', value: String(this.getDuration() ?? 'N/A'), inline: true },
 				{ name: 'Details', value: String(this.getFriendlyString() ?? 'None') },
 				{ name: 'Moderator Name', value: String(this.getModerator()?.getUserName() ?? 'None'), inline: true },
+				{ name: 'Case', value: caseValue, inline: true },
+				{ name: 'Reporters', value: String(reporters), inline: true },
+				{ name: 'Warning ID', value: String(this.getWarningId() ?? 'None'), inline: true },
 			)
 			.setFooter({ text: `ID: ${this.getSubject()?.getDiscordId() ?? 'Unknown'}` })
 			.setThumbnail(this.getSubject()?.getDiscordAvatar() ?? null)

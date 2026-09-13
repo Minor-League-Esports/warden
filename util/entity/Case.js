@@ -140,7 +140,18 @@ class Case {
 	 * @returns {Report[]}
 	 */
 	getReports() {
-		return this._reports;
+		return this._reports ?? [];
+	}
+
+	/**
+	 * Returns each distinct reporter on reports attached to this case.
+	 * @returns {String}
+	 */
+	getReporterNames() {
+		const names = this.getReports()
+			.map((report) => report.getReporter()?.getUserName())
+			.filter(Boolean);
+		return [...new Set(names)].join('\n') || 'None';
 	}
 
 	/**
@@ -156,7 +167,7 @@ class Case {
 	 * @returns {Warning[]}
 	 */
 	getWarnings() {
-		return this._warnings;
+		return this._warnings ?? [];
 	}
 
 	/**
@@ -172,7 +183,7 @@ class Case {
 	 * @returns {Punishment[]}
 	 */
 	getPunishments() {
-		return this._punishments;
+		return this._punishments ?? [];
 	}
 
 	/**
@@ -198,6 +209,10 @@ class Case {
 		const notes = String(this.getNotes() ?? 'None');
 		if (notes && notes.trim().length > 0) {
 			embed.addFields({ name: 'Notes', value: notes });
+		}
+
+		if (this.getClosedAt()) {
+			embed.addFields({ name: 'Closed At', value: new Date(this.getClosedAt()).toISOString(), inline: true });
 		}
 
 		return embed;

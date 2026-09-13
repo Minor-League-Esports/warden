@@ -11,18 +11,19 @@ class PunishmentExecutor {
 		this._caseLogger = caseLogger;
 	}
 
-	async execute(dbUserId, warnCreatorId, punishmentExecutorId, proposalEmbed, action) {
+	async execute(dbUserId, warnCreatorId, punishmentExecutorId, proposalEmbed, action, caseId = null) {
 		const parsedEmbed = this.parseProposedEmbed(proposalEmbed);
 		try {
 			// Create the warning in the database
 			const warning = await globalThis.databaseManager.createWarning(
 				dbUserId,
 				warnCreatorId,
-				parsedEmbed.reporter,
 				parsedEmbed.rulesBroken,
 				parsedEmbed.violatingContent,
 				parsedEmbed.pointsAdded,
 				parsedEmbed.moderatorNotes,
+				new Date().toISOString(),
+				caseId,
 			);
 
 			logger.debug(`Created warning with ID: ${warning.getWarningId()} for user ID: ${dbUserId}`);
@@ -39,6 +40,8 @@ class PunishmentExecutor {
 					punishmentExecutorId,
 					type,
 					durationStr ? Number.parseInt(durationStr, 10) : null,
+					caseId,
+					warning.getWarningId(),
 				);
 				punishment.setSubject(subjectUser);
 				punishment.setModerator(executorUser);
@@ -260,9 +263,6 @@ class PunishmentExecutor {
 		const totalPoints = totalPointsField ? parseInt(totalPointsField.value, 10) : 0;
 		const moderatorNotesField = proposalEmbed.fields.find((field) => field.name === 'Moderator Notes');
 		const moderatorNotes = moderatorNotesField ? moderatorNotesField.value : 'None';
-		const reporterField = proposalEmbed.fields.find((field) => field.name === 'Reporter');
-		const reporter = reporterField && reporterField.value !== 'None' ? reporterField.value : null;
-
 		return {
 			userName,
 			userDiscordId,
@@ -273,7 +273,6 @@ class PunishmentExecutor {
 			pointsAdded,
 			totalPoints,
 			moderatorNotes,
-			reporter,
 		};
 	}
 }

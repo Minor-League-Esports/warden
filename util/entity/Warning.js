@@ -58,30 +58,6 @@ class Warning {
 		return this._moderator;
 	}
 
-	/**
-	 * Setter for the User who reported the incident
-	 * @param {User} user
-	 */
-	setReporter(user) {
-		this._reporter = user;
-	}
-
-	/**
-	 * Getter for the User who reported the incident
-	 * @returns {User}
-	 */
-	getReporter() {
-		return this._reporter;
-	}
-
-	setReporterId(reporterId) {
-		this._reporterId = reporterId;
-	}
-
-	getReporterId() {
-		return this._reporterId;
-	}
-
 	setCaseId(caseId) {
 		this._caseId = caseId;
 	}
@@ -138,6 +114,22 @@ class Warning {
 	}
 
 	/**
+	 * Setter for punishments collection
+	 * @param {Punishment[]} punishments
+	 */
+	setPunishments(punishments) {
+		this._punishments = punishments;
+	}
+
+	/**
+	 * Getter for punishments collection
+	 * @returns {Punishment[]}
+	 */
+	getPunishments() {
+		return this._punishments ?? [];
+	}
+
+	/**
 	 * Getter for punishment friendly strings
 	 *
 	 * @returns {String}
@@ -150,9 +142,14 @@ class Warning {
 	/**
 	 * To string method to represent the Warning as an Embed for moderators
 	 *
+	 * @param {String|null} caseLink Optional jump link to the case's discussion thread
+	 * @param {String} reporters Names of reporters attached to the parent case
 	 * @returns {Embed}
 	 */
-	generatePrivateEmbed() {
+	generatePrivateEmbed(caseLink = null, reporters = 'None') {
+		const caseValue = this.getCaseId() && this.getCaseId() !== 'N/A'
+			? (caseLink ? `[#${this.getCaseId()}](${caseLink})` : `#${this.getCaseId()}`)
+			: 'None';
 		const embed = new EmbedBuilder()
 			.setTitle(`${this.getSubject().getUserName()} | Warning`)
 			.setTimestamp(new Date(this.getTimestamp()))
@@ -174,7 +171,8 @@ class Warning {
 					value: String(this.getPunishmentFriendlyStrings()),
 				},
 				{ name: 'Moderator Name', value: String(this.getModerator()?.getUserName() ?? 'None'), inline: true },
-				{ name: 'Reporter Name', value: String(this.getReporter()?.getUserName() ?? 'None'), inline: true },
+				{ name: 'Case', value: caseValue, inline: true },
+				{ name: 'Reporters', value: String(reporters), inline: true },
 				{ name: 'Moderator Notes', value: String(this.getModeratorNotes() ?? 'None') },
 			)
 			.setFooter({ text: `ID: ${this.getSubject().getDiscordId()}` })

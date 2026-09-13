@@ -6,18 +6,30 @@ class CaseLogger {
 		this._channel = channel;
 	}
 
-	logWarn(warning, userNotify, fmNotify) {
-		const embed = warning.generatePrivateEmbed();
+	async logWarn(warning, userNotify, fmNotify) {
+		const kase = await this._getCase(warning.getCaseId());
+		const embed = warning.generatePrivateEmbed(kase?.getCaseLink(), kase?.getReporterNames());
 		embed.addFields({ name: 'FM Notified', value: String(fmNotify) });
 		embed.addFields({ name: 'User Notified', value: String(userNotify) });
 		this._channel.send({ embeds: [embed] });
 	}
 
-	logPunishment(punishment, success, serverMap) {
-		const embed = punishment.generatePrivateEmbed();
+	async logPunishment(punishment, success, serverMap) {
+		const kase = await this._getCase(punishment.getCaseId());
+		const embed = punishment.generatePrivateEmbed(kase?.getCaseLink(), kase?.getReporterNames());
 		embed.addFields({ name: 'User Notified', value: String(success) });
 		embed.addFields({ name: 'Servers', value: this.getServerMapText(serverMap) });
 		this._channel.send({ embeds: [embed] });
+	}
+
+	async _getCase(caseId) {
+		if (!caseId || caseId === 'N/A') return null;
+		try {
+			return await globalThis.databaseManager.getCaseById(caseId);
+		} catch (error) {
+			logger.warn(`Failed to load case ${caseId} for case log: ${error}`);
+			return null;
+		}
 	}
 
 	logMute(user, moderator, serverMap, days, success) {

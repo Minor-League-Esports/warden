@@ -14,12 +14,11 @@ module.exports = {
 		if (interaction.customId.startsWith('warnUserModal:')) {
 			await interaction.deferReply();
 
-			const [, dbId] = interaction.customId.split(':');
+			const [, dbId, caseId] = interaction.customId.split(':');
 			const rulesBroken = interaction.fields.getTextInputValue('rulesBroken');
 			const violatingContent = interaction.fields.getTextInputValue('violatingContent');
 			const pointsAddedStr = interaction.fields.getTextInputValue('pointsAdded');
 			const moderatorNotes = interaction.fields.getTextInputValue('moderatorNotes');
-			const reporterId = interaction.fields.getTextInputValue('reporterId');
 
 			const pointsAdded = Number.parseInt(pointsAddedStr, 10);
 			if (Number.isNaN(pointsAdded) || pointsAdded < 0) {
@@ -30,11 +29,6 @@ module.exports = {
 			}
 
 			const moderator = await globalThis.userUtility.fetchDatabaseUser(interaction.user.id);
-
-			let reporter = null;
-			if (reporterId.trim() !== '') {
-				reporter = await globalThis.userUtility.fetchDatabaseUser(reporterId);
-			}
 
 			globalThis.databaseManager
 				.getUserByIdentifier(dbId, 'db')
@@ -68,12 +62,12 @@ module.exports = {
 						pointsAdded,
 						newPointsTotal,
 						moderatorNotes,
-						reporter?.getUserId(),
 						recommendedAction,
+						caseId,
 					);
 					await interaction.editReply({
 						embeds: [embed],
-						components: generateWarnConfirmationButtons(dbId, moderator.getUserId(), recommendedAction),
+						components: generateWarnConfirmationButtons(dbId, moderator.getUserId(), recommendedAction, caseId),
 					});
 				})
 				.catch(async (error) => {
@@ -131,8 +125,8 @@ function generateWarnConfirmationEmbed(
 	pointsAdded,
 	newPointsTotal,
 	moderatorNotes,
-	reporter,
 	recommendedAction,
+	caseId,
 ) {
 	return new EmbedBuilder()
 		.setColor('#ff761b')
@@ -161,23 +155,20 @@ function generateWarnConfirmationEmbed(
 				value: String(moderatorNotes?.trim() === '' ? 'None' : moderatorNotes.trim()),
 			},
 			{
-				name: 'Reporter',
-				value: String(reporter ?? 'None'),
-			},
-			{
 				name: 'Recommended Action',
 				value: String(generateRecommendedActionDescription(recommendedAction)),
 			},
+			{ name: 'Case', value: caseId ? `#${caseId}` : 'None', inline: true },
 		);
 }
 
-function generateWarnConfirmationButtons(dbId, moderatorId, recommendedAction) {
+function generateWarnConfirmationButtons(dbId, moderatorId, recommendedAction, caseId) {
 	const confirmButton = new ButtonBuilder()
-		.setCustomId(`executeWarnButton:${dbId}:${moderatorId}:${recommendedAction}`)
+		.setCustomId(`executeWarnButton:${dbId}:${moderatorId}:${recommendedAction}:${caseId ?? ''}`)
 		.setLabel('Confirm Recommended Action')
 		.setStyle(ButtonStyle.Success);
 	const overrideButton = new ButtonBuilder()
-		.setCustomId(`overrideWarnButton:${dbId}`)
+		.setCustomId(`overrideWarnButton:${dbId}:${caseId ?? ''}`)
 		.setLabel('Override Action')
 		.setStyle(ButtonStyle.Danger);
 	const actionRow = new ActionRowBuilder().addComponents(confirmButton, overrideButton);

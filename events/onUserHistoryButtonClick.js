@@ -4,6 +4,7 @@ const { logLevel } = require('../config.json');
 logger.level = logLevel;
 
 const { Events, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { getCaseLinkById } = require('../util/UtilFunctions');
 
 module.exports = {
 	name: Events.InteractionCreate,
@@ -30,7 +31,7 @@ module.exports = {
 
 					// most recent warning
 					const indexToShow = 0;
-					const embed = warnings[indexToShow].generatePrivateEmbed();
+					const embed = warnings[indexToShow].generatePrivateEmbed(await getCaseLinkById(warnings[indexToShow].getCaseId()));
 					const components = buildPaginationComponents(dbId, indexToShow, warnings.length);
 					await interaction.editReply({
 						content: `Showing warning ${indexToShow + 1} of ${warnings.length}.`,
@@ -66,7 +67,7 @@ module.exports = {
 
 				// Clamp index to bounds
 				targetIndex = Math.max(0, Math.min(targetIndex, warnings.length - 1));
-				const embed = warnings[targetIndex].generatePrivateEmbed();
+				const embed = warnings[targetIndex].generatePrivateEmbed(await getCaseLinkById(warnings[targetIndex].getCaseId()));
 				const components = buildPaginationComponents(dbId, targetIndex, warnings.length);
 
 				// Update the original message containing the buttons
@@ -91,7 +92,9 @@ module.exports = {
 					return;
 				}
 
-				const allEmbeds = warnings.map((w) => w.generatePrivateEmbed());
+				const allEmbeds = await Promise.all(
+					warnings.map(async (w) => w.generatePrivateEmbed(await getCaseLinkById(w.getCaseId()))),
+				);
 				const chunkSize = 10;
 				const chunks = [];
 				for (let i = 0; i < allEmbeds.length; i += chunkSize) {

@@ -58,6 +58,7 @@ class DatabaseManager {
 
 		// Drop existing tables for fresh start (development only)
 		// await this._client.query('DROP TABLE IF EXISTS Punishments CASCADE');
+		// await this._client.query('DROP TABLE IF EXISTS Users CASCADE');
 		// await this._client.query('DROP TABLE IF EXISTS Warnings CASCADE');
 		// await this._client.query('DROP TABLE IF EXISTS Reports CASCADE');
 		// await this._client.query('DROP TABLE IF EXISTS Cases CASCADE');
@@ -69,9 +70,9 @@ class DatabaseManager {
 
 		await this._queryFile('init/Reports.sql');
 
-		await this._queryFile('init/Punishments.sql');
-
 		await this._queryFile('init/Warnings.sql');
+
+		await this._queryFile('init/Punishments.sql');
 
 		// New: Add supporting indexes
 		await this._queryFile('init/indexes.sql');
@@ -194,6 +195,9 @@ class DatabaseManager {
 			const cRow = caseRes.rows[0];
 			const kase = new Case();
 			kase.setCaseId(cRow['case_id']);
+			kase.setCreatorId(cRow['creator_id']);
+			kase.setSubjectId(cRow['subject_id']);
+			kase.setModeratorId(cRow['moderator_id']);
 			kase.setStatus(cRow['status']);
 			kase.setCreatedAt(cRow['created_at']);
 			kase.setClosedAt(cRow['closed_at']);
@@ -232,18 +236,29 @@ class DatabaseManager {
 			const reports = globalThis.databaseResponseParser.parseDatabaseReportResponse(repRes);
 			reports.forEach((r) => r.setCase(kase));
 
-			// Warnings in case (with punishments via join)
+			// Warnings in case
 			const warnRes = await this._queryFile('queries/get/getCaseById_warnings.sql', [caseId]);
 			const warnings = globalThis.databaseResponseParser.parseDatabaseWarningResponse(warnRes);
-			warnings.forEach((w) => {
-				w.setCase(kase);
-				(w.getPunishments() || []).forEach((p) => p.setCase(kase));
-			});
+			warnings.forEach((w) => w.setCase(kase));
 
-			// Standalone punishments in case
+			// Punishments in case, split between those tied to one of the warnings above and truly standalone ones
 			const punRes = await this._queryFile('queries/get/getCaseById_punishments.sql', [caseId]);
-			const standalonePunishments = globalThis.databaseResponseParser.parseDatabasePunishmentResponse(punRes);
-			standalonePunishments.forEach((p) => p.setCase(kase));
+			const casePunishments = globalThis.databaseResponseParser.parseDatabasePunishmentResponse(punRes);
+			casePunishments.forEach((p) => p.setCase(kase));
+
+			const punishmentsByWarningId = new Map();
+			const standalonePunishments = [];
+			for (const punishment of casePunishments) {
+				if (punishment.getWarningId()) {
+					if (!punishmentsByWarningId.has(punishment.getWarningId())) {
+						punishmentsByWarningId.set(punishment.getWarningId(), []);
+					}
+					punishmentsByWarningId.get(punishment.getWarningId()).push(punishment);
+				} else {
+					standalonePunishments.push(punishment);
+				}
+			}
+			warnings.forEach((w) => w.setPunishments(punishmentsByWarningId.get(w.getWarningId()) ?? []));
 
 			// Assemble and return
 			kase.setReports(reports);
@@ -439,7 +454,6 @@ class DatabaseManager {
 	 *
 	 * @param {String} subjectId DB ID of the user being warned
 	 * @param {String} moderatorId DB ID of the moderator issuing the warning
-	 * @param {String} reporterId DB ID of the user who reported the incident (optional)
 	 * @param {String} rulesBroken The rules broken by the user
 	 * @param {String} violatingContent The content that violated the rules
 	 * @param {Number} pointsAdded Number of points added by this warning
@@ -451,7 +465,6 @@ class DatabaseManager {
 	async createWarning(
 		subjectId,
 		moderatorId,
-		reporterId,
 		rulesBroken,
 		violatingContent,
 		pointsAdded,
@@ -471,7 +484,6 @@ class DatabaseManager {
 		const res = await this._queryFile('queries/insert/insertWarning.sql', [
 			subjectId,
 			moderatorId,
-			reporterId,
 			caseId,
 			timestamp,
 			rulesBroken,
@@ -495,6 +507,7 @@ class DatabaseManager {
 	 * @param {String} punishmentType Type of punishment (mute, ban, etc)
 	 * @param {Number} punishmentDuration How long the punishment is for (mutes in days, suspensions in weeks)
 	 * @param {String} caseId DB ID of the associated case
+	 * @param {String} warningId DB ID of the warning this punishment resulted from (optional)
 	 * @param {String} timestamp ISO timestamp of the punishment (defaults to now)
 	 * @returns {Promise<Punishment>} A promise with the created punishment
 	 */
@@ -504,6 +517,7 @@ class DatabaseManager {
 		punishmentType,
 		punishmentDuration = null,
 		caseId = null,
+		warningId = null,
 		timestamp = new Date().toISOString(),
 	) {
 		if (this._status !== 'success') {
@@ -515,6 +529,7 @@ class DatabaseManager {
 			subjectId,
 			moderatorId,
 			caseId,
+			warningId,
 			timestamp,
 			punishmentType,
 			punishmentDuration,
@@ -631,7 +646,32 @@ class DatabaseManager {
 		if (limit && Number.isInteger(limit)) {
 			warnings = warnings.slice(0, limit);
 		}
+		await this._attachPunishmentsToWarnings(warnings);
 		return warnings;
+	}
+
+	/**
+	 * Fetches and attaches punishments to their originating warnings (mutates the given warnings in place)
+	 *
+	 * @param {Warning[]} warnings
+	 */
+	async _attachPunishmentsToWarnings(warnings) {
+		const warningIds = warnings.map((w) => w.getWarningId()).filter((id) => id != null);
+		if (warningIds.length === 0) return;
+
+		const res = await this._queryFile('queries/get/getPunishmentsByWarningIds.sql', [warningIds]);
+		const punishments = globalThis.databaseResponseParser.parseDatabasePunishmentResponse(res);
+
+		const punishmentsByWarningId = new Map();
+		for (const punishment of punishments) {
+			const key = punishment.getWarningId();
+			if (!punishmentsByWarningId.has(key)) punishmentsByWarningId.set(key, []);
+			punishmentsByWarningId.get(key).push(punishment);
+		}
+
+		for (const warning of warnings) {
+			warning.setPunishments(punishmentsByWarningId.get(warning.getWarningId()) ?? []);
+		}
 	}
 
 	/**
