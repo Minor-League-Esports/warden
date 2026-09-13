@@ -89,6 +89,7 @@ module.exports = {
 		user.setWarnings(await globalThis.databaseManager.getWarnings(user.getUserId()));
 
 		await interaction.editReply({
+			content: `Are you sure you want to warn ${user.getUserName()} without a case? Most warnings should be handled through a case instead.`,
 			embeds: [user.generateUserSummaryEmbed()],
 			components: generateUserSummaryButtons(user.getUserId()),
 		});

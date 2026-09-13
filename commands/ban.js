@@ -57,7 +57,7 @@ function generateConfirmationEmbed(dbUser) {
 	const embed = new EmbedBuilder()
 		.setTitle('Confirm Ban')
 		.setDescription(
-			`Are you sure you want to ban ${dbUser.getUserName()} without warning? Most bans should be handled through /warn instead`,
+			`Are you sure you want to ban ${dbUser.getUserName()} without warning? Most bans should be handled through a case instead`,
 		)
 		.setColor('#ff0000')
 		.setFooter({ text: `ID: ${dbUser.getDiscordId()}` })

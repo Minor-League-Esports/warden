@@ -65,7 +65,7 @@ function generateConfirmationEmbed(dbUser, duration) {
 	const embed = new EmbedBuilder()
 		.setTitle('Confirm Mute')
 		.setDescription(
-			`Are you sure you want to mute ${dbUser.getUserName()} without warning? Most mutes should be handled through /warn instead`,
+			`Are you sure you want to mute ${dbUser.getUserName()} without warning? Most mutes should be handled through a case instead`,
 		)
 		.addFields({ name: 'Duration', value: `${duration} day(s)`, inline: true })
 		.setColor('#ff0000')

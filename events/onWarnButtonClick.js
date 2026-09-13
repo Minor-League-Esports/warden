@@ -9,6 +9,10 @@ const {
 	ButtonBuilder,
 	ButtonStyle,
 	ActionRowBuilder,
+	ModalBuilder,
+	TextInputBuilder,
+	LabelBuilder,
+	TextInputStyle,
 	PermissionFlagsBits,
 } = require('discord.js');
 const { buildWarnUserModal, notifyCaseThread } = require('../util/UtilFunctions');
@@ -26,6 +30,24 @@ module.exports = {
 			const modal = buildWarnUserModal(`warnUserModal:${dbId}`);
 
 			await interaction.showModal(modal);
+		}
+
+		if (buttonId.startsWith('overrideWarnButton:')) {
+			const [, dbId, moderatorId, caseId] = buttonId.split(':');
+			const modal = new ModalBuilder()
+				.setCustomId(`overrideWarnModal:${dbId}:${moderatorId}:${caseId ?? ''}`)
+				.setTitle('Override Suggested Action');
+			const punishmentsInput = new TextInputBuilder()
+				.setCustomId('punishments')
+				.setStyle(TextInputStyle.Short)
+				.setPlaceholder('mute=7;suspension=1')
+				.setRequired(true);
+			const punishmentsLabel = new LabelBuilder()
+				.setLabel('Punishments, separated by semicolons')
+				.setTextInputComponent(punishmentsInput);
+			modal.addLabelComponents(punishmentsLabel);
+			await interaction.showModal(modal);
+			return;
 		}
 
 		if (buttonId.startsWith('executeWarnButton:')) {
