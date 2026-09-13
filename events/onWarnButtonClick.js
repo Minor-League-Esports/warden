@@ -46,9 +46,7 @@ module.exports = {
 					embeds: [approvalEmbed],
 					components: [generateBanApprovalButtons(dbId, moderatorId, caseId)],
 					content: `
-                    <@&${directorRoleId}> please review the below ban request. 
-                    Clicking "Approve Ban" will enact the ban. 
-                    Ensure League Operations has moved the user to FP.`,
+                    <@&${directorRoleId}> please review the below ban request. Clicking "Approve Ban" will enact the ban. Ensure League Operations has moved the user to FP.`,
 				});
 			} else {
 				// Get the subject's user record
@@ -68,8 +66,7 @@ module.exports = {
 						}
 						if (recommendedAction.includes('suspension')) {
 							await interaction.followUp({
-								content: `Note: Suspensions are not automatically executed by Warden yet. 
-                                Please handle the suspension manually via League Operations.`,
+								content: `Note: Suspensions are not automatically executed by Warden yet. Please handle the suspension manually via League Operations.`,
 							});
 						}
 					})

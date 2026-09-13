@@ -319,11 +319,10 @@ async function notifyCaseThread(client, caseId, content) {
 /**
  * Re-renders a report's moderator-facing embed on its original message (e.g. after it's attached to a case).
  *
- * @param {import('discord.js').Client} client
  * @param {Report} report
  * @param {String|null} caseLink Optional jump link to the case's discussion thread
  */
-async function refreshReportMessage(client, report, caseLink = null) {
+async function refreshReportMessage(report, caseLink = null) {
 	if (!report.getReportLink()) return;
 	try {
 		const reportMessage = await globalThis.reportChannel.messages.fetch(report.getReportLink().split('/').pop());

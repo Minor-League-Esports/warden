@@ -77,7 +77,7 @@ module.exports = {
 
 					// Acknowledging the report is implied by assigning it to a case
 					const updatedReport = await acknowledgeReport(interaction.client, reportId);
-					await refreshReportMessage(interaction.client, updatedReport, caseMessage.url);
+					await refreshReportMessage(updatedReport, caseMessage.url);
 
 					// Remove the case buttons now that the report has been assigned to a case
 					await interaction.message.edit({ components: [] });
@@ -178,14 +178,16 @@ module.exports = {
 					);
 					await Promise.all(
 						closedReports.map((report) =>
-							notifyReporterOfClosedCase(interaction.client, report, caseId, updatedCase.getCaseLink()),
+							notifyReporterOfClosedCase(interaction.client, report, updatedCase.getCaseLink()),
 						),
 					);
 					await Promise.all([
 						archiveThread(interaction.client, updatedCase.getCaseLink(), `case ${caseId}`),
 						...updatedCase
 							.getReports()
-							.map((report) => archiveThread(interaction.client, report.getReportLink(), `report ${report.getReportId()}`)),
+							.map((report) =>
+								archiveThread(interaction.client, report.getReportLink(), `report ${report.getReportId()}`),
+							),
 					]);
 
 					await interaction.followUp({ content: `Case #${caseId} has been closed.` });
@@ -226,7 +228,7 @@ module.exports = {
 
 				// Acknowledging the report is implied by assigning it to a case
 				const updatedReport = await acknowledgeReport(interaction.client, reportId);
-				await refreshReportMessage(interaction.client, updatedReport, targetCase.getCaseLink());
+				await refreshReportMessage(updatedReport, targetCase.getCaseLink());
 
 				if (interaction.isFromMessage()) {
 					await interaction.message.edit({ components: [] });
@@ -267,9 +269,9 @@ async function refreshCaseSummary(kase) {
 	await caseMessage.edit({ embeds: [kase.generatePrivateEmbed()], components: [] });
 }
 
-async function notifyReporterOfClosedCase(client, report, caseId, caseLink) {
+async function notifyReporterOfClosedCase(client, report, caseLink) {
 	try {
-		await refreshReportMessage(client, report, caseLink);
+		await refreshReportMessage(report, caseLink);
 		const reporter = await globalThis.databaseManager.getUserByIdentifier(report.getReporterId(), 'db');
 		if (!reporter) throw new Error('Reporter not found');
 		const discordUser = await client.users.fetch(reporter.getDiscordId());

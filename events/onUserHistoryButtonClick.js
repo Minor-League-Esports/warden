@@ -4,7 +4,6 @@ const { logLevel } = require('../config.json');
 logger.level = logLevel;
 
 const { Events, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { getCaseLinkById } = require('../util/UtilFunctions');
 
 module.exports = {
 	name: Events.InteractionCreate,
@@ -31,7 +30,8 @@ module.exports = {
 
 					// most recent warning
 					const indexToShow = 0;
-					const embed = warnings[indexToShow].generatePrivateEmbed(await getCaseLinkById(warnings[indexToShow].getCaseId()));
+					const caseContext = await getWarningCaseContext(warnings[indexToShow]);
+					const embed = warnings[indexToShow].generatePrivateEmbed(caseContext.link, caseContext.reporters);
 					const components = buildPaginationComponents(dbId, indexToShow, warnings.length);
 					await interaction.editReply({
 						content: `Showing warning ${indexToShow + 1} of ${warnings.length}.`,
@@ -67,7 +67,8 @@ module.exports = {
 
 				// Clamp index to bounds
 				targetIndex = Math.max(0, Math.min(targetIndex, warnings.length - 1));
-				const embed = warnings[targetIndex].generatePrivateEmbed(await getCaseLinkById(warnings[targetIndex].getCaseId()));
+				const caseContext = await getWarningCaseContext(warnings[targetIndex]);
+				const embed = warnings[targetIndex].generatePrivateEmbed(caseContext.link, caseContext.reporters);
 				const components = buildPaginationComponents(dbId, targetIndex, warnings.length);
 
 				// Update the original message containing the buttons
@@ -92,16 +93,17 @@ module.exports = {
 					return;
 				}
 
-				const caseLinks = new Map();
+				const caseContexts = new Map();
 				for (const warning of warnings) {
 					const caseId = warning.getCaseId();
-					if (!caseLinks.has(caseId)) {
-						caseLinks.set(caseId, await getCaseLinkById(caseId));
+					if (!caseContexts.has(caseId)) {
+						caseContexts.set(caseId, await getWarningCaseContext(warning));
 					}
 				}
-				const allEmbeds = warnings.map((warning) =>
-					warning.generatePrivateEmbed(caseLinks.get(warning.getCaseId())),
-				);
+				const allEmbeds = warnings.map((warning) => {
+					const caseContext = caseContexts.get(warning.getCaseId());
+					return warning.generatePrivateEmbed(caseContext.link, caseContext.reporters);
+				});
 				const chunkSize = 10;
 				const chunks = [];
 				for (let i = 0; i < allEmbeds.length; i += chunkSize) {
@@ -174,6 +176,17 @@ module.exports = {
 		}
 	},
 };
+
+async function getWarningCaseContext(warning) {
+	const caseId = warning.getCaseId();
+	if (!caseId || caseId === 'N/A') return { link: null, reporters: 'None' };
+
+	const kase = await globalThis.databaseManager.getCaseById(caseId);
+	return {
+		link: kase.getCaseLink(),
+		reporters: kase.getReporterNames(),
+	};
+}
 
 // Helper to build pagination components
 function buildPaginationComponents(dbId, index, total) {

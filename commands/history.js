@@ -51,9 +51,10 @@ module.exports = {
 };
 
 function generateUserSummaryButtons(dbId) {
+	// TODO: Implement 'update user' functionality
 	const updateButton = new ButtonBuilder()
 		.setCustomId(`userUpdateButton:${dbId}`)
-		.setLabel('Update User')
+		.setLabel('[Unimplemented]')
 		.setStyle(ButtonStyle.Danger);
 	const viewButton = new ButtonBuilder()
 		.setCustomId(`userViewHistoryButton:${dbId}`)

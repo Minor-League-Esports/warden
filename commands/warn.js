@@ -100,9 +100,10 @@ function generateUserSummaryButtons(dbId) {
 		.setCustomId(`userConfirmWarnButton:${dbId}`)
 		.setLabel('Warn User')
 		.setStyle(ButtonStyle.Success);
+	// TODO: Implement 'update user'
 	const updateButton = new ButtonBuilder()
 		.setCustomId(`userUpdateButton:${dbId}`)
-		.setLabel('Update User')
+		.setLabel('[Unimplemented]')
 		.setStyle(ButtonStyle.Danger);
 	const viewButton = new ButtonBuilder()
 		.setCustomId(`userViewHistoryButton:${dbId}`)
