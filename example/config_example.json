@@ -1,9 +1,25 @@
 {
 	"token": "<TOKEN>",
 	"clientId": "<CLIENT ID>",
+	"modmailUserId": "<MODMAIL USER ID>",
 	"guildId": "<GUILD ID>",
+    "mainGuild": "<MAIN GUILD>",
 	"opsGuild": "<OPS GUILD>",
+	"moderatorRoleId": "<MODERATOR ROLE>",
+    "directorRoleId": "<DIRECTOR ROLE>",
 	"opsLogChannelId": "<OPS CHANNEL>",
-	"caseLogChannelId": "<CASE CHANNEL>",
-	"guildList": [<GUILD LIST>]
+	"caseChannelId": "<CASE CHANNEL>",
+	"caseLogChannelId": "<CASE LOG CHANNEL>",
+	"reportChannelId": "<REPORT CHANNEL>",
+	"reportEvidenceChannelId": "<REPORT EVIDENCE CHANNEL>",
+    "announcementChannelId": "<ANNOUNCEMENT CHANNEL>",	
+	"guildList": [<GUILD LIST>],
+    "database": {
+		"hostname": "<DATABASE HOSTNAME>",
+		"port": 5432,
+		"database": "<DATABASE NAME>",
+		"username": "<DATABASE USERNAME>",
+		"password": "<DATABASE PASSWORD>"
+	},
+    "logLevel": "info"
 }

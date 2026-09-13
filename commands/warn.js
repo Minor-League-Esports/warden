@@ -1,68 +1,115 @@
+const log4js = require('log4js');
+const logger = log4js.getLogger('WarnCommand');
+const { logLevel, opsGuild } = require('../config.json');
+logger.level = logLevel;
+
 const {
-	ModalBuilder,
-	TextInputBuilder,
-	TextInputStyle,
 	SlashCommandBuilder,
 	PermissionFlagsBits,
 	InteractionContextType,
-	LabelBuilder,
+	MessageFlags,
+	ButtonBuilder,
+	ButtonStyle,
+	ActionRowBuilder,
 } = require('discord.js');
-const { opsGuild } = require('../config.json');
 
 module.exports = {
 	data: new SlashCommandBuilder()
 		.setName('warn')
 		.setDescription('Warns a user')
 		.setContexts([InteractionContextType.Guild])
-		.setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
+		.setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
+		.addStringOption((option) =>
+			option
+				.setName('user')
+				.setDescription('The Discord ID of the user to warn')
+				.setRequired(true)
+				.setMinLength(17)
+				.setMaxLength(19),
+		),
 	async execute(interaction) {
 		// Force usage of staff server for commands
 		if (interaction.guild.id != opsGuild) {
 			await interaction.reply({
 				content: 'This command must be run from the MLE Staff server',
+				flags: MessageFlags.Ephemeral,
 			});
 			return;
 		}
 
-		// Build modal
-		const modal = new ModalBuilder()
-			.setCustomId('warnModal')
-			.setTitle('Warn a User');
+		await interaction.deferReply();
 
-		// Build user ID input
-		const userIdInput = new TextInputBuilder()
-			.setCustomId('userId')
-			.setStyle(TextInputStyle.Short)
-			.setMinLength(17)
-			.setMaxLength(19)
-			.setPlaceholder('Discord ID');
+		// await globalThis.databaseManager.createWarning(
+		// 	727,
+		// 	942,
+		// 	75,
+		// 	'1.1(2) Comments that are moderately insulting',
+		// 	'Saying "Fuck you, you piece of shit" in gen chat',
+		// 	2,
+		// 	'Some private notes here',
+		// 	new Date('2025-06-10T15:01:00.191-05:00'),
+		// );
 
-		// Build user ID input label
-		const userIdInputLabel = new LabelBuilder()
-			.setLabel('Discord ID')
-			.setTextInputComponent(userIdInput);
+		// await globalThis.databaseManager.createWarning(
+		// 	727,
+		// 	625,
+		// 	285,
+		// 	'1.10(1) Directly accusing a player or team of violating competitive integrity',
+		// 	'Saying "Delta is literally throwing scrims to stay as a 5 sal" in a twitch chat',
+		// 	1,
+		// 	"I mean delta really shouldn't be a 5 sal but rules are rules",
+		// 	new Date('2025-10-02T15:01:42.570-05:00'),
+		// );
 
-		// Build warning text input
-		const warnTextInput = new TextInputBuilder()
-			.setCustomId('warnText')
-			.setStyle(TextInputStyle.Paragraph)
-			.setPlaceholder(
-				`
-                Hello USER_NAME.
-                ...
-            `,
-			)
-			.setMaxLength(4000);
+		// await globalThis.databaseManager.createWarning(
+		// 	727,
+		// 	833,
+		// 	267,
+		// 	'1.10(1) Directly accusing a player or team of violating competitive integrity',
+		// 	'here goes',
+		// 	1,
+		// 	"another one",
+		// 	new Date('2025-10-22T15:01:42.570-05:00'),
+		// );
 
-		// Build user ID input label
-		const warnTextInputLabel = new LabelBuilder()
-			.setLabel('Warn Text')
-			.setTextInputComponent(warnTextInput);
+		// await globalThis.databaseManager.createWarning(
+		// 	727,
+		// 	999,
+		// 	251,
+		// 	'1.3(4) Mildly bigoted remarks or slurs',
+		// 	'Using the R-slur in a general chat',
+		// 	4,
+		// 	'(direct quote)',
+		// 	new Date('2025-12-09T11:09:42.570-05:00'),
+		// );
 
-		// Add action rows to modal
-		modal.addLabelComponents(userIdInputLabel, warnTextInputLabel);
+		// Fetch the user
+		const userId = interaction.options.getString('user');
+		const user = await globalThis.userUtility.fetchDatabaseUser(userId);
+		user.setWarnings(await globalThis.databaseManager.getWarnings(user.getUserId()));
 
-		// Show modal
-		await interaction.showModal(modal);
+		await interaction.editReply({
+			content: `Are you sure you want to warn ${user.getUserName()} without a case? Most warnings should be handled through a case instead.`,
+			embeds: [user.generateUserSummaryEmbed()],
+			components: generateUserSummaryButtons(user.getUserId()),
+		});
 	},
 };
+
+function generateUserSummaryButtons(dbId) {
+	const confirmButton = new ButtonBuilder()
+		.setCustomId(`userConfirmWarnButton:${dbId}`)
+		.setLabel('Warn User')
+		.setStyle(ButtonStyle.Success);
+	// TODO: Implement 'update user'
+	const updateButton = new ButtonBuilder()
+		.setCustomId(`userUpdateButton:${dbId}`)
+		.setLabel('[Unimplemented]')
+		.setStyle(ButtonStyle.Danger);
+	const viewButton = new ButtonBuilder()
+		.setCustomId(`userViewHistoryButton:${dbId}`)
+		.setLabel('View History')
+		.setStyle(ButtonStyle.Primary);
+	const actionRow = new ActionRowBuilder().addComponents(confirmButton, updateButton, viewButton);
+	return [actionRow];
+}

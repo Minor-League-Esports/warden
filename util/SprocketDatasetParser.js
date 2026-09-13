@@ -1,11 +1,14 @@
+const log4js = require('log4js');
+const logger = log4js.getLogger('SprocketDatasetParser');
+const { logLevel } = require('../config.json');
+logger.level = logLevel;
+
 const path = require('node:path');
 
-class DataParser {
+class SprocketDatasetParser {
 	constructor(remoteManager) {
-		this._playersUrl =
-			'https://sprocket-public-datasets.nyc3.cdn.digitaloceanspaces.com/datasets/players.csv';
-		this._membersUrl =
-			'https://sprocket-public-datasets.nyc3.cdn.digitaloceanspaces.com/datasets/members.csv';
+		this._playersUrl = 'https://sprocket-public-datasets.nyc3.cdn.digitaloceanspaces.com/datasets/players.csv';
+		this._membersUrl = 'https://sprocket-public-datasets.nyc3.cdn.digitaloceanspaces.com/datasets/members.csv';
 		const localDir = process.env.MLE_WARDEN_DATA_DIR;
 		if (localDir) {
 			this._playersUrl = path.join(localDir, 'players.csv');
@@ -96,9 +99,7 @@ class DataParser {
 				this._cache.set(key, { data, fetchedAt: Date.now() });
 				return data;
 			} catch (error) {
-				this._logger.logMessage(
-					`There was an error parsing CSV from URL \`${url}\`\n\`\`\`\n${error}\n\`\`\``,
-				);
+				logger.error(`There was an error parsing CSV from URL \`${url}\`\n\`\`\`\n${error}\n\`\`\``);
 				throw error;
 			} finally {
 				this._inFlight.delete(key);
@@ -140,19 +141,13 @@ class DataParser {
 		const player = playersData.find((p) => p.name === memberName);
 		// Only return franchise if in known list
 		// We don't want "FMs" from FA, RFA, PEND, etc
-		return player
-			? this._franchiseList.includes(player.franchise)
-				? player.franchise
-				: null
-			: null;
+		return player ? (this._franchiseList.includes(player.franchise) ? player.franchise : null) : null;
 	}
 
 	async getFranchiseManagerNameByFranchise(franchise) {
 		const playersData = await this.getPlayersData();
 		const manager = playersData.find(
-			(p) =>
-				p.franchise === franchise &&
-				p['Franchise Staff Position'] === 'Franchise Manager',
+			(p) => p.franchise === franchise && p['Franchise Staff Position'] === 'Franchise Manager',
 		);
 		return manager ? manager.name : null;
 	}
@@ -168,9 +163,7 @@ class DataParser {
 		if (!memberName) return null;
 		const franchise = await this.getPlayerFranchiseByMemberName(memberName);
 		if (!franchise) return null;
-		const managerName = await this.getFranchiseManagerNameByFranchise(
-			franchise,
-		);
+		const managerName = await this.getFranchiseManagerNameByFranchise(franchise);
 		if (!managerName) return null;
 		const managerDiscordId = await this.getMemberDiscordIdByName(managerName);
 		return managerDiscordId;
@@ -178,5 +171,5 @@ class DataParser {
 }
 
 module.exports = {
-	DataParser,
+	SprocketDatasetParser,
 };
