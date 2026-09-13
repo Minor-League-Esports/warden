@@ -300,7 +300,7 @@ class DatabaseManager {
 
 			// User exists, check if we need to update
 			let updateName = false;
-			let updateAvatar = true;
+			let updateAvatar = false;
 			if (userName != user.getUserName()) {
 				updateName = true;
 			}
@@ -313,28 +313,25 @@ class DatabaseManager {
 					user_name: userName,
 					discord_avatar: discordAvatar,
 				});
-				if (updated.length !== 1) throw new Error('Failed to update user');
 				logger.info(`Updated user ${user.getUserId()} with new name and avatar.`);
 				return {
-					user: updated[0],
+					user: updated,
 					action: 'updated',
 					reason: 'discord_id existed; updated name and avatar',
 				};
 			} else if (updateName) {
 				const updated = await this.updateUser(user.getUserId(), { user_name: userName });
-				if (updated.length !== 1) throw new Error('Failed to update user');
 				logger.info(`Updated user ${user.getUserId()} with new name.`);
 				return {
-					user: updated[0],
+					user: updated,
 					action: 'updated',
 					reason: 'discord_id existed; updated name',
 				};
 			} else if (updateAvatar) {
 				const updated = await this.updateUser(user.getUserId(), { discord_avatar: discordAvatar });
-				if (updated.length !== 1) throw new Error('Failed to update user');
 				logger.info(`Updated user ${user.getUserId()} with new avatar.`);
 				return {
-					user: updated[0],
+					user: updated,
 					action: 'updated',
 					reason: 'discord_id existed; updated avatar',
 				};
