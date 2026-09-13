@@ -145,11 +145,22 @@ module.exports = {
 					const reportUserEmbed = await report.generateUserEmbed();
 					await interaction.editReply({ components: [] });
 					await interaction.followUp({
-						content: 'Your report has been submitted to MLE Moderation. Thank you for helping keep the community safe!',
+						content: `Your report #${report.getReportId()} has been submitted to MLE Moderation. Thank you for helping keep the community safe!`,
 						embeds: [reportUserEmbed],
 						components: generateReportUpdateButton(report.getReportId()),
 						flags: MessageFlags.Ephemeral,
 					});
+					// Also DM the user with the same information
+					try {
+						const reporterDiscordUser = await interaction.client.users.fetch(reporter.getDiscordId());
+						await reporterDiscordUser.send({
+							content: `Your report #${report.getReportId()} has been submitted to MLE Moderation. Thank you for helping keep the community safe!`,
+							embeds: [reportUserEmbed],
+							components: generateReportUpdateButton(report.getReportId()),
+						});
+					} catch (dmError) {
+						logger.warn(`Could not DM reporter for report ${report.getReportId()}: ${dmError}`);
+					}
 				})
 				.catch(async (error) => {
 					// Handle any errors that occur during the report creation process

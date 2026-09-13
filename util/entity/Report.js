@@ -173,7 +173,11 @@ class Report {
 	async generatePrivateEmbed(caseLink = null) {
 		const subject = await globalThis.databaseManager.getUserByIdentifier(this.getSubjectId(), 'db');
 		const reporter = await globalThis.databaseManager.getUserByIdentifier(this.getReporterId(), 'db');
-		const caseIdValue = this.getCaseId() ? (caseLink ? `[#${this.getCaseId()}](${caseLink})` : `#${this.getCaseId()}`) : 'None';
+		const caseIdValue = this.getCaseId()
+			? caseLink
+				? `[#${this.getCaseId()}](${caseLink})`
+				: `#${this.getCaseId()}`
+			: 'None';
 		const embed = new EmbedBuilder()
 			.setTitle(`${subject?.getUserName() ?? 'User'} | Report`)
 			.setTimestamp(new Date(this.getReportTimestamp() ?? new Date().toISOString()))
@@ -250,7 +254,9 @@ class Report {
 		const embed = new EmbedBuilder()
 			.setTitle(`MLE Moderation Update: Report #${this.getReportId()}`)
 			.setTimestamp(new Date(this.getReportTimestamp() ?? new Date().toISOString()))
-			.setDescription('To attach evidence to this report, use the `/report evidence` command.')
+			.setDescription(
+				'To attach evidence to this report, use the `/report evidence` command. Use the button below to provide more details.',
+			)
 			.addFields(
 				{
 					name: 'Reported User',

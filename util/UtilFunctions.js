@@ -346,12 +346,14 @@ async function acknowledgeReport(client, reportId) {
 		acknowledge_timestamp: new Date().toISOString(),
 		status: 'ACKNOWLEDGED',
 	});
+	const reportEmbed = await report.generateUserEmbed();
 
 	try {
 		const reporter = await globalThis.databaseManager.getUserByIdentifier(report.getReporterId(), 'db');
 		const reporterDiscordUser = await client.users.fetch(reporter.getDiscordId());
 		await reporterDiscordUser.send({
-			content: `Your report #${report.getReportId()} has been acknowledged. Moderators are now discussing it. Thank you for helping keep the community safe!`,
+			content: `A member of MLE Moderation has acknowledged your report #${report.getReportId()}. Our team will begin our reviewing the details provided.`,
+			embeds: [reportEmbed],
 		});
 	} catch (dmError) {
 		logger.warn(`Could not DM reporter for report ${reportId}: ${dmError}`);

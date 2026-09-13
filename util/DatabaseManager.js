@@ -450,6 +450,49 @@ class DatabaseManager {
 	}
 
 	/**
+	 * Closes a case and all of its still-open reports as one database transaction.
+	 *
+	 * @param {String} caseId The case's Database ID
+	 * @param {String|Date} closedAt Timestamp used for the case and attached reports
+	 * @returns {Promise<{case: Case, reports: Report[]}>} The closed case and reports newly closed by this operation
+	 */
+	async closeCase(caseId, closedAt = new Date().toISOString()) {
+		if (this._status !== 'success') {
+			throw new Error('DB manager not initialized');
+		}
+
+		try {
+			await this._client.query('BEGIN');
+			const caseRes = await this._client.query(
+				`UPDATE Cases
+				 SET status = 'CLOSED', closed_at = $2
+				 WHERE case_id = $1
+				 RETURNING *`,
+				[caseId, closedAt],
+			);
+			if (caseRes.rows.length !== 1) throw new Error('Case not found');
+
+			const reportsRes = await this._client.query(
+				`UPDATE Reports
+				 SET status = 'CLOSED', close_timestamp = $2
+				 WHERE case_id = $1 AND status <> 'CLOSED'
+				 RETURNING *`,
+				[caseId, closedAt],
+			);
+			await this._client.query('COMMIT');
+
+			const cases = globalThis.databaseResponseParser.parseDatabaseCaseResponse(caseRes);
+			const reports = globalThis.databaseResponseParser.parseDatabaseReportResponse(reportsRes);
+			logger.info(`Closed case ${caseId} and ${reports.length} attached report(s)`);
+			return { case: cases[0], reports };
+		} catch (error) {
+			await this._client.query('ROLLBACK').catch(() => {});
+			logger.error(`Error closing case ${caseId}: ${error}`);
+			throw error;
+		}
+	}
+
+	/**
 	 * Creates a new warning for a user
 	 *
 	 * @param {String} subjectId DB ID of the user being warned

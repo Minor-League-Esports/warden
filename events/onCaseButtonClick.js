@@ -14,7 +14,12 @@ const {
 	ButtonStyle,
 	ActionRowBuilder,
 } = require('discord.js');
-const { notifyCaseThread, refreshReportMessage, acknowledgeReport, buildWarnUserModal } = require('../util/UtilFunctions');
+const {
+	notifyCaseThread,
+	refreshReportMessage,
+	acknowledgeReport,
+	buildWarnUserModal,
+} = require('../util/UtilFunctions');
 
 module.exports = {
 	name: Events.InteractionCreate,
@@ -52,15 +57,18 @@ module.exports = {
 						? `<@${fullCase.getSubjectUser().getDiscordId()}>`
 						: 'Unknown';
 					const caseMessage = await globalThis.caseChannel.send({
-						content: `Case #${fullCase.getCaseId()} opened for ${subjectMention} (from Report #${reportId})`,
+						content: `Case #${fullCase.getCaseId()} | ${subjectMention}`,
 						embeds: [caseEmbed],
-						components: [generateCaseActionRow(fullCase.getCaseId())],
 					});
 					const caseThread = await caseMessage.startThread({
 						name: `Case #${fullCase.getCaseId()} (${fullCase.getSubjectUser()?.getUserName() ?? 'Unknown'})`,
 					});
-					await caseThread.send(`<@&${moderatorRoleId}> A new case has been opened.`);
 					await globalThis.databaseManager.updateCase(fullCase.getCaseId(), { case_link: caseMessage.url });
+					await caseThread.send({
+						content: `<@&${moderatorRoleId}> A new case has been opened.`,
+						embeds: [caseEmbed],
+						components: [generateCaseActionRow(fullCase.getCaseId())],
+					});
 					await notifyCaseThread(
 						interaction.client,
 						fullCase.getCaseId(),
@@ -121,6 +129,7 @@ module.exports = {
 						embeds: [updatedCase.generatePrivateEmbed()],
 						components: [generateCaseActionRow(caseId, { claimed: true })],
 					});
+					await refreshCaseSummary(updatedCase);
 					await interaction.followUp({
 						content: `Case #${caseId} claimed by <@${interaction.user.id}>. All reports attached to this case have been reassigned to this moderator.`,
 					});
@@ -154,26 +163,30 @@ module.exports = {
 				await interaction.deferUpdate();
 
 				try {
-					await globalThis.databaseManager.updateCase(caseId, {
-						status: 'CLOSED',
-						closed_at: new Date().toISOString(),
-					});
+					const { reports: closedReports } = await globalThis.databaseManager.closeCase(caseId);
 
 					const updatedCase = await globalThis.databaseManager.getCaseById(caseId);
 					await interaction.message.edit({
 						embeds: [updatedCase.generatePrivateEmbed()],
 						components: [generateCaseActionRow(caseId, { claimed: !!updatedCase.getModerator(), closed: true })],
 					});
-					await notifyCaseThread(interaction.client, caseId, `Case #${caseId} has been closed by <@${interaction.user.id}>.`);
-
-					try {
-						const thread = await interaction.client.channels.fetch(updatedCase.getCaseLink()?.split('/').pop());
-						if (thread?.setArchived) {
-							await thread.setArchived(true);
-						}
-					} catch (archiveError) {
-						logger.warn(`Failed to archive thread for case ${caseId}: ${archiveError}`);
-					}
+					await refreshCaseSummary(updatedCase);
+					await notifyCaseThread(
+						interaction.client,
+						caseId,
+						`Case #${caseId} has been closed by <@${interaction.user.id}>.`,
+					);
+					await Promise.all(
+						closedReports.map((report) =>
+							notifyReporterOfClosedCase(interaction.client, report, caseId, updatedCase.getCaseLink()),
+						),
+					);
+					await Promise.all([
+						archiveThread(interaction.client, updatedCase.getCaseLink(), `case ${caseId}`),
+						...updatedCase
+							.getReports()
+							.map((report) => archiveThread(interaction.client, report.getReportLink(), `report ${report.getReportId()}`)),
+					]);
 
 					await interaction.followUp({ content: `Case #${caseId} has been closed.` });
 				} catch (error) {
@@ -245,4 +258,37 @@ function generateCaseActionRow(caseId, { claimed = false, closed = false } = {})
 		.setStyle(ButtonStyle.Danger)
 		.setDisabled(closed);
 	return new ActionRowBuilder().addComponents(claimButton, createWarningButton, closeButton);
+}
+
+async function refreshCaseSummary(kase) {
+	if (!kase.getCaseLink()) return;
+	const messageId = kase.getCaseLink().split('/').pop();
+	const caseMessage = await globalThis.caseChannel.messages.fetch(messageId);
+	await caseMessage.edit({ embeds: [kase.generatePrivateEmbed()], components: [] });
+}
+
+async function notifyReporterOfClosedCase(client, report, caseId, caseLink) {
+	try {
+		await refreshReportMessage(client, report, caseLink);
+		const reporter = await globalThis.databaseManager.getUserByIdentifier(report.getReporterId(), 'db');
+		if (!reporter) throw new Error('Reporter not found');
+		const discordUser = await client.users.fetch(reporter.getDiscordId());
+		const reportEmbed = await report.generateUserEmbed();
+		await discordUser.send({
+			content: `MLE Moderation has reviewed your report #${report.getReportId()} and concluded its investigation. Thank you for helping us maintain a safe community.`,
+			embeds: [reportEmbed],
+		});
+	} catch (error) {
+		logger.warn(`Could not notify reporter for closed report ${report.getReportId()}: ${error}`);
+	}
+}
+
+async function archiveThread(client, parentMessageLink, description) {
+	if (!parentMessageLink) return;
+	try {
+		const thread = await client.channels.fetch(parentMessageLink.split('/').pop());
+		if (thread?.setArchived) await thread.setArchived(true);
+	} catch (error) {
+		logger.warn(`Failed to archive thread for ${description}: ${error}`);
+	}
 }
