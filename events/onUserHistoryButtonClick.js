@@ -92,8 +92,15 @@ module.exports = {
 					return;
 				}
 
-				const allEmbeds = await Promise.all(
-					warnings.map(async (w) => w.generatePrivateEmbed(await getCaseLinkById(w.getCaseId()))),
+				const caseLinks = new Map();
+				for (const warning of warnings) {
+					const caseId = warning.getCaseId();
+					if (!caseLinks.has(caseId)) {
+						caseLinks.set(caseId, await getCaseLinkById(caseId));
+					}
+				}
+				const allEmbeds = warnings.map((warning) =>
+					warning.generatePrivateEmbed(caseLinks.get(warning.getCaseId())),
 				);
 				const chunkSize = 10;
 				const chunks = [];

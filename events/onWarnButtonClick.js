@@ -100,6 +100,9 @@ module.exports = {
 				components: [],
 			});
 
+			// Get the subject's user record
+			const subject = await globalThis.databaseManager.getUserByIdentifier(dbId, 'db');
+
 			// Execute ban
 			globalThis.punishmentExecutor
 				.execute(dbId, moderatorId, director.getUserId(), proposalEmbed, 'ban', caseId || null)
@@ -107,7 +110,11 @@ module.exports = {
 					logger.info(`Successfully executed ban for user with DB ID: ${dbId}`);
 					await interaction.followUp({ content: 'Successfully executed ban.' });
 					if (caseId) {
-						await notifyCaseThread(interaction.client, caseId, `Ban approved and executed for <@${dbId}>.`);
+						await notifyCaseThread(
+							interaction.client,
+							caseId,
+							`Ban approved and executed for <@${subject.getDiscordId()}>.`,
+						);
 					}
 					// TODO: Generate community announcement with confirmation
 				})
