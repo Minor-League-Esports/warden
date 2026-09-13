@@ -20,12 +20,7 @@ module.exports = {
 		.setContexts([InteractionContextType.Guild])
 		.setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
 		.addStringOption((option) =>
-			option
-				.setName('user')
-				.setDescription('The Discord ID of the user to warn')
-				.setRequired(true)
-				.setMinLength(17)
-				.setMaxLength(19),
+			option.setName('user').setDescription('The user to warn (name, disc ID, MLE ID)').setRequired(true),
 		),
 	async execute(interaction) {
 		// Force usage of staff server for commands
@@ -39,60 +34,30 @@ module.exports = {
 
 		await interaction.deferReply();
 
-		// await globalThis.databaseManager.createWarning(
-		// 	727,
-		// 	942,
-		// 	75,
-		// 	'1.1(2) Comments that are moderately insulting',
-		// 	'Saying "Fuck you, you piece of shit" in gen chat',
-		// 	2,
-		// 	'Some private notes here',
-		// 	new Date('2025-06-10T15:01:00.191-05:00'),
-		// );
-
-		// await globalThis.databaseManager.createWarning(
-		// 	727,
-		// 	625,
-		// 	285,
-		// 	'1.10(1) Directly accusing a player or team of violating competitive integrity',
-		// 	'Saying "Delta is literally throwing scrims to stay as a 5 sal" in a twitch chat',
-		// 	1,
-		// 	"I mean delta really shouldn't be a 5 sal but rules are rules",
-		// 	new Date('2025-10-02T15:01:42.570-05:00'),
-		// );
-
-		// await globalThis.databaseManager.createWarning(
-		// 	727,
-		// 	833,
-		// 	267,
-		// 	'1.10(1) Directly accusing a player or team of violating competitive integrity',
-		// 	'here goes',
-		// 	1,
-		// 	"another one",
-		// 	new Date('2025-10-22T15:01:42.570-05:00'),
-		// );
-
-		// await globalThis.databaseManager.createWarning(
-		// 	727,
-		// 	999,
-		// 	251,
-		// 	'1.3(4) Mildly bigoted remarks or slurs',
-		// 	'Using the R-slur in a general chat',
-		// 	4,
-		// 	'(direct quote)',
-		// 	new Date('2025-12-09T11:09:42.570-05:00'),
-		// );
-
 		// Fetch the user
 		const userId = interaction.options.getString('user');
-		const user = await globalThis.userUtility.fetchDatabaseUser(userId);
-		user.setWarnings(await globalThis.databaseManager.getWarnings(user.getUserId()));
+		try {
+			const user = await globalThis.userUtility.fetchDatabaseUser(userId);
+			user.setWarnings(await globalThis.databaseManager.getWarnings(user.getUserId()));
 
-		await interaction.editReply({
-			content: `Are you sure you want to warn ${user.getUserName()} without a case? Most warnings should be handled through a case instead.`,
-			embeds: [user.generateUserSummaryEmbed()],
-			components: generateUserSummaryButtons(user.getUserId()),
-		});
+			await interaction.editReply({
+				content: `Are you sure you want to warn ${user.getUserName()} without a case? Most warnings should be handled through a case instead.`,
+				embeds: [user.generateUserSummaryEmbed()],
+				components: generateUserSummaryButtons(user.getUserId()),
+			});
+		} catch (error) {
+			logger.error(`Failed to fetch user for warning: ${userId}: ${error}`);
+			if (error.message === 'User not found by any identifier.') {
+				await interaction.editReply({
+					content: `Could not find user ${userId}`,
+				});
+				return;
+			}
+			await interaction.editReply({
+				content: 'An error occurred while fetching the user.',
+			});
+			return;
+		}
 	},
 };
 

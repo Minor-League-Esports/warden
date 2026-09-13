@@ -1,4 +1,5 @@
 const { EmbedBuilder } = require('discord.js');
+const { chunkTextPreserveNewlines } = require('../UtilFunctions');
 
 class Warning {
 	// Getters and setters
@@ -147,37 +148,60 @@ class Warning {
 	 * @returns {Embed}
 	 */
 	generatePrivateEmbed(caseLink = null, reporters = 'None') {
-		const caseValue = this.getCaseId() && this.getCaseId() !== 'N/A'
-			? (caseLink ? `[#${this.getCaseId()}](${caseLink})` : `#${this.getCaseId()}`)
-			: 'None';
+		const caseValue =
+			this.getCaseId() && this.getCaseId() !== 'N/A'
+				? caseLink
+					? `[#${this.getCaseId()}](${caseLink})`
+					: `#${this.getCaseId()}`
+				: 'None';
 		const embed = new EmbedBuilder()
 			.setTitle(`${this.getSubject().getUserName()} | Warning`)
 			.setTimestamp(new Date(this.getTimestamp()))
-			.addFields(
-				{ name: 'Rule(s) Broken', value: String(this.getRulesBroken() ?? 'None') },
-				{ name: 'Violating Content', value: String(this.getViolatingContent() ?? 'None') },
-				{
-					name: 'Points Added',
-					value: String(this.getPointsAdded() === 1 ? '1 point' : `${this.getPointsAdded()} points`),
-					inline: true,
-				},
-				{
-					name: 'Current Points (at time of warn)',
-					value: String(this.getNewPointTotal() === 1 ? '1 point' : `${this.getNewPointTotal()} points`),
-					inline: true,
-				},
-				{
-					name: 'Actions Taken',
-					value: String(this.getPunishmentFriendlyStrings()),
-				},
-				{ name: 'Moderator Name', value: String(this.getModerator()?.getUserName() ?? 'None'), inline: true },
-				{ name: 'Case', value: caseValue, inline: true },
-				{ name: 'Reporters', value: String(reporters), inline: true },
-				{ name: 'Moderator Notes', value: String(this.getModeratorNotes() ?? 'None') },
-			)
+
 			.setFooter({ text: `ID: ${this.getSubject().getDiscordId()}` })
 			.setThumbnail(this.getSubject().getDiscordAvatar())
 			.setColor('#ff761b');
+
+		// Fields below may be arbitrarily long (e.g. legacy-imported data), so chunk to stay under Discord's 1024 char field limit
+		const rulesChunks = chunkTextPreserveNewlines(String(this.getRulesBroken() ?? 'None'), 1024);
+		for (let i = 0; i < rulesChunks.length; i++) {
+			embed.addFields({ name: i === 0 ? 'Rule(s) Broken' : 'Rule(s) Broken (cont.)', value: rulesChunks[i] });
+		}
+
+		const contentChunks = chunkTextPreserveNewlines(String(this.getViolatingContent() ?? 'None'), 1024);
+		for (let i = 0; i < contentChunks.length; i++) {
+			embed.addFields({ name: i === 0 ? 'Violating Content' : 'Violating Content (cont.)', value: contentChunks[i] });
+		}
+
+		embed.addFields(
+			{
+				name: 'Points Added',
+				value: String(this.getPointsAdded() === 1 ? '1 point' : `${this.getPointsAdded()} points`),
+				inline: true,
+			},
+			{
+				name: 'Current Points (at time of warn)',
+				value: String(this.getNewPointTotal() === 1 ? '1 point' : `${this.getNewPointTotal()} points`),
+				inline: true,
+			},
+		);
+
+		const actionsChunks = chunkTextPreserveNewlines(String(this.getPunishmentFriendlyStrings()), 1024);
+		for (let i = 0; i < actionsChunks.length; i++) {
+			embed.addFields({ name: i === 0 ? 'Actions Taken' : 'Actions Taken (cont.)', value: actionsChunks[i] });
+		}
+
+		embed.addFields(
+			{ name: 'Moderator Name', value: String(this.getModerator()?.getUserName() ?? 'None'), inline: true },
+			{ name: 'Case', value: caseValue, inline: true },
+			{ name: 'Reporters', value: String(reporters), inline: true },
+		);
+
+		const notesChunks = chunkTextPreserveNewlines(String(this.getModeratorNotes() ?? 'None'), 1024);
+		for (let i = 0; i < notesChunks.length; i++) {
+			embed.addFields({ name: i === 0 ? 'Moderator Notes' : 'Moderator Notes (cont.)', value: notesChunks[i] });
+		}
+
 		return embed;
 	}
 
@@ -190,27 +214,39 @@ class Warning {
 		const embed = new EmbedBuilder()
 			.setTitle('You have recieved an official warning from MLE Moderation')
 			.setTimestamp(new Date(this.getTimestamp()))
-			.addFields(
-				{ name: 'Rule(s) Broken', value: String(this.getRulesBroken() ?? 'None') },
-				{ name: 'Violating Content', value: String(this.getViolatingContent() ?? 'None') },
-				{
-					name: 'Points Added',
-					value: String(this.getPointsAdded() === 1 ? '1 point' : `${this.getPointsAdded()} points`),
-					inline: true,
-				},
-				{
-					name: 'Current Points',
-					value: String(this.getNewPointTotal() === 1 ? '1 point' : `${this.getNewPointTotal()} points`),
-					inline: true,
-				},
-				{
-					name: 'Actions Taken',
-					value: String(this.getPunishmentFriendlyStrings()),
-				},
-			)
 			.setFooter({ text: `ID: ${this.getSubject().getDiscordId()}` })
 			.setThumbnail('https://mlesports.gg/wp-content/uploads/logo-mle-256.png')
 			.setColor('#ff0000');
+
+		// Fields below may be arbitrarily long (e.g. legacy-imported data), so chunk to stay under Discord's 1024 char field limit
+		const rulesChunks = chunkTextPreserveNewlines(String(this.getRulesBroken() ?? 'None'), 1024);
+		for (let i = 0; i < rulesChunks.length; i++) {
+			embed.addFields({ name: i === 0 ? 'Rule(s) Broken' : 'Rule(s) Broken (cont.)', value: rulesChunks[i] });
+		}
+
+		const contentChunks = chunkTextPreserveNewlines(String(this.getViolatingContent() ?? 'None'), 1024);
+		for (let i = 0; i < contentChunks.length; i++) {
+			embed.addFields({ name: i === 0 ? 'Violating Content' : 'Violating Content (cont.)', value: contentChunks[i] });
+		}
+
+		embed.addFields(
+			{
+				name: 'Points Added',
+				value: String(this.getPointsAdded() === 1 ? '1 point' : `${this.getPointsAdded()} points`),
+				inline: true,
+			},
+			{
+				name: 'Current Points',
+				value: String(this.getNewPointTotal() === 1 ? '1 point' : `${this.getNewPointTotal()} points`),
+				inline: true,
+			},
+		);
+
+		const actionsChunks = chunkTextPreserveNewlines(String(this.getPunishmentFriendlyStrings()), 1024);
+		for (let i = 0; i < actionsChunks.length; i++) {
+			embed.addFields({ name: i === 0 ? 'Actions Taken' : 'Actions Taken (cont.)', value: actionsChunks[i] });
+		}
+
 		return embed;
 	}
 

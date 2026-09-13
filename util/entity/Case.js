@@ -4,6 +4,7 @@ const { logLevel } = require('../../config.json');
 logger.level = logLevel;
 
 const { EmbedBuilder } = require('discord.js');
+const { chunkTextPreserveNewlines } = require('../UtilFunctions');
 
 class Case {
 	// Getters and setters
@@ -208,7 +209,10 @@ class Case {
 
 		const notes = String(this.getNotes() ?? 'None');
 		if (notes && notes.trim().length > 0) {
-			embed.addFields({ name: 'Notes', value: notes });
+			const notesChunks = chunkTextPreserveNewlines(notes, 1024);
+			for (let i = 0; i < notesChunks.length; i++) {
+				embed.addFields({ name: i === 0 ? 'Notes' : 'Notes (cont.)', value: notesChunks[i] });
+			}
 		}
 
 		if (this.getClosedAt()) {
