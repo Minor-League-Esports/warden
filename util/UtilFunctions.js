@@ -293,6 +293,7 @@ module.exports = {
 	acknowledgeReport,
 	getCaseLinkById,
 	buildWarnUserModal,
+	buildUserSummaryButtons,
 	buildModeratorNoteModal,
 	appendModeratorNote,
 };
@@ -434,6 +435,19 @@ function buildWarnUserModal(customId) {
 	);
 
 	return modal;
+}
+
+function buildUserSummaryButtons(dbId) {
+	const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+	const updateButton = new ButtonBuilder()
+		.setCustomId(`userUpdateButton:${dbId}`)
+		.setLabel('[Unimplemented]')
+		.setStyle(ButtonStyle.Danger);
+	const viewButton = new ButtonBuilder()
+		.setCustomId(`userViewHistoryButton:${dbId}`)
+		.setLabel('View History')
+		.setStyle(ButtonStyle.Primary);
+	return [new ActionRowBuilder().addComponents(viewButton, updateButton)];
 }
 
 /**

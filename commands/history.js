@@ -3,15 +3,8 @@ const logger = log4js.getLogger('HistoryCommand');
 const { logLevel, opsGuild } = require('../config.json');
 logger.level = logLevel;
 
-const {
-	SlashCommandBuilder,
-	PermissionFlagsBits,
-	InteractionContextType,
-	MessageFlags,
-	ButtonBuilder,
-	ButtonStyle,
-	ActionRowBuilder,
-} = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, InteractionContextType, MessageFlags } = require('discord.js');
+const { buildUserSummaryButtons } = require('../util/UtilFunctions');
 
 module.exports = {
 	data: new SlashCommandBuilder()
@@ -41,7 +34,7 @@ module.exports = {
 
 			await interaction.editReply({
 				embeds: [user.generateUserSummaryEmbed()],
-				components: generateUserSummaryButtons(user.getUserId()),
+				components: buildUserSummaryButtons(user.getUserId()),
 			});
 		} catch (error) {
 			logger.error(`Failed to fetch user history for ${userId}: ${error}`);
@@ -58,17 +51,3 @@ module.exports = {
 		}
 	},
 };
-
-function generateUserSummaryButtons(dbId) {
-	// TODO: Implement 'update user' functionality
-	const updateButton = new ButtonBuilder()
-		.setCustomId(`userUpdateButton:${dbId}`)
-		.setLabel('[Unimplemented]')
-		.setStyle(ButtonStyle.Danger);
-	const viewButton = new ButtonBuilder()
-		.setCustomId(`userViewHistoryButton:${dbId}`)
-		.setLabel('View History')
-		.setStyle(ButtonStyle.Primary);
-	const actionRow = new ActionRowBuilder().addComponents(viewButton, updateButton);
-	return [actionRow];
-}
