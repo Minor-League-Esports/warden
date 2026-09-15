@@ -198,7 +198,11 @@ function generateWarnConfirmationButtons(dbId, moderatorId, recommendedAction, c
 		.setCustomId(`overrideWarnButton:${dbId}:${moderatorId}:${caseId ?? ''}`)
 		.setLabel('Override Action')
 		.setStyle(ButtonStyle.Danger);
-	const actionRow = new ActionRowBuilder().addComponents(confirmButton, overrideButton);
+	const cancelButton = new ButtonBuilder()
+		.setCustomId(`cancelWarnButton:${dbId}:${moderatorId}:${caseId ?? ''}`)
+		.setLabel('Cancel')
+		.setStyle(ButtonStyle.Secondary);
+	const actionRow = new ActionRowBuilder().addComponents(confirmButton, overrideButton, cancelButton);
 	return [actionRow];
 }
 

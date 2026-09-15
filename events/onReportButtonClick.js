@@ -14,6 +14,7 @@ const {
 	ButtonStyle,
 	ActionRowBuilder,
 } = require('discord.js');
+const { buildModeratorNoteModal } = require('../util/UtilFunctions');
 
 module.exports = {
 	name: Events.InteractionCreate,
@@ -189,6 +190,17 @@ module.exports = {
 
 			await interaction.showModal(modal);
 		}
+
+		if (buttonId.startsWith('reportAddNoteButton:')) {
+			const [, reportId] = buttonId.split(':');
+			try {
+				await globalThis.databaseManager.getReportById(reportId);
+				await interaction.showModal(buildModeratorNoteModal(`addModeratorNoteModal:report:${reportId}`));
+			} catch (error) {
+				logger.error(`Error opening note modal for report ${reportId}: ${error}`);
+				await interaction.reply({ content: `Could not find Report #${reportId}.`, flags: MessageFlags.Ephemeral });
+			}
+		}
 	},
 };
 
@@ -210,5 +222,9 @@ function generateReportModButtons(reportId) {
 		.setCustomId(`addToCaseButton:${reportId}`)
 		.setLabel('Add to Case')
 		.setStyle(ButtonStyle.Primary);
-	return [new ActionRowBuilder().addComponents(createNewCaseButton, addToCaseButton)];
+	const addNoteButton = new ButtonBuilder()
+		.setCustomId(`reportAddNoteButton:${reportId}`)
+		.setLabel('Add Note')
+		.setStyle(ButtonStyle.Secondary);
+	return [new ActionRowBuilder().addComponents(createNewCaseButton, addToCaseButton, addNoteButton)];
 }

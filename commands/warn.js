@@ -21,6 +21,13 @@ module.exports = {
 		.setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
 		.addStringOption((option) =>
 			option.setName('user').setDescription('The user to warn (name, disc ID, MLE ID)').setRequired(true),
+		)
+		.addIntegerOption((option) =>
+			option
+				.setName('case_id')
+				.setDescription('The ID of the case associated with this warning')
+				.setMinValue(1)
+				.setRequired(false),
 		),
 	async execute(interaction) {
 		// Force usage of staff server for commands
@@ -36,14 +43,24 @@ module.exports = {
 
 		// Fetch the user
 		const userId = interaction.options.getString('user');
+		const caseId = interaction.options.getInteger('case_id');
 		try {
 			const user = await globalThis.userUtility.fetchDatabaseUser(userId);
+			if (caseId !== null) {
+				const kase = await globalThis.databaseManager.getCaseById(caseId);
+				if (kase.getSubjectId() !== user.getUserId()) {
+					await interaction.editReply({ content: `Case #${caseId} is associated with a different user.` });
+					return;
+				}
+			}
 			user.setWarnings(await globalThis.databaseManager.getWarnings(user.getUserId()));
 
 			await interaction.editReply({
-				content: `Are you sure you want to warn ${user.getUserName()} without a case? Most warnings should be handled through a case instead.`,
+				content: caseId
+					? `Complete the warning details for ${user.getUserName()} in Case #${caseId}.`
+					: `Are you sure you want to warn ${user.getUserName()} without a case? Most warnings should be handled through a case instead.`,
 				embeds: [user.generateUserSummaryEmbed()],
-				components: generateUserSummaryButtons(user.getUserId()),
+				components: generateUserSummaryButtons(user.getUserId(), caseId),
 			});
 		} catch (error) {
 			logger.error(`Failed to fetch user for warning: ${userId}: ${error}`);
@@ -61,9 +78,9 @@ module.exports = {
 	},
 };
 
-function generateUserSummaryButtons(dbId) {
+function generateUserSummaryButtons(dbId, caseId = null) {
 	const confirmButton = new ButtonBuilder()
-		.setCustomId(`userConfirmWarnButton:${dbId}`)
+		.setCustomId(`userConfirmWarnButton:${dbId}:${caseId ?? ''}`)
 		.setLabel('Warn User')
 		.setStyle(ButtonStyle.Success);
 	// TODO: Implement 'update user'

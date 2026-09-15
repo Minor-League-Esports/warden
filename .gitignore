@@ -325,3 +325,5 @@ $RECYCLE.BIN/
 # included in the repository accidentally
 data/
 config.json
+config-local.json
+config-prod.json

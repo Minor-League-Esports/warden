@@ -293,6 +293,8 @@ module.exports = {
 	acknowledgeReport,
 	getCaseLinkById,
 	buildWarnUserModal,
+	buildModeratorNoteModal,
+	appendModeratorNote,
 };
 
 /**
@@ -432,6 +434,54 @@ function buildWarnUserModal(customId) {
 	);
 
 	return modal;
+}
+
+/**
+ * Builds the moderator note modal used by commands and case/report action buttons.
+ * @param {String} customId
+ * @returns {import('discord.js').ModalBuilder}
+ */
+function buildModeratorNoteModal(customId) {
+	const { ModalBuilder, TextInputBuilder, LabelBuilder, TextInputStyle } = require('discord.js');
+	const noteInput = new TextInputBuilder()
+		.setCustomId('note')
+		.setStyle(TextInputStyle.Paragraph)
+		.setPlaceholder('Add context, decisions, or follow-up information')
+		.setMaxLength(4000)
+		.setRequired(true);
+	const noteLabel = new LabelBuilder().setLabel('Moderator Note').setTextInputComponent(noteInput);
+	return new ModalBuilder().setCustomId(customId).setTitle('Add Moderator Note').addLabelComponents(noteLabel);
+}
+
+/**
+ * Appends a timestamped moderator note to a case or report.
+ * @param {'case'|'report'} targetType
+ * @param {number|string} targetId
+ * @param {String} moderatorName
+ * @param {String} note
+ * @returns {Promise<Case|Report>}
+ */
+async function appendModeratorNote(targetType, targetId, moderatorName, note) {
+	const timestampedNote = `[${new Date().toISOString()}] ${moderatorName}: ${note.trim()}`;
+	if (targetType === 'case') {
+		const kase = await globalThis.databaseManager.getCaseById(targetId);
+		const existingNotes = kase.getNotes();
+		const combinedNotes = existingNotes === 'None' ? timestampedNote : `${existingNotes}\n${timestampedNote}`;
+		await globalThis.databaseManager.updateCase(targetId, { moderator_notes: combinedNotes });
+		kase.setNotes(combinedNotes);
+		return kase;
+	}
+
+	if (targetType === 'report') {
+		const report = await globalThis.databaseManager.getReportById(targetId);
+		const existingNotes = report.getModeratorNotes();
+		const combinedNotes = existingNotes ? `${existingNotes}\n${timestampedNote}` : timestampedNote;
+		await globalThis.databaseManager.updateReport(targetId, { moderator_notes: combinedNotes });
+		report.setModeratorNotes(combinedNotes);
+		return report;
+	}
+
+	throw new Error(`Unsupported moderator note target: ${targetType}`);
 }
 
 /**
