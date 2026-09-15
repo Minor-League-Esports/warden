@@ -155,7 +155,7 @@ class Warning {
 					: `#${this.getCaseId()}`
 				: 'None';
 		const embed = new EmbedBuilder()
-			.setTitle(`${this.getSubject().getUserName()} | Warning`)
+			.setTitle(`${this.getSubject().getUserName()} | Warning #${this.getWarningId() ?? 'N/A'}`)
 			.setTimestamp(new Date(this.getTimestamp()))
 
 			.setFooter({ text: `ID: ${this.getSubject().getDiscordId()}` })
