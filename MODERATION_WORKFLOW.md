@@ -16,7 +16,8 @@ warning, punishment, and closure records connected so the case history remains a
 ## 1. Receive and review a report
 
 New reports appear in the configured report channel with a moderator-facing embed and a discussion thread. The thread
-mentions the moderator role.
+mentions the moderator role and includes the reported subject's moderation summary. The summary shows current points,
+warning count, case count, and buttons for opening the subject's detailed history.
 
 Review the following before taking action:
 
@@ -24,6 +25,7 @@ Review the following before taking action:
 - The reported rule(s), description of the violating content, and submitted evidence.
 - Any later updates or evidence added by the reporter.
 - Whether the report belongs to an existing investigation for the same user.
+- The subject's existing cases, including cases that have no warnings or points associated with them.
 
 The report message provides these moderator controls:
 
@@ -50,6 +52,9 @@ Select **Create New Case** on the report message. Warden will:
 
 The case thread contains the main case controls. If the case channel is not available, the database case may still be
 created, but the normal channel thread and links cannot be produced.
+
+The subject summary in the report thread is not limited to warning history. Its case count includes every case matching
+the subject, including cases without warnings or punishments.
 
 ### Attach a report to an existing case
 
@@ -101,6 +106,10 @@ Select **Create Warning** in the case thread, or use:
 
 The case warning flow targets the case subject automatically. The standalone command verifies that the supplied case
 belongs to the selected user.
+
+The user summary shown before the warning form includes current points, warning count, and case count. Use **View
+History** to inspect warning details and matching cases; case lookup is independent of whether the subject has warnings or
+current points.
 
 Complete the warning form with:
 

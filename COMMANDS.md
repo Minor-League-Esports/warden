@@ -103,14 +103,16 @@ Provide exactly one of `case_id` or `report_id`. Warden opens a note modal after
 
 ### `/history`
 
-View a user's warning history and summary.
+View a user's moderation summary and warning history.
 
 ```text
 /history user:<name, Discord ID, or MLE ID>
 ```
 
-The response includes a **View History** button for the user's detailed history. The update-user button currently
-displays as unimplemented.
+The summary includes current points, warning count, and case count. The response includes a **View History** button for
+the user's detailed warning history. It also checks for cases independently of warnings, so cases are shown even when
+the user has no warnings or current points. Matching case summaries are sent in additional messages when needed. The
+update-user button currently displays as unimplemented.
 
 ### `/ineligible`
 
@@ -187,7 +189,7 @@ Start the warning workflow for a user.
 When `case_id` is supplied, the case must belong to the selected user and the warning is associated with that case.
 Without a case, Warden asks for confirmation and warns that most warnings should be handled through a case. The
 follow-up controls allow the moderator to confirm the warning or view the user's history. Warning details are completed
-in a modal.
+in a modal. The displayed user summary includes current points, warning count, and case count.
 
 ## User report commands
 
@@ -200,7 +202,9 @@ Begin a report against another user.
 ```
 
 Warden displays instructions and a **Report User** button. The button opens the report form, which accepts a target by
-MLE username, Discord ID, or MLE ID and collects the report details.
+MLE username, Discord ID, or MLE ID and collects the report details. After submission, the moderator report thread also
+contains the subject's moderation summary, including current points, warning count, case count, and the **View History**
+button.
 
 ### `/report evidence`
 
