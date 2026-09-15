@@ -25,9 +25,9 @@ module.exports = {
 		const buttonId = interaction.customId;
 
 		if (buttonId.startsWith('userConfirmWarnButton:')) {
-			const [, dbId] = buttonId.split(':');
+			const [, dbId, caseId] = buttonId.split(':');
 
-			const modal = buildWarnUserModal(`warnUserModal:${dbId}`);
+			const modal = buildWarnUserModal(`warnUserModal:${dbId}:${caseId ?? ''}`);
 
 			await interaction.showModal(modal);
 		}

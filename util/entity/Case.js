@@ -195,16 +195,18 @@ class Case {
 		const embed = new EmbedBuilder()
 			.setTitle(`Case #${this.getCaseId()}`)
 			.setTimestamp(new Date(this.getCreatedAt() ?? new Date().toISOString()))
+			.setThumbnail(this.getSubjectUser()?.getDiscordAvatar() ?? null)
 			.setColor('#ff761b');
 
 		embed.addFields(
+			{ name: 'Status', value: String(this.getStatus() ?? 'Unknown') },
 			{
 				name: 'Subject',
-				value: String(this.getSubjectUser() ? `<@${this.getSubjectUser().getDiscordId()}>` : 'Unknown'),
+				value: String(this.getSubjectUser() ? `${this.getSubjectUser().getUserName()}` : 'Unknown'),
 				inline: true,
 			},
-			{ name: 'Status', value: String(this.getStatus() ?? 'Unknown'), inline: true },
 			{ name: 'Moderator', value: String(this.getModerator()?.getUserName() ?? 'Unclaimed'), inline: true },
+			{ name: 'Creator', value: String(this.getCreator()?.getUserName() ?? this.getCreatorId()), inline: true },
 		);
 
 		const notes = String(this.getNotes() ?? 'None');
@@ -216,7 +218,7 @@ class Case {
 		}
 
 		if (this.getClosedAt()) {
-			embed.addFields({ name: 'Closed At', value: new Date(this.getClosedAt()).toISOString(), inline: true });
+			embed.addFields({ name: 'Closed At', value: new Date(this.getClosedAt()).toISOString() });
 		}
 
 		return embed;

@@ -273,6 +273,19 @@ class DatabaseManager {
 	}
 
 	/**
+	 * Retrieves open cases with their subjects and assigned moderators.
+	 * @returns {Promise<Object[]>}
+	 */
+	async getOpenCases() {
+		if (this._status !== 'success') {
+			throw new Error('DB manager not initialized');
+		}
+
+		const result = await this._queryFile('queries/get/getOpenCases.sql');
+		return result.rows || [];
+	}
+
+	/**
 	 * Creates a new user object and returns it
 	 * Updates name and avatar if already exists
 	 *
