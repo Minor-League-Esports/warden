@@ -704,6 +704,21 @@ class DatabaseManager {
 	}
 
 	/**
+	 * Gets all cases for a user, including cases without warnings or punishments.
+	 *
+	 * @param {String} userId The user's Database ID
+	 * @returns {Promise<Case[]>} A promise to return the user's cases
+	 */
+	async getCasesBySubjectId(userId) {
+		if (this._status !== 'success') {
+			throw new Error('DB manager not initialized');
+		}
+
+		const res = await this._queryFile('queries/get/getCasesBySubjectId.sql', [userId]);
+		return Promise.all((res.rows || []).map((row) => this.getCaseById(row.case_id)));
+	}
+
+	/**
 	 * Fetches and attaches punishments to their originating warnings (mutates the given warnings in place)
 	 *
 	 * @param {Warning[]} warnings

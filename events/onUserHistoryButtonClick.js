@@ -15,12 +15,21 @@ module.exports = {
 		if (buttonId.startsWith('userViewHistoryButton:')) {
 			await interaction.deferReply();
 			const [, dbId] = buttonId.split(':');
-			logger.debug(`Fetching warnings for user DB ID: ${dbId}`);
+			logger.debug(`Fetching warnings and cases for user DB ID: ${dbId}`);
 
-			globalThis.databaseManager
-				.getWarnings(dbId)
-				.then(async (warnings) => {
+			Promise.all([globalThis.databaseManager.getWarnings(dbId), globalThis.databaseManager.getCasesBySubjectId(dbId)])
+				.then(async ([warnings, cases]) => {
 					if (warnings.length === 0) {
+						if (cases.length > 0) {
+							await interaction.editReply({
+								content: `This user has no warnings on record. Showing ${cases.length} matching case(s).`,
+								embeds: cases.slice(0, 10).map((kase) => kase.generatePrivateEmbed()),
+								components: buildStandalonePunishmentComponents(dbId),
+							});
+							await sendCaseHistoryFollowUps(interaction, cases, 10);
+							return;
+						}
+
 						await interaction.editReply({
 							content: 'This user has no warnings on record.',
 							components: buildStandalonePunishmentComponents(dbId),
@@ -38,6 +47,9 @@ module.exports = {
 						embeds: [embed],
 						components,
 					});
+					if (cases.length > 0) {
+						await sendCaseHistoryFollowUps(interaction, cases, 0);
+					}
 				})
 				.catch(async (error) => {
 					logger.error(error);
@@ -176,6 +188,15 @@ module.exports = {
 		}
 	},
 };
+
+async function sendCaseHistoryFollowUps(interaction, cases, startIndex) {
+	for (let index = startIndex; index < cases.length; index += 10) {
+		await interaction.followUp({
+			content: index === 0 ? `Matching cases (${cases.length}):` : undefined,
+			embeds: cases.slice(index, index + 10).map((kase) => kase.generatePrivateEmbed()),
+		});
+	}
+}
 
 async function getWarningCaseContext(warning) {
 	const caseId = warning.getCaseId();

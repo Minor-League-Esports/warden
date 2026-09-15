@@ -14,7 +14,7 @@ const {
 	ButtonStyle,
 	ActionRowBuilder,
 } = require('discord.js');
-const { buildModeratorNoteModal } = require('../util/UtilFunctions');
+const { buildModeratorNoteModal, buildUserSummaryButtons } = require('../util/UtilFunctions');
 
 module.exports = {
 	name: Events.InteractionCreate,
@@ -138,6 +138,20 @@ module.exports = {
 					});
 					// Ping the moderators in the report thread
 					await reportThread.send(`<@&${moderatorRoleId}> A new report has been submitted.`);
+					try {
+						const [warnings, cases] = await Promise.all([
+							globalThis.databaseManager.getWarnings(subject.getUserId()),
+							globalThis.databaseManager.getCasesBySubjectId(subject.getUserId()),
+						]);
+						subject.setWarnings(warnings);
+						subject.setCases(cases);
+						await reportThread.send({
+							embeds: [subject.generateUserSummaryEmbed()],
+							components: buildUserSummaryButtons(subject.getUserId()),
+						});
+					} catch (historyError) {
+						logger.error(`Failed to add subject history to report ${report.getReportId()} thread: ${historyError}`);
+					}
 					// Set the report link in the report object and update it in the database
 					report.setReportLink(reportMessage.url);
 					await globalThis.databaseManager.updateReport(report.getReportId(), { report_link: report.getReportLink() });

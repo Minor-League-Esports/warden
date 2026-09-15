@@ -40,7 +40,7 @@ module.exports = {
 			const punishmentsInput = new TextInputBuilder()
 				.setCustomId('punishments')
 				.setStyle(TextInputStyle.Short)
-				.setPlaceholder('mute=7;suspension=1')
+				.setPlaceholder('warning;mute=7;suspension=1')
 				.setRequired(true);
 			const punishmentsLabel = new LabelBuilder()
 				.setLabel('Punishments, separated by semicolons')
