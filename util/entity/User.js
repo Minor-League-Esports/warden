@@ -59,6 +59,22 @@ class User {
 		return this._warnings ?? [];
 	}
 
+	/**
+	 * Setter for cases associated with the user
+	 * @param {Case[]} cases
+	 */
+	setCases(cases) {
+		this._cases = cases;
+	}
+
+	/**
+	 * Getter for cases associated with the user
+	 * @returns {Case[]}
+	 */
+	getCases() {
+		return this._cases ?? [];
+	}
+
 	generateUserInfoEmbed() {
 		return new EmbedBuilder()
 			.setColor('#0000ff')
@@ -77,6 +93,7 @@ class User {
 
 	generateUserSummaryEmbed() {
 		const warnings = this.getWarnings();
+		const cases = this.getCases();
 		const currentPoints = calculateCurrentPoints(warnings);
 		const expiry = getNextPointExpiry(warnings);
 		const pointExpiration = expiry ? expiry.toISOString().slice(0, 10) : 'N/A';
@@ -96,6 +113,10 @@ class User {
 				{
 					name: 'Warnings',
 					value: warnings.length > 0 ? `${warnings.length.toString()} warning(s) found` : 'No warnings found',
+				},
+				{
+					name: 'Cases',
+					value: cases.length > 0 ? `${cases.length.toString()} case(s) found` : 'No cases found',
 				},
 			);
 	}

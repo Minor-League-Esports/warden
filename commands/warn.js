@@ -53,7 +53,12 @@ module.exports = {
 					return;
 				}
 			}
-			user.setWarnings(await globalThis.databaseManager.getWarnings(user.getUserId()));
+			const [warnings, cases] = await Promise.all([
+				globalThis.databaseManager.getWarnings(user.getUserId()),
+				globalThis.databaseManager.getCasesBySubjectId(user.getUserId()),
+			]);
+			user.setWarnings(warnings);
+			user.setCases(cases);
 
 			await interaction.editReply({
 				content: caseId

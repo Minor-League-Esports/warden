@@ -139,7 +139,12 @@ module.exports = {
 					// Ping the moderators in the report thread
 					await reportThread.send(`<@&${moderatorRoleId}> A new report has been submitted.`);
 					try {
-						subject.setWarnings(await globalThis.databaseManager.getWarnings(subject.getUserId()));
+						const [warnings, cases] = await Promise.all([
+							globalThis.databaseManager.getWarnings(subject.getUserId()),
+							globalThis.databaseManager.getCasesBySubjectId(subject.getUserId()),
+						]);
+						subject.setWarnings(warnings);
+						subject.setCases(cases);
 						await reportThread.send({
 							embeds: [subject.generateUserSummaryEmbed()],
 							components: buildUserSummaryButtons(subject.getUserId()),

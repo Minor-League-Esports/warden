@@ -30,7 +30,12 @@ module.exports = {
 		const userId = interaction.options.getString('user');
 		try {
 			const user = await globalThis.userUtility.fetchDatabaseUser(userId);
-			user.setWarnings(await globalThis.databaseManager.getWarnings(user.getUserId()));
+			const [warnings, cases] = await Promise.all([
+				globalThis.databaseManager.getWarnings(user.getUserId()),
+				globalThis.databaseManager.getCasesBySubjectId(user.getUserId()),
+			]);
+			user.setWarnings(warnings);
+			user.setCases(cases);
 
 			await interaction.editReply({
 				embeds: [user.generateUserSummaryEmbed()],
