@@ -10,14 +10,29 @@ const {
 	ButtonStyle,
 	ActionRowBuilder,
 	EmbedBuilder,
+	ModalBuilder,
+	TextInputBuilder,
+	LabelBuilder,
+	TextInputStyle,
 } = require('discord.js');
 const { notifyCaseThread, getCaseLinkById } = require('../util/UtilFunctions');
 
 module.exports = {
 	data: new SlashCommandBuilder()
 		.setName('report')
-		.setDescription('Make a report to MLE Moderation')
+		.setDescription('Manage your reports to MLE Moderation')
 		.addSubcommand((subcommand) => subcommand.setName('submit').setDescription('Report a user to MLE Moderation'))
+		.addSubcommand((subcommand) =>
+			subcommand
+				.setName('update')
+				.setDescription('Provide an update to an existing report')
+				.addIntegerOption((option) =>
+					option
+						.setName('report_id')
+						.setDescription('The ID of the report you want to provide an update for')
+						.setRequired(true),
+				),
+		)
 		.addSubcommand((subcommand) =>
 			subcommand
 				.setName('evidence')
@@ -62,6 +77,26 @@ module.exports = {
 				),
 		),
 	async execute(interaction) {
+		const subcommand = interaction.options.getSubcommand();
+		if (subcommand === 'update') {
+			// Gather submitted data
+			const reportId = interaction.options.getInteger('report_id');
+
+			const modal = new ModalBuilder().setCustomId(`updateReportModal:${reportId}`).setTitle('Update Report');
+
+			const reasonInput = new TextInputBuilder()
+				.setCustomId('reason')
+				.setStyle(TextInputStyle.Paragraph)
+				.setPlaceholder('Please provide any additional details or updates regarding your report.')
+				.setRequired(true);
+			const reasonInputLabel = new LabelBuilder().setLabel('Reason for Report').setTextInputComponent(reasonInput);
+
+			modal.addLabelComponents(reasonInputLabel);
+
+			await interaction.showModal(modal);
+			return;
+		}
+
 		// Defer the reply to give more time for processing
 		// Ephemeral if in guild, public if in DMs
 		if (interaction.inGuild()) {
@@ -71,8 +106,6 @@ module.exports = {
 		}
 
 		const user = await globalThis.userUtility.fetchDatabaseUser(interaction.user.id);
-
-		const subcommand = interaction.options.getSubcommand();
 
 		if (subcommand === 'submit') {
 			try {

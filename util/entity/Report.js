@@ -255,7 +255,7 @@ class Report {
 			.setTitle(`MLE Moderation Update: Report #${this.getReportId()}`)
 			.setTimestamp(new Date(this.getReportTimestamp() ?? new Date().toISOString()))
 			.setDescription(
-				'To attach evidence to this report, use the `/report evidence` command. Use the button below to provide more details.',
+				'To attach evidence to this report, use the `/report evidence` command. To provide more details, use the `/report update` command or the button below.',
 			)
 			.addFields(
 				{

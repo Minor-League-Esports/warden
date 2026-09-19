@@ -22,6 +22,10 @@ module.exports = {
 
 		if (buttonId.includes('ConfirmButton:')) {
 			await interaction.deferReply();
+			await interaction.message.edit({
+				content: 'Processing...',
+				components: [],
+			});
 			const [, dbId] = buttonId.split(':');
 			const punishmentType = buttonId.split('ConfirmButton:')[0].toLowerCase();
 			const embed = interaction.message.embeds[0];
@@ -47,10 +51,16 @@ module.exports = {
 				.then(async () => {
 					logger.info(`Successfully executed ${punishmentType} for user with DB ID: ${dbId}`);
 					await interaction.editReply({ content: `Successfully executed ${punishmentType}.` });
+					await interaction.message.edit({
+						content: 'Completed.',
+					});
 				})
-				.catch((error) => {
+				.catch(async (error) => {
 					logger.error(`Error executing ${punishmentType} for user with DB ID: ${dbId}: ${error}`);
-					interaction.editReply({ content: `Error executing ${punishmentType}.` });
+					await interaction.editReply({ content: `Error executing ${punishmentType}.` });
+					await interaction.message.edit({
+						content: 'An error occurred.',
+					});
 				});
 		}
 	},
