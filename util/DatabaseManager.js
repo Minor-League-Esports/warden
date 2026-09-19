@@ -3,7 +3,7 @@ const logger = log4js.getLogger('DatabaseManager');
 const { database, logLevel } = require('../config.json');
 logger.level = logLevel;
 
-const { Client } = require('pg');
+const { Pool } = require('pg');
 const fs = require('node:fs');
 const path = require('node:path');
 const Warning = require('./entity/Warning');
@@ -18,7 +18,7 @@ class DatabaseManager {
 	constructor() {
 		this._status = 'init';
 		this._sqlCache = new Map();
-		this._client = new Client({
+		this._pool = new Pool({
 			user: database['username'],
 			password: database['password'],
 			host: database['hostname'],
@@ -30,6 +30,9 @@ class DatabaseManager {
 				// (needed for publicly-issued certs, e.g. Let's Encrypt)
 				...(database['caCertPath'] ? { ca: fs.readFileSync(database['caCertPath']).toString() } : {}),
 			},
+		});
+		this._pool.on('error', (error) => {
+			logger.error('Unexpected PostgreSQL pool error:', error);
 		});
 	}
 
@@ -44,7 +47,7 @@ class DatabaseManager {
 
 	async _queryFile(relativePath, params = []) {
 		const sql = this._loadSql(relativePath);
-		return this._client.query(sql, params);
+		return this._pool.query(sql, params);
 	}
 
 	/**
@@ -54,14 +57,15 @@ class DatabaseManager {
 	 */
 	async init() {
 		// Sets status to 'success' on success and 'failed' on fail
-		await this._client.connect();
+		const client = await this._pool.connect();
+		client.release();
 
 		// Drop existing tables for fresh start (development only)
-		// await this._client.query('DROP TABLE IF EXISTS Punishments CASCADE');
-		// await this._client.query('DROP TABLE IF EXISTS Users CASCADE');
-		// await this._client.query('DROP TABLE IF EXISTS Warnings CASCADE');
-		// await this._client.query('DROP TABLE IF EXISTS Reports CASCADE');
-		// await this._client.query('DROP TABLE IF EXISTS Cases CASCADE');
+		// await this._pool.query('DROP TABLE IF EXISTS Punishments CASCADE');
+		// await this._pool.query('DROP TABLE IF EXISTS Users CASCADE');
+		// await this._pool.query('DROP TABLE IF EXISTS Warnings CASCADE');
+		// await this._pool.query('DROP TABLE IF EXISTS Reports CASCADE');
+		// await this._pool.query('DROP TABLE IF EXISTS Cases CASCADE');
 
 		await this._queryFile('init/Users.sql');
 
@@ -97,7 +101,7 @@ class DatabaseManager {
 			}
 
 			// Fetch all users with their warnings in one pass
-			this._client
+			this._pool
 				.query(this._loadSql('queries/get/getUsersWithCurrentPointsAtOrAbove.sql'))
 				.then((result) => {
 					const rows = result.rows || [];
@@ -157,7 +161,7 @@ class DatabaseManager {
 				return reject('DB manager not initialized');
 			}
 
-			this._client
+			this._pool
 				.query(this._loadSql('queries/get/getCurrentlyBannedUsers.sql'))
 				.then((result) => {
 					const users = (result.rows || []).map(
@@ -186,7 +190,7 @@ class DatabaseManager {
 
 		try {
 			// Load case core + related users
-			const caseRes = await this._queryFile('queries/get/getCaseById_case.sql', [caseId]);
+			const caseRes = await this._queryFile('queries/get/case/getCaseById_case.sql', [caseId]);
 
 			if (!caseRes.rows || caseRes.rows.length === 0) {
 				throw new Error('Case not found');
@@ -232,17 +236,17 @@ class DatabaseManager {
 			}
 
 			// Reports in case
-			const repRes = await this._queryFile('queries/get/getCaseById_reports.sql', [caseId]);
+			const repRes = await this._queryFile('queries/get/case/getCaseById_reports.sql', [caseId]);
 			const reports = globalThis.databaseResponseParser.parseDatabaseReportResponse(repRes);
 			reports.forEach((r) => r.setCase(kase));
 
 			// Warnings in case
-			const warnRes = await this._queryFile('queries/get/getCaseById_warnings.sql', [caseId]);
+			const warnRes = await this._queryFile('queries/get/case/getCaseById_warnings.sql', [caseId]);
 			const warnings = globalThis.databaseResponseParser.parseDatabaseWarningResponse(warnRes);
 			warnings.forEach((w) => w.setCase(kase));
 
 			// Punishments in case, split between those tied to one of the warnings above and truly standalone ones
-			const punRes = await this._queryFile('queries/get/getCaseById_punishments.sql', [caseId]);
+			const punRes = await this._queryFile('queries/get/case/getCaseById_punishments.sql', [caseId]);
 			const casePunishments = globalThis.databaseResponseParser.parseDatabasePunishmentResponse(punRes);
 			casePunishments.forEach((p) => p.setCase(kase));
 
@@ -270,19 +274,6 @@ class DatabaseManager {
 			logger.error(error);
 			throw new Error('Error getting case by ID');
 		}
-	}
-
-	/**
-	 * Retrieves open cases with their subjects and assigned moderators.
-	 * @returns {Promise<Object[]>}
-	 */
-	async getOpenCases() {
-		if (this._status !== 'success') {
-			throw new Error('DB manager not initialized');
-		}
-
-		const result = await this._queryFile('queries/get/getOpenCases.sql');
-		return result.rows || [];
 	}
 
 	/**
@@ -427,7 +418,7 @@ class DatabaseManager {
 			.join(', ');
 		const values = [caseId, ...Object.values(fields)];
 
-		const res = await this._client.query(
+		const res = await this._pool.query(
 			`UPDATE Cases
                 SET ${setClauses}
                 WHERE case_id = $1
@@ -454,7 +445,7 @@ class DatabaseManager {
 		}
 
 		const kase = await this.updateCase(caseId, { moderator_id: moderatorId });
-		await this._client.query('UPDATE Reports SET moderator_id = $1 WHERE case_id = $2', [moderatorId, caseId]);
+		await this._pool.query('UPDATE Reports SET moderator_id = $1 WHERE case_id = $2', [moderatorId, caseId]);
 		logger.info(`Case ${caseId} claimed by moderator ${moderatorId}; cascaded to attached reports`);
 		return kase;
 	}
@@ -471,9 +462,10 @@ class DatabaseManager {
 			throw new Error('DB manager not initialized');
 		}
 
+		const client = await this._pool.connect();
 		try {
-			await this._client.query('BEGIN');
-			const caseRes = await this._client.query(
+			await client.query('BEGIN');
+			const caseRes = await client.query(
 				`UPDATE Cases
 				 SET status = 'CLOSED', closed_at = $2
 				 WHERE case_id = $1
@@ -482,23 +474,25 @@ class DatabaseManager {
 			);
 			if (caseRes.rows.length !== 1) throw new Error('Case not found');
 
-			const reportsRes = await this._client.query(
+			const reportsRes = await client.query(
 				`UPDATE Reports
 				 SET status = 'CLOSED', close_timestamp = $2
 				 WHERE case_id = $1 AND status <> 'CLOSED'
 				 RETURNING *`,
 				[caseId, closedAt],
 			);
-			await this._client.query('COMMIT');
+			await client.query('COMMIT');
 
 			const cases = globalThis.databaseResponseParser.parseDatabaseCaseResponse(caseRes);
 			const reports = globalThis.databaseResponseParser.parseDatabaseReportResponse(reportsRes);
 			logger.info(`Closed case ${caseId} and ${reports.length} attached report(s)`);
 			return { case: cases[0], reports };
 		} catch (error) {
-			await this._client.query('ROLLBACK').catch(() => {});
+			await client.query('ROLLBACK').catch(() => {});
 			logger.error(`Error closing case ${caseId}: ${error}`);
 			throw error;
+		} finally {
+			client.release();
 		}
 	}
 
@@ -643,6 +637,21 @@ class DatabaseManager {
 	}
 
 	/**
+	 * Gets all reports from the database.
+	 *
+	 * @returns {Promise<Report[]>} A promise to return an array of Report objects
+	 */
+	async getAllReports() {
+		if (this._status !== 'success') {
+			throw new Error('DB manager not initialized');
+		}
+
+		const res = await this._queryFile('queries/get/report/getAllReports.sql', []);
+		const reports = globalThis.databaseResponseParser.parseDatabaseReportResponse(res);
+		return reports;
+	}
+
+	/**
 	 * Gets reports by user ID and type.
 	 *
 	 * @param {String} userId The DB ID of the user being searched
@@ -704,6 +713,24 @@ class DatabaseManager {
 	}
 
 	/**
+	 * Gets all cases in the database.
+	 *
+	 * @returns {Promise<Case[]>} A promise to return all cases
+	 */
+	async getAllCases() {
+		if (this._status !== 'success') {
+			throw new Error('DB manager not initialized');
+		}
+
+		const res = await this._queryFile('queries/get/case/getAllCases.sql', []);
+		const cases = [];
+		for (const row of res.rows || []) {
+			cases.push(await this.getCaseById(row.case_id));
+		}
+		return cases;
+	}
+
+	/**
 	 * Gets all cases for a user, including cases without warnings or punishments.
 	 *
 	 * @param {String} userId The user's Database ID
@@ -714,8 +741,12 @@ class DatabaseManager {
 			throw new Error('DB manager not initialized');
 		}
 
-		const res = await this._queryFile('queries/get/getCasesBySubjectId.sql', [userId]);
-		return Promise.all((res.rows || []).map((row) => this.getCaseById(row.case_id)));
+		const res = await this._queryFile('queries/get/case/getCasesBySubjectId.sql', [userId]);
+		const cases = [];
+		for (const row of res.rows || []) {
+			cases.push(await this.getCaseById(row.case_id));
+		}
+		return cases;
 	}
 
 	/**
@@ -779,7 +810,7 @@ class DatabaseManager {
 			.join(', ');
 		const values = [userId, ...Object.values(fields)];
 
-		const res = await this._client.query(
+		const res = await this._pool.query(
 			`UPDATE Users
                 SET ${setClauses}
                 WHERE user_id = $1
@@ -815,7 +846,7 @@ class DatabaseManager {
 			.join(', ');
 		const values = [reportId, ...Object.values(fields)];
 
-		const res = await this._client.query(
+		const res = await this._pool.query(
 			`UPDATE Reports
                 SET ${setClauses}
                 WHERE report_id = $1
