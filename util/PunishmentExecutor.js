@@ -87,9 +87,8 @@ class PunishmentExecutor {
 		try {
 			const user = await this._discordClient.users.fetch(userDiscordId);
 			const userEmbed = warning.generateUserEmbed();
-			const fmDiscordId = await globalThis.sprocketDatasetParser.getPlayerFranchiseManagerDiscordIdByDiscordId(
-				userDiscordId,
-			);
+			const fmDiscordId =
+				await globalThis.sprocketDatasetParser.getPlayerFranchiseManagerDiscordIdByDiscordId(userDiscordId);
 			const fmName = await globalThis.sprocketDatasetParser.getMemberNameByDiscordId(fmDiscordId);
 			await user.send({ embeds: [userEmbed] });
 			if (fmDiscordId) {
@@ -208,11 +207,16 @@ class PunishmentExecutor {
 							servers.set(guild.name, 'Success');
 							successCount++;
 						} catch (error) {
-							logger.error(error);
-							servers.set(guild.name, 'Error banning/unbanning member');
-							await globalThis.discordLogger.logMessage(
-								`Error banning/unbanning ${userName} in ${guild.name}!\n\`\`\`\n${error}\n\`\`\``,
-							);
+							if (punishmentType === 'unban' && error.code === 10026) {
+								servers.set(guild.name, 'Not banned');
+								successCount++;
+							} else {
+								logger.error(error);
+								servers.set(guild.name, 'Error banning/unbanning member');
+								await globalThis.discordLogger.logMessage(
+									`Error banning/unbanning ${userName} in ${guild.name}!\n\`\`\`\n${error}\n\`\`\``,
+								);
+							}
 						}
 					} else {
 						servers.set(guild.name, 'Unknown punishment type');
@@ -237,6 +241,8 @@ class PunishmentExecutor {
 				// Log it
 				if (error.code === 50007) {
 					await globalThis.caseLogger.logPunishment(punishment, 'Blocked', servers);
+				} else if (error.code === 50278) {
+					await globalThis.caseLogger.logPunishment(punishment, 'No mutual servers', servers);
 				} else {
 					logger.error(error);
 					await globalThis.caseLogger.logPunishment(punishment, 'Error', servers);
