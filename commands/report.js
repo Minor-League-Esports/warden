@@ -262,7 +262,8 @@ function generateReportEmbed() {
 		.setDescription(
 			`Use the button below to report a user to MLE Moderation. Please provide as much detail as possible in your report to help us address the issue effectively.\n
             For the "Who are you reporting?" field, you can enter the MLE Username, Discord ID, or MLE ID of the user you wish to report.\n
-            After submitting the report form, you will have the opportunity to attach any relevant files or screenshots in the following steps.`,
+            After submitting the report form, you will have the opportunity to attach any relevant files or screenshots in the following steps.\n
+			Note: For reports related to league play or competitive integrity, please submit the [CIC report form](https://bit.ly/CICReport) instead.`,
 		)
 		.setThumbnail('https://mlesports.gg/wp-content/uploads/logo-mle-256.png')
 		.setFooter({ text: 'Thank you for helping us keep the community safe!' })
