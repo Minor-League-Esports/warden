@@ -3,15 +3,8 @@ const logger = log4js.getLogger('WarnCommand');
 const { logLevel, opsGuild } = require('../config.json');
 logger.level = logLevel;
 
-const {
-	SlashCommandBuilder,
-	PermissionFlagsBits,
-	InteractionContextType,
-	MessageFlags,
-	ButtonBuilder,
-	ButtonStyle,
-	ActionRowBuilder,
-} = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, InteractionContextType, MessageFlags } = require('discord.js');
+const { generateUserSummaryButtons } = require('../util/builders/ButtonFunctions');
 
 module.exports = {
 	data: new SlashCommandBuilder()
@@ -82,21 +75,3 @@ module.exports = {
 		}
 	},
 };
-
-function generateUserSummaryButtons(dbId, caseId = null) {
-	const confirmButton = new ButtonBuilder()
-		.setCustomId(`userConfirmWarnButton:${dbId}:${caseId ?? ''}`)
-		.setLabel('Warn User')
-		.setStyle(ButtonStyle.Success);
-	// TODO: Implement 'update user'
-	const updateButton = new ButtonBuilder()
-		.setCustomId(`userUpdateButton:${dbId}`)
-		.setLabel('[Unimplemented]')
-		.setStyle(ButtonStyle.Danger);
-	const viewButton = new ButtonBuilder()
-		.setCustomId(`userViewHistoryButton:${dbId}`)
-		.setLabel('View History')
-		.setStyle(ButtonStyle.Primary);
-	const actionRow = new ActionRowBuilder().addComponents(confirmButton, updateButton, viewButton);
-	return [actionRow];
-}

@@ -108,6 +108,14 @@ class Report {
 		return this._reportLink;
 	}
 
+	setReportThreadLink(link) {
+		this._reportThreadLink = link;
+	}
+
+	getReportThreadLink() {
+		return this._reportThreadLink;
+	}
+
 	setReportReason(reason) {
 		this._reportReason = reason;
 	}
@@ -162,6 +170,30 @@ class Report {
 
 	getResponse() {
 		return this._response;
+	}
+
+	async generateSummaryEmbed(caseLink = null) {
+		const subject = await globalThis.databaseManager.getUserByIdentifier(this.getSubjectId(), 'db');
+		const reporter = await globalThis.databaseManager.getUserByIdentifier(this.getReporterId(), 'db');
+		const caseIdValue = this.getCaseId()
+			? caseLink
+				? `[#${this.getCaseId()}](${caseLink})`
+				: `#${this.getCaseId()}`
+			: 'None';
+		const embed = new EmbedBuilder()
+			.setTitle(`Report #${this.getReportId() ?? 'None'}`)
+			.setTimestamp(new Date(this.getReportTimestamp() ?? new Date().toISOString()))
+			.addFields(
+				{ name: 'Reporter', value: String(reporter?.getUserName() ?? 'Unknown'), inline: true },
+				{ name: 'Status', value: String(this.getStatus() ?? 'Unknown') },
+				{ name: 'Case ID', value: caseIdValue, inline: true },
+				{ name: 'Report ID', value: String(this.getReportId() ?? 'None'), inline: true },
+			)
+			.setFooter({ text: `ID: ${subject?.getDiscordId() ?? 'Unknown'}` })
+			.setThumbnail(subject?.getDiscordAvatar() ?? null)
+			.setColor('#ff761b');
+
+		return embed;
 	}
 
 	/**

@@ -6,16 +6,14 @@ logger.level = logLevel;
 const {
 	SlashCommandBuilder,
 	MessageFlags,
-	ButtonBuilder,
-	ButtonStyle,
-	ActionRowBuilder,
-	EmbedBuilder,
 	ModalBuilder,
 	TextInputBuilder,
 	LabelBuilder,
 	TextInputStyle,
 } = require('discord.js');
 const { notifyCaseThread, getCaseLinkById } = require('../util/UtilFunctions');
+const { generateReportButtons, generateReportUpdateButton } = require('../util/builders/ButtonFunctions');
+const { generateReportEmbed } = require('../util/builders/EmbedFunctions');
 
 module.exports = {
 	data: new SlashCommandBuilder()
@@ -287,37 +285,3 @@ module.exports = {
 		}
 	},
 };
-
-function generateReportEmbed() {
-	const reportEmbed = new EmbedBuilder()
-		.setColor('#ff0000')
-		.setTitle('Report User')
-		.setDescription(
-			`Use the button below to report a user to MLE Moderation. Please provide as much detail as possible in your report to help us address the issue effectively.\n
-            For the "Who are you reporting?" field, you can enter the MLE Username, Discord ID, or MLE ID of the user you wish to report.\n
-            After submitting the report form, you will have the opportunity to attach any relevant files or screenshots in the following steps.\n
-			Note: For reports related to league play or competitive integrity, please submit the [CIC report form](https://bit.ly/CICReport) instead.`,
-		)
-		.setThumbnail('https://mlesports.gg/wp-content/uploads/logo-mle-256.png')
-		.setFooter({ text: 'Thank you for helping us keep the community safe!' })
-		.setTimestamp();
-	return reportEmbed;
-}
-
-function generateReportButtons(dbId) {
-	const reportButton = new ButtonBuilder()
-		.setCustomId(`userReportButton:${dbId}`)
-		.setLabel('Report User')
-		.setStyle(ButtonStyle.Success);
-	const actionRow = new ActionRowBuilder().addComponents(reportButton);
-	return [actionRow];
-}
-
-function generateReportUpdateButton(reportId) {
-	const updateButton = new ButtonBuilder()
-		.setCustomId(`reportUpdateButton:${reportId}`)
-		.setLabel('Update Report')
-		.setStyle(ButtonStyle.Primary);
-	const actionRow = new ActionRowBuilder().addComponents(updateButton);
-	return [actionRow];
-}

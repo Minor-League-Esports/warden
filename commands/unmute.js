@@ -8,11 +8,9 @@ const {
 	SlashCommandBuilder,
 	PermissionFlagsBits,
 	InteractionContextType,
-	ButtonBuilder,
-	ButtonStyle,
-	ActionRowBuilder,
 	EmbedBuilder,
 } = require('discord.js');
+const { generateUnmuteConfirmationButtons } = require('../util/builders/ButtonFunctions');
 
 module.exports = {
 	data: new SlashCommandBuilder()
@@ -45,7 +43,7 @@ module.exports = {
 		const user = await globalThis.userUtility.fetchDatabaseUser(userId);
 
 		const embed = generateConfirmationEmbed(user);
-		const components = generateConfirmationButtons(user.getUserId());
+		const components = generateUnmuteConfirmationButtons(user.getUserId());
 		await interaction.editReply({
 			embeds: [embed],
 			components,
@@ -62,17 +60,4 @@ function generateConfirmationEmbed(dbUser) {
 		.setTimestamp()
 		.setThumbnail(dbUser.getDiscordAvatar() ?? null);
 	return embed;
-}
-
-function generateConfirmationButtons(dbId) {
-	const confirmButton = new ButtonBuilder()
-		.setCustomId(`unmuteConfirmButton:${dbId}`)
-		.setLabel('Unmute User')
-		.setStyle(ButtonStyle.Success);
-	const cancelButton = new ButtonBuilder()
-		.setCustomId(`cancelUnmuteButton:${dbId}`)
-		.setLabel('Cancel')
-		.setStyle(ButtonStyle.Danger);
-	const actionRow = new ActionRowBuilder().addComponents(confirmButton, cancelButton);
-	return [actionRow];
 }

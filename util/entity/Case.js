@@ -128,6 +128,14 @@ class Case {
 		return this._caseLink ?? null;
 	}
 
+	setCaseThreadLink(link) {
+		this._caseThreadLink = link;
+	}
+
+	getCaseThreadLink() {
+		return this._caseThreadLink ?? null;
+	}
+
 	/**
 	 * Setter for reports collection
 	 * @param {Report[]} reports
@@ -200,6 +208,7 @@ class Case {
 
 		embed.addFields(
 			{ name: 'Status', value: String(this.getStatus() ?? 'Unknown') },
+			{ name: 'Case Thread', value: String(this.getCaseThreadLink() ?? 'None') },
 			{
 				name: 'Subject',
 				value: String(this.getSubjectUser() ? `${this.getSubjectUser().getUserName()}` : 'Unknown'),

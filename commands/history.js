@@ -4,7 +4,7 @@ const { logLevel, opsGuild } = require('../config.json');
 logger.level = logLevel;
 
 const { SlashCommandBuilder, PermissionFlagsBits, InteractionContextType, MessageFlags } = require('discord.js');
-const { buildUserSummaryButtons } = require('../util/UtilFunctions');
+const { generateUserSummaryButtons } = require('../util/builders/ButtonFunctions');
 
 module.exports = {
 	data: new SlashCommandBuilder()
@@ -39,7 +39,7 @@ module.exports = {
 
 			await interaction.editReply({
 				embeds: [user.generateUserSummaryEmbed()],
-				components: buildUserSummaryButtons(user.getUserId()),
+				components: generateUserSummaryButtons(user.getUserId()),
 			});
 		} catch (error) {
 			logger.error(`Failed to fetch user history for ${userId}: ${error}`);
