@@ -52,6 +52,38 @@ class Report {
 		return this._moderatorId;
 	}
 
+	/**
+	 * Setter for the User who is the subject of this report
+	 * @param {User} user
+	 */
+	setSubjectUser(user) {
+		this._subjectUser = user;
+	}
+
+	/**
+	 * Getter for the User who is the subject of this report
+	 * @returns {User}
+	 */
+	getSubjectUser() {
+		return this._subjectUser;
+	}
+
+	/**
+	 * Setter for the User who is the moderator assigned to this report
+	 * @param {User} user
+	 */
+	setModerator(user) {
+		this._moderator = user;
+	}
+
+	/**
+	 * Getter for the User who is the moderator assigned to this report
+	 * @returns {User}
+	 */
+	getModerator() {
+		return this._moderator;
+	}
+
 	setCaseId(caseId) {
 		this._caseId = caseId;
 	}
@@ -180,6 +212,9 @@ class Report {
 				? `[#${this.getCaseId()}](${caseLink})`
 				: `#${this.getCaseId()}`
 			: 'None';
+		const reportIdValue = this.getReportThreadLink()
+			? `[#${this.getReportId()}](${this.getReportThreadLink()})`
+			: 'None';
 		const embed = new EmbedBuilder()
 			.setTitle(`Report #${this.getReportId() ?? 'None'}`)
 			.setTimestamp(new Date(this.getReportTimestamp() ?? new Date().toISOString()))
@@ -187,7 +222,7 @@ class Report {
 				{ name: 'Reporter', value: String(reporter?.getUserName() ?? 'Unknown'), inline: true },
 				{ name: 'Status', value: String(this.getStatus() ?? 'Unknown') },
 				{ name: 'Case ID', value: caseIdValue, inline: true },
-				{ name: 'Report ID', value: String(this.getReportId() ?? 'None'), inline: true },
+				{ name: 'Report ID', value: reportIdValue, inline: true },
 			)
 			.setFooter({ text: `ID: ${subject?.getDiscordId() ?? 'Unknown'}` })
 			.setThumbnail(subject?.getDiscordAvatar() ?? null)
@@ -210,6 +245,9 @@ class Report {
 				? `[#${this.getCaseId()}](${caseLink})`
 				: `#${this.getCaseId()}`
 			: 'None';
+		const reportIdValue = this.getReportThreadLink()
+			? `[#${this.getReportId()}](${this.getReportThreadLink()})`
+			: 'None';
 		const embed = new EmbedBuilder()
 			.setTitle(`${subject?.getUserName() ?? 'User'} | Report`)
 			.setTimestamp(new Date(this.getReportTimestamp() ?? new Date().toISOString()))
@@ -217,7 +255,7 @@ class Report {
 				{ name: 'Reporter', value: String(reporter?.getUserName() ?? 'Unknown'), inline: true },
 				{ name: 'Status', value: String(this.getStatus() ?? 'Unknown') },
 				{ name: 'Case ID', value: caseIdValue, inline: true },
-				{ name: 'Report ID', value: String(this.getReportId() ?? 'None'), inline: true },
+				{ name: 'Report ID', value: reportIdValue, inline: true },
 			)
 			.setFooter({ text: `ID: ${subject?.getDiscordId() ?? 'Unknown'}` })
 			.setThumbnail(subject?.getDiscordAvatar() ?? null)

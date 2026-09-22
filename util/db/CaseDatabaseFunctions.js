@@ -35,6 +35,7 @@ async function getCaseById(caseId) {
 		kase.setClosedAt(cRow['closed_at']);
 		kase.setNotes(cRow['notes']);
 		kase.setCaseLink(cRow['case_link']);
+		kase.setCaseThreadLink(cRow['case_thread_link']);
 
 		// Attach user objects if present (User has no constructor args, must use setters)
 		const buildUser = (id, discordId, avatar, name, mleId) => {

@@ -220,20 +220,19 @@ async function listObjects(interaction) {
 	objects.sort((a, b) => {
 		if (subcommandGroup === 'reports') {
 			return b.getReportId() - a.getReportId();
-		} else if (subcommandGroup === 'cases') {
+		} else {
 			return b.getCaseId() - a.getCaseId();
 		}
-		return 0;
 	});
 
 	if (objects.length === 0) {
 		if (statusFilter === 'all') {
 			await interaction.editReply({
-				content: `There have not been any ${subcommandGroup} submitted yet.`,
+				content: `There have not been any ${subcommandGroup === 'reports' ? 'reports' : 'cases'} submitted yet.`,
 			});
 		} else {
 			await interaction.editReply({
-				content: `There are no ${statusFilter} ${subcommandGroup}.`,
+				content: `There are no ${statusFilter} ${subcommandGroup === 'reports' ? 'reports' : 'cases'}.`,
 			});
 		}
 		return;
@@ -241,22 +240,23 @@ async function listObjects(interaction) {
 
 	let objectList;
 	if (statusFilter === 'all') {
-		objectList = `All submitted ${subcommandGroup}:\n`;
+		objectList = `All submitted ${subcommandGroup === 'reports' ? 'reports' : 'cases'}:\n`;
 	} else {
-		objectList = `All ${statusFilter} ${subcommandGroup}:\n`;
+		objectList = `All ${statusFilter} ${subcommandGroup === 'reports' ? 'reports' : 'cases'}:\n`;
 	}
 
 	for (const object of objects) {
 		const subject = await globalThis.databaseManager.getUserByIdentifier(object.getSubjectId(), 'db');
-		if (subcommandGroup === 'cases') {
-			objectList += `- Case #${object.getCaseId()} against ${subject.getUserName()}, Status: ${object.getStatus()}\n`;
+		if (subcommandGroup === 'reports') {
+			const reporter = await globalThis.databaseManager.getUserByIdentifier(object.getReporterId(), 'db');
+			objectList += `- ${subcommandGroup.slice(0, -1).charAt(0).toUpperCase() + subcommandGroup.slice(1, -1).slice(1)} #${object.getReportId()} by ${reporter.getUserName()} against ${subject.getUserName()}, Status: ${object.getStatus()}\n`;
 			continue;
 		}
-		const reporter = await globalThis.databaseManager.getUserByIdentifier(object.getReporterId(), 'db');
-		objectList += `- ${subcommandGroup.slice(0, -1).charAt(0).toUpperCase() + subcommandGroup.slice(1, -1).slice(1)} #${object.getReportId()} by ${reporter.getUserName()} against ${subject.getUserName()}, Status: ${object.getStatus()}\n`;
+
+		objectList += `- Case #${object.getCaseId()} against ${subject.getUserName()}, Status: ${object.getStatus()}\n`;
 	}
 
-	objectList += `\nUse the \`/manage ${subcommandGroup.slice(0, -1)} details\` command with a ${subcommandGroup.slice(0, -1).charAt(0).toUpperCase() + subcommandGroup.slice(1, -1).slice(1)} ID to view more details about a specific ${subcommandGroup.slice(0, -1)}.`;
+	objectList += `\nUse the \`/case${subcommandGroup ? ' ' + subcommandGroup : ''} details\` command with an ID to view more details about a specific case/report.`;
 
 	if (objectList.length > 2000) {
 		objectList = objectList.slice(0, 1980) + '\n... (truncated)';

@@ -64,6 +64,7 @@ class DatabaseResponseParser {
 			c.setClosedAt(row['closed_at']);
 			c.setNotes(row['moderator_notes']);
 			c.setCaseLink(row['case_link']);
+			c.setCaseThreadLink(row['case_thread_link']);
 			cases.push(c);
 		}
 
@@ -146,12 +147,15 @@ class DatabaseResponseParser {
 			r.setAcknowledgeTimestamp(row['acknowledge_timestamp']);
 			r.setCloseTimestamp(row['close_timestamp']);
 			r.setReportLink(row['report_link']);
+			r.setReportThreadLink(row['report_thread_link']);
 			r.setReportReason(row['report_reason']);
 			r.setReportEvidence(row['report_evidence']);
 			r.setStatus(row['status']);
 			r.setModeratorNotes(row['moderator_notes']);
 			r.setResponse(row['response']);
 			r.setReporter(buildUserFromPrefix(row, 'u_rep'));
+			r.setSubjectUser(buildUserFromPrefix(row, 'u_user'));
+			r.setModerator(buildUserFromPrefix(row, 'u_mod'));
 			reports.push(r);
 		}
 
