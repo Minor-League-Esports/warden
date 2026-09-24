@@ -195,6 +195,26 @@ class Case {
 		return this._punishments ?? [];
 	}
 
+	generateSummaryEmbed() {
+		const embed = new EmbedBuilder()
+			.setTitle(`Case #${this.getCaseId()}`)
+			.setTimestamp(new Date(this.getCreatedAt() ?? new Date().toISOString()))
+			.setThumbnail(this.getSubjectUser()?.getDiscordAvatar() ?? null)
+			.setColor('#ff761b');
+
+		embed.addFields(
+			{ name: 'Case Thread', value: String(this.getCaseThreadLink() ?? 'None') },
+			{
+				name: 'Subject',
+				value: String(this.getSubjectUser() ? `${this.getSubjectUser().getUserName()}` : 'Unknown'),
+				inline: true,
+			},
+			{ name: 'Creator', value: String(this.getCreator()?.getUserName() ?? this.getCreatorId()), inline: true },
+		);
+
+		return embed;
+	}
+
 	/**
 	 * Generates an internal moderator-facing summary embed for the Case
 	 * @returns {EmbedBuilder}
@@ -208,7 +228,6 @@ class Case {
 
 		embed.addFields(
 			{ name: 'Status', value: String(this.getStatus() ?? 'Unknown') },
-			{ name: 'Case Thread', value: String(this.getCaseThreadLink() ?? 'None') },
 			{
 				name: 'Subject',
 				value: String(this.getSubjectUser() ? `${this.getSubjectUser().getUserName()}` : 'Unknown'),
@@ -217,6 +236,15 @@ class Case {
 			{ name: 'Moderator', value: String(this.getModerator()?.getUserName() ?? 'Unclaimed'), inline: true },
 			{ name: 'Creator', value: String(this.getCreator()?.getUserName() ?? this.getCreatorId()), inline: true },
 		);
+
+		const reports = String(
+			this.getReports()
+				?.map((report) => `[#${report.getReportId()}](${report.getReportLink()})`)
+				.join(', ') ?? 'None',
+		);
+		if (reports && reports.trim().length > 0) {
+			embed.addFields({ name: 'Reports', value: reports });
+		}
 
 		const notes = String(this.getNotes() ?? 'None');
 		if (notes && notes.trim().length > 0) {

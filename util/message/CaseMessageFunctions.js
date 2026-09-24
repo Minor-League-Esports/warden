@@ -26,22 +26,24 @@ async function createCaseMessage(caseObj) {
 		case_thread_link: caseThread.url,
 	});
 	// Generate the private embed for the case message
-	const caseEmbed = await fullCase.generatePrivateEmbed();
+	const summaryEmbed = await fullCase.generateSummaryEmbed();
 	// Send the case message to the case channel
-	const caseMessage = await globalThis.caseChannel.send({
-		content: `Case #${fullCase.getCaseId()} | ${subjectMention}`,
-		embeds: [caseEmbed],
+	await globalThis.caseChannel.send({
+		content: `Case Created: Case #${fullCase.getCaseId()}`,
+		embeds: [summaryEmbed],
+	});
+
+	// Send a notification to the case thread about the new case
+	const fullEmbed = await fullCase.generatePrivateEmbed();
+	const caseThreadMessage = await caseThread.send({
+		content: `<@&${moderatorRoleId}> A new case has been opened.\nCase #${fullCase.getCaseId()} | ${subjectMention} `,
+		embeds: [fullEmbed],
+		components: [generateCaseButtons(fullCase.getCaseId())],
 	});
 	// Update the case with the message link
-	fullCase.setCaseLink(caseMessage.url);
+	fullCase.setCaseLink(caseThreadMessage.url);
 	await globalThis.databaseManager.updateCase(fullCase.getCaseId(), {
-		case_link: caseMessage.url,
-	});
-	// Send a notification to the case thread about the new case
-	const caseThreadMessage = await caseThread.send({
-		content: `<@&${moderatorRoleId}> A new case has been opened.`,
-		embeds: [caseEmbed],
-		components: [generateCaseButtons(fullCase.getCaseId())],
+		case_link: caseThreadMessage.url,
 	});
 	// Pin the case thread message to make it easily accessible for moderators
 	await caseThreadMessage

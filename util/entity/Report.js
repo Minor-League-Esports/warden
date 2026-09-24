@@ -212,9 +212,9 @@ class Report {
 				? `[#${this.getCaseId()}](${caseLink})`
 				: `#${this.getCaseId()}`
 			: 'None';
-		const reportIdValue = this.getReportThreadLink()
-			? `[#${this.getReportId()}](${this.getReportThreadLink()})`
-			: 'None';
+		const reportIdValue = this.getReportLink()
+			? `[#${this.getReportId()}](${this.getReportLink()})`
+			: `#${this.getReportId()}`;
 		const embed = new EmbedBuilder()
 			.setTitle(`Report #${this.getReportId() ?? 'None'}`)
 			.setTimestamp(new Date(this.getReportTimestamp() ?? new Date().toISOString()))
@@ -245,9 +245,9 @@ class Report {
 				? `[#${this.getCaseId()}](${caseLink})`
 				: `#${this.getCaseId()}`
 			: 'None';
-		const reportIdValue = this.getReportThreadLink()
-			? `[#${this.getReportId()}](${this.getReportThreadLink()})`
-			: 'None';
+		const reportIdValue = this.getReportLink()
+			? `[#${this.getReportId()}](${this.getReportLink()})`
+			: `#${this.getReportId()}`;
 		const embed = new EmbedBuilder()
 			.setTitle(`${subject?.getUserName() ?? 'User'} | Report`)
 			.setTimestamp(new Date(this.getReportTimestamp() ?? new Date().toISOString()))

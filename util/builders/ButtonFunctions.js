@@ -41,15 +41,12 @@ function generateUserSummaryButtons(dbId, caseId = null) {
 	return [actionRow];
 }
 
-function generateReportModButtons(reportId) {
-	const createNewCaseButton = new ButtonBuilder()
-		.setCustomId(`createNewCaseButton:${reportId}`)
-		.setLabel('Create New Case')
-		.setStyle(ButtonStyle.Success);
-	const addToCaseButton = new ButtonBuilder()
-		.setCustomId(`addToCaseButton:${reportId}`)
-		.setLabel('Add to Case')
-		.setStyle(ButtonStyle.Primary);
+function generateCaseReportButtons(reportId, { acknowledged = false, closed = false } = {}) {
+	const acknowledgeButton = new ButtonBuilder()
+		.setCustomId(`reportAcknowledgeButton:${reportId}`)
+		.setLabel(acknowledged ? 'Acknowledged' : 'Acknowledge')
+		.setStyle(ButtonStyle.Success)
+		.setDisabled(acknowledged);
 	const addNoteButton = new ButtonBuilder()
 		.setCustomId(`reportAddNoteButton:${reportId}`)
 		.setLabel('Add Note')
@@ -58,7 +55,51 @@ function generateReportModButtons(reportId) {
 		.setCustomId(`reportReplyButton:${reportId}`)
 		.setLabel('Reply')
 		.setStyle(ButtonStyle.Primary);
-	return [new ActionRowBuilder().addComponents(createNewCaseButton, addToCaseButton, addNoteButton, replyButton)];
+	const closeButton = new ButtonBuilder()
+		.setCustomId(`reportCloseButton:${reportId}`)
+		.setLabel(closed ? 'Closed' : 'Close Report')
+		.setStyle(ButtonStyle.Danger)
+		.setDisabled(closed);
+	return [new ActionRowBuilder().addComponents(acknowledgeButton, addNoteButton, replyButton, closeButton)];
+}
+
+function generateReportModButtons(reportId, { acknowledged = false, hasCase = false, closed = false } = {}) {
+	const createNewCaseButton = new ButtonBuilder()
+		.setCustomId(`createNewCaseButton:${reportId}`)
+		.setLabel('Create New Case')
+		.setStyle(ButtonStyle.Success);
+	const addToCaseButton = new ButtonBuilder()
+		.setCustomId(`addToCaseButton:${reportId}`)
+		.setLabel('Add to Case')
+		.setStyle(ButtonStyle.Primary);
+	const acknowledgeButton = new ButtonBuilder()
+		.setCustomId(`reportAcknowledgeButton:${reportId}`)
+		.setLabel(acknowledged ? 'Acknowledged' : 'Acknowledge')
+		.setStyle(ButtonStyle.Success)
+		.setDisabled(acknowledged);
+	const addNoteButton = new ButtonBuilder()
+		.setCustomId(`reportAddNoteButton:${reportId}`)
+		.setLabel('Add Note')
+		.setStyle(ButtonStyle.Secondary);
+	const replyButton = new ButtonBuilder()
+		.setCustomId(`reportReplyButton:${reportId}`)
+		.setLabel('Reply')
+		.setStyle(ButtonStyle.Primary);
+	const closeButton = new ButtonBuilder()
+		.setCustomId(`reportCloseButton:${reportId}`)
+		.setLabel(closed ? 'Closed' : 'Close Report')
+		.setStyle(ButtonStyle.Danger)
+		.setDisabled(hasCase || closed);
+	return [
+		new ActionRowBuilder().addComponents(
+			createNewCaseButton,
+			addToCaseButton,
+			acknowledgeButton,
+			addNoteButton,
+			replyButton,
+			closeButton,
+		),
+	];
 }
 
 function generateCaseButtons(caseId, { claimed = false, closed = false } = {}) {
@@ -202,4 +243,5 @@ module.exports = {
 	generateUserSummaryButtons,
 	generateReportConfirmationButtons,
 	generateReportModButtons,
+	generateCaseReportButtons,
 };

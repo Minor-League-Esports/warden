@@ -6,7 +6,7 @@ logger.level = logLevel;
 const { MessageFlags } = require('discord.js');
 const { generateReportUpdateButton } = require('../../../util/builders/ButtonFunctions');
 const { createCaseMessage } = require('../../../util/message/CaseMessageFunctions');
-const { createReportMessage } = require('../../../util/message/ReportMessageFunctions');
+const { createReportMessage, attachReportToCaseThread } = require('../../../util/message/ReportMessageFunctions');
 
 async function handleConfirmReportSubmissionButtonClick(interaction) {
 	const buttonId = interaction.customId;
@@ -96,7 +96,7 @@ async function handleConfirmReportSubmissionButtonClick(interaction) {
 			const updatedCase = await globalThis.databaseManager.getCaseById(newCase.getCaseId());
 			logger.debug(`Updated case retrieved`);
 			logger.debug(updatedCase);
-			await createReportMessage(report, updatedCase);
+			await attachReportToCaseThread(report, updatedCase);
 		} else {
 			// If there is at least one open case, don't attach to a case at all, let it happen manually
 			await createReportMessage(report);

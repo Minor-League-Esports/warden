@@ -4,7 +4,47 @@ const { moderatorRoleId, logLevel } = require('../../config.json');
 logger.level = logLevel;
 
 const { ChannelType } = require('discord.js');
-const { generateUserSummaryButtons, generateReportModButtons } = require('../builders/ButtonFunctions');
+const {
+	generateUserSummaryButtons,
+	generateReportModButtons,
+	generateCaseReportButtons,
+} = require('../builders/ButtonFunctions');
+
+async function attachReportToCaseThread(reportObj, caseObj) {
+	// Fetch the report
+	const fullReport = await globalThis.databaseManager.getReportById(reportObj.getReportId());
+	// Fetch the case thread
+	const caseThread = await globalThis.reportChannel.client.channels.fetch(
+		caseObj.getCaseThreadLink().slice(caseObj.getCaseThreadLink().lastIndexOf('/') + 1),
+	);
+	if (caseThread) {
+		const reportEmbed = await fullReport.generatePrivateEmbed(caseObj?.getCaseThreadLink());
+		const reportMessage = await caseThread.send({
+			content: `<@&${moderatorRoleId}> A report has been attached to case #${caseObj.getCaseId()}.`,
+			embeds: [reportEmbed],
+			components: generateCaseReportButtons(fullReport.getReportId()),
+		});
+		// Update the report with the message link
+		fullReport.setReportLink(reportMessage.url);
+		await globalThis.databaseManager.updateReport(fullReport.getReportId(), {
+			report_link: reportMessage.url,
+		});
+		// Update the case embed with the new report link
+		const fullCase = await globalThis.databaseManager.getCaseById(caseObj.getCaseId());
+		const caseMessage = await caseThread.messages.fetch(fullCase.getCaseLink().split('/').pop());
+		if (caseMessage) {
+			const caseEmbed = await fullCase.generatePrivateEmbed();
+			await caseMessage.edit({ embeds: [caseEmbed] });
+		}
+	} else {
+		logger.warn(`Case thread not found for link: ${caseObj.getCaseThreadLink()}`);
+		await createStandaloneReportMessage(reportObj);
+	}
+}
+
+async function createStandaloneReportMessage(reportObj) {
+	return createReportMessage(reportObj, null);
+}
 
 async function createReportMessage(reportObj, caseObj = null) {
 	// Fetch the report
@@ -42,6 +82,23 @@ async function createReportMessage(reportObj, caseObj = null) {
 	});
 	const reportEmbed = await fullReport.generatePrivateEmbed(caseObj?.getCaseThreadLink());
 	// Send a notification to the report thread about the new report
+	if (caseObj?.getCaseThreadLink()) {
+		reportThread.send(`Forwarded to [case thread](${caseObj.getCaseThreadLink()})`);
+		// We store the full discord link to the channel thread, need to slice the URL to get the channel ID
+		const caseThread = await globalThis.reportChannel.client.channels.fetch(
+			caseObj.getCaseThreadLink().slice(caseObj.getCaseThreadLink().lastIndexOf('/') + 1),
+		);
+		if (caseThread) {
+			await caseThread.send({
+				content: `<@&${moderatorRoleId}> A new report has been submitted.`,
+				embeds: [reportEmbed],
+				components: generateReportModButtons(fullReport.getReportId()),
+			});
+		} else {
+			logger.warn(`Case thread not found for link: ${caseObj.getCaseThreadLink()}`);
+		}
+	} else {
+	}
 	const reportThreadMessage = await reportThread.send({
 		content: `${caseObj?.getCaseThreadLink() ? `Forwarded to [case thread](${caseObj.getCaseThreadLink()})\n` : ''} <@&${moderatorRoleId}> A new report has been submitted.`,
 		embeds: [reportEmbed],
@@ -53,13 +110,6 @@ async function createReportMessage(reportObj, caseObj = null) {
 		.catch((error) => logger.warn(`Could not pin Report #${fullReport.getReportId()} message: ${error}`));
 	// Forward the report into the case thread if it exists
 	if (caseObj?.getCaseThreadLink()) {
-		// We store the full discord link to the channel thread, need to slice the URL to get the channel ID
-		const caseThread = await globalThis.reportChannel.client.channels.fetch(
-			caseObj.getCaseThreadLink().slice(caseObj.getCaseThreadLink().lastIndexOf('/') + 1),
-		);
-		if (caseThread) {
-			await reportThreadMessage.forward(caseThread.id);
-		}
 	}
 
 	try {
@@ -80,4 +130,5 @@ async function createReportMessage(reportObj, caseObj = null) {
 
 module.exports = {
 	createReportMessage,
+	attachReportToCaseThread,
 };
