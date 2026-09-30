@@ -289,8 +289,6 @@ module.exports = {
 	resolveEvidenceLinksForUser,
 	resolveEvidenceLinksForModerators,
 	notifyCaseThread,
-	refreshReportMessage,
-	acknowledgeReport,
 	getCaseLinkById,
 	buildWarnUserModal,
 	buildModeratorNoteModal,
@@ -316,51 +314,6 @@ async function notifyCaseThread(client, caseId, content) {
 	} catch (error) {
 		logger.warn(`Failed to notify case thread for case ${caseId}: ${error}`);
 	}
-}
-
-/**
- * Re-renders a report's moderator-facing embed on its original message (e.g. after it's attached to a case).
- *
- * @param {Report} report
- * @param {String|null} caseLink Optional jump link to the case's discussion thread
- */
-async function refreshReportMessage(report, caseLink = null) {
-	if (!report.getReportLink()) return;
-	try {
-		const reportMessage = await globalThis.reportChannel.messages.fetch(report.getReportLink().split('/').pop());
-		const embed = await report.generatePrivateEmbed(caseLink);
-		await reportMessage.edit({ embeds: [embed] });
-	} catch (error) {
-		logger.warn(`Failed to refresh report message for report ${report.getReportId()}: ${error}`);
-	}
-}
-
-/**
- * Marks a report as acknowledged and DMs the reporter to let them know moderators are on it.
- *
- * @param {import('discord.js').Client} client
- * @param {String} reportId
- * @returns {Promise<Report>} The updated Report
- */
-async function acknowledgeReport(client, reportId) {
-	const report = await globalThis.databaseManager.updateReport(reportId, {
-		acknowledge_timestamp: new Date().toISOString(),
-		status: 'ACKNOWLEDGED',
-	});
-	const reportEmbed = await report.generateUserEmbed();
-
-	try {
-		const reporter = await globalThis.databaseManager.getUserByIdentifier(report.getReporterId(), 'db');
-		const reporterDiscordUser = await client.users.fetch(reporter.getDiscordId());
-		await reporterDiscordUser.send({
-			content: `A member of MLE Moderation has acknowledged your report #${report.getReportId()}. Our team will begin our reviewing the details provided.`,
-			embeds: [reportEmbed],
-		});
-	} catch (dmError) {
-		logger.warn(`Could not DM reporter for report ${reportId}: ${dmError}`);
-	}
-
-	return report;
 }
 
 /**
@@ -547,4 +500,16 @@ function getContributingWarnings(warnings, asOf = Date.now()) {
 	return contributingIdx.map((i) => sorted[i]);
 }
 
+/**
+ * Converts a JS date object into a Discord timestamp format
+ * <t:1790804566:S> becomes 09/30/2026, 4:42:46 PM (localized)
+ *
+ * @param {Date} date
+ * @returns {string} Discord timestamp string in the format <t:TIMESTAMP:S>
+ */
+function convertDateToTimestamp(date) {
+	return `<t:${Math.floor(date.getTime() / 1000)}:S>`;
+}
+
 module.exports.getContributingWarnings = getContributingWarnings;
+module.exports.convertDateToTimestamp = convertDateToTimestamp;

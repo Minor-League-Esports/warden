@@ -6,6 +6,7 @@ logger.level = logLevel;
 const { Events } = require('discord.js');
 const { handleOpenUserReportModalButtonClick } = require('./button/report/onOpenUserReportModalButtonClick');
 const { handleConfirmReportSubmissionButtonClick } = require('./button/report/onConfirmReportSubmissionButtonClick');
+const { handleAcknowledgeReportButtonClick } = require('./button/report/onAcknowledgeReportButtonClick');
 
 module.exports = {
 	name: Events.InteractionCreate,
@@ -17,6 +18,8 @@ module.exports = {
 			await handleOpenUserReportModalButtonClick(interaction);
 		} else if (buttonId.startsWith('confirmReportSubmissionButton')) {
 			await handleConfirmReportSubmissionButtonClick(interaction);
+		} else if (buttonId.startsWith('reportAcknowledgeButton')) {
+			await handleAcknowledgeReportButtonClick(interaction);
 		}
 	},
 };

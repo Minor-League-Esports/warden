@@ -4,7 +4,7 @@ const { logLevel } = require('../../config.json');
 logger.level = logLevel;
 
 const { EmbedBuilder } = require('discord.js');
-const { chunkTextPreserveNewlines } = require('../UtilFunctions');
+const { chunkTextPreserveNewlines, convertDateToTimestamp } = require('../UtilFunctions');
 
 class Case {
 	// Getters and setters
@@ -255,7 +255,7 @@ class Case {
 		}
 
 		if (this.getClosedAt()) {
-			embed.addFields({ name: 'Closed At', value: new Date(this.getClosedAt()).toISOString() });
+			embed.addFields({ name: 'Closed At', value: convertDateToTimestamp(new Date(this.getClosedAt())) });
 		}
 
 		return embed;

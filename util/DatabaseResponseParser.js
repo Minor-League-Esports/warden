@@ -156,6 +156,21 @@ class DatabaseResponseParser {
 			r.setReporter(buildUserFromPrefix(row, 'u_rep'));
 			r.setSubjectUser(buildUserFromPrefix(row, 'u_user'));
 			r.setModerator(buildUserFromPrefix(row, 'u_mod'));
+			// Build the case object
+			if (row['c_id']) {
+				const kase = new Case();
+				kase.setCaseId(row['c_id']);
+				kase.setCreatorId(row['c_creator_id']);
+				kase.setSubjectId(row['c_subject_id']);
+				kase.setModeratorId(row['c_moderator_id']);
+				kase.setStatus(row['c_status']);
+				kase.setCreatedAt(row['c_created_at']);
+				kase.setClosedAt(row['c_closed_at']);
+				kase.setNotes(row['c_moderator_notes']);
+				kase.setCaseLink(row['c_case_link']);
+				kase.setCaseThreadLink(row['c_case_thread_link']);
+				r.setCase(kase);
+			}
 			reports.push(r);
 		}
 

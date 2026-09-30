@@ -8,6 +8,7 @@ const {
 	chunkTextPreserveNewlines,
 	resolveEvidenceLinksForUser,
 	resolveEvidenceLinksForModerators,
+	convertDateToTimestamp,
 } = require('../UtilFunctions');
 
 class Report {
@@ -154,9 +155,9 @@ class Report {
 
 	addReasonDetails(details) {
 		if (this._reportReason && this._reportReason != 'N/A') {
-			this._reportReason += `\n__${new Date().toISOString()}__\n${details}`;
+			this._reportReason += `\n__${convertDateToTimestamp(new Date())}__\n${details}`;
 		} else {
-			this._reportReason = `__${new Date().toISOString()}__\n${details}`;
+			this._reportReason = `__${convertDateToTimestamp(new Date())}__\n${details}`;
 		}
 	}
 
@@ -170,9 +171,9 @@ class Report {
 
 	addReportEvidence(evidence) {
 		if (this._reportEvidence && this._reportEvidence != 'N/A') {
-			this._reportEvidence += `\n__${new Date().toISOString()}__\n${evidence}`;
+			this._reportEvidence += `\n__${convertDateToTimestamp(new Date())}__\n${evidence}`;
 		} else {
-			this._reportEvidence = `__${new Date().toISOString()}__\n${evidence}`;
+			this._reportEvidence = `__${convertDateToTimestamp(new Date())}__\n${evidence}`;
 		}
 	}
 
@@ -204,12 +205,20 @@ class Report {
 		return this._response;
 	}
 
-	async generateSummaryEmbed(caseLink = null) {
+	isAcknowledged() {
+		return this._acknowledgeTimestamp != null;
+	}
+
+	isClosed() {
+		return this._closeTimestamp != null;
+	}
+
+	async generateSummaryEmbed() {
 		const subject = await globalThis.databaseManager.getUserByIdentifier(this.getSubjectId(), 'db');
 		const reporter = await globalThis.databaseManager.getUserByIdentifier(this.getReporterId(), 'db');
-		const caseIdValue = this.getCaseId()
-			? caseLink
-				? `[#${this.getCaseId()}](${caseLink})`
+		const caseIdValue = this.getCase()
+			? this.getCase().getCaseThreadLink()
+				? `[#${this.getCaseId()}](${this.getCase().getCaseThreadLink()})`
 				: `#${this.getCaseId()}`
 			: 'None';
 		const reportIdValue = this.getReportLink()
@@ -234,15 +243,14 @@ class Report {
 	/**
 	 * Generates an embed for moderator view of a report
 	 *
-	 * @param {String|null} caseLink Optional jump link to the case's discussion thread
 	 * @returns {EmbedBuilder}
 	 */
-	async generatePrivateEmbed(caseLink = null) {
+	async generatePrivateEmbed() {
 		const subject = await globalThis.databaseManager.getUserByIdentifier(this.getSubjectId(), 'db');
 		const reporter = await globalThis.databaseManager.getUserByIdentifier(this.getReporterId(), 'db');
-		const caseIdValue = this.getCaseId()
-			? caseLink
-				? `[#${this.getCaseId()}](${caseLink})`
+		const caseIdValue = this.getCase()
+			? this.getCase().getCaseThreadLink()
+				? `[#${this.getCaseId()}](${this.getCase().getCaseThreadLink()})`
 				: `#${this.getCaseId()}`
 			: 'None';
 		const reportIdValue = this.getReportLink()
@@ -302,12 +310,16 @@ class Report {
 		if (this.getAcknowledgeTimestamp()) {
 			embed.addFields({
 				name: 'Acknowledged At',
-				value: new Date(this.getAcknowledgeTimestamp()).toISOString(),
+				value: convertDateToTimestamp(new Date(this.getAcknowledgeTimestamp())),
 				inline: true,
 			});
 		}
 		if (this.getCloseTimestamp()) {
-			embed.addFields({ name: 'Closed At', value: new Date(this.getCloseTimestamp()).toISOString(), inline: true });
+			embed.addFields({
+				name: 'Closed At',
+				value: convertDateToTimestamp(new Date(this.getCloseTimestamp())),
+				inline: true,
+			});
 		}
 
 		return embed;
@@ -373,12 +385,16 @@ class Report {
 		if (this.getAcknowledgeTimestamp()) {
 			embed.addFields({
 				name: 'Acknowledged At',
-				value: new Date(this.getAcknowledgeTimestamp()).toISOString(),
+				value: convertDateToTimestamp(new Date(this.getAcknowledgeTimestamp())),
 				inline: true,
 			});
 		}
 		if (this.getCloseTimestamp()) {
-			embed.addFields({ name: 'Closed At', value: new Date(this.getCloseTimestamp()).toISOString(), inline: true });
+			embed.addFields({
+				name: 'Closed At',
+				value: convertDateToTimestamp(new Date(this.getCloseTimestamp())),
+				inline: true,
+			});
 		}
 
 		return embed;

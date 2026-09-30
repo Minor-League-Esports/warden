@@ -1,12 +1,12 @@
 const log4js = require('log4js');
 const logger = log4js.getLogger('onConfirmReportSubmissionButtonClick');
-const { logLevel } = require('../../../config.json');
+const { logLevel, modmailUserId } = require('../../../config.json');
 logger.level = logLevel;
 
 const { MessageFlags } = require('discord.js');
 const { generateReportUpdateButton } = require('../../../util/builders/ButtonFunctions');
 const { createCaseMessage } = require('../../../util/message/CaseMessageFunctions');
-const { createReportMessage, attachReportToCaseThread } = require('../../../util/message/ReportMessageFunctions');
+const { attachReportToCaseThread } = require('../../../util/message/ReportMessageFunctions');
 
 async function handleConfirmReportSubmissionButtonClick(interaction) {
 	const buttonId = interaction.customId;
@@ -98,8 +98,13 @@ async function handleConfirmReportSubmissionButtonClick(interaction) {
 			logger.debug(updatedCase);
 			await attachReportToCaseThread(report, updatedCase);
 		} else {
-			// If there is at least one open case, don't attach to a case at all, let it happen manually
-			await createReportMessage(report);
+			// If there is at least one open case, attach to the first open case
+			await globalThis.databaseManager.attachReportToCase(report.getReportId(), openCases[0].getCaseId());
+			// Get the updated case
+			const updatedCase = await globalThis.databaseManager.getCaseById(openCases[0].getCaseId());
+			logger.debug(`Updated case retrieved`);
+			logger.debug(updatedCase);
+			await attachReportToCaseThread(report, updatedCase);
 		}
 
 		// Generate the user-facing embed for the report and update the interaction reply
@@ -128,7 +133,7 @@ async function handleConfirmReportSubmissionButtonClick(interaction) {
 		logger.error(`Error creating report in database: ${error}`);
 		// await interaction.editReply({ components: [] });
 		await interaction.followUp({
-			content: 'There was an error submitting your report. Please try again later.',
+			content: `There was an error submitting your report. Please try again later or contact <@&${modmailUserId}>.`,
 			flags: MessageFlags.Ephemeral,
 		});
 		return;

@@ -55,12 +55,15 @@ async function createCaseMessage(caseObj) {
 			globalThis.databaseManager.getWarnings(fullCase.getSubjectId()),
 			globalThis.databaseManager.getCasesBySubjectId(fullCase.getSubjectId()),
 		]);
+		// Don't include the current case in the subject's case history
+		const filteredCases = cases.filter((c) => c.getCaseId() !== fullCase.getCaseId());
 		subjectUser.setWarnings(warnings);
-		subjectUser.setCases(cases);
-		await caseThread.send({
+		subjectUser.setCases(filteredCases);
+		const summaryMessage = await caseThread.send({
 			embeds: [subjectUser.generateUserSummaryEmbed()],
 			components: generateUserSummaryButtons(subjectUser.getUserId()),
 		});
+		await summaryMessage.pin();
 	} catch (historyError) {
 		logger.error(`Failed to add subject history to case ${fullCase.getCaseId()} thread: ${historyError}`);
 	}
