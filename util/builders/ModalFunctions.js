@@ -29,6 +29,38 @@ function buildReportUserModal(dbId) {
 	return modal;
 }
 
+function buildReportReplyModal(dbId) {
+	const modal = new ModalBuilder().setCustomId(`reportReplyModal:${dbId}`).setTitle('Reply to Reporter');
+
+	const replyInput = new TextInputBuilder()
+		.setCustomId('reply')
+		.setStyle(TextInputStyle.Paragraph)
+		.setPlaceholder('Provide your reply to the report here.')
+		.setRequired(true);
+	const replyInputLabel = new LabelBuilder().setLabel('Reply').setTextInputComponent(replyInput);
+
+	modal.addLabelComponents(replyInputLabel);
+
+	return modal;
+}
+
+function buildReportAddNoteModal(dbId) {
+	const modal = new ModalBuilder().setCustomId(`addModeratorNoteModal:report:${dbId}`).setTitle('Add Moderator Note');
+
+	const noteInput = new TextInputBuilder()
+		.setCustomId('note')
+		.setStyle(TextInputStyle.Paragraph)
+		.setPlaceholder('Provide your note regarding this report.')
+		.setRequired(true);
+	const noteInputLabel = new LabelBuilder().setLabel('Moderator Note').setTextInputComponent(noteInput);
+
+	modal.addLabelComponents(noteInputLabel);
+
+	return modal;
+}
+
 module.exports = {
 	buildReportUserModal,
+	buildReportReplyModal,
+	buildReportAddNoteModal,
 };

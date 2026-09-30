@@ -24,6 +24,10 @@ async function handleConfirmCloseReportButtonClick(interaction) {
 	}
 	await closeReport(interaction.client, dbId);
 	await interaction.editReply({ content: `Report #${dbId} has been closed.` });
+	await interaction.message.edit({
+		content: `Report #${dbId} has been closed.`,
+		components: [],
+	});
 }
 
 module.exports = {

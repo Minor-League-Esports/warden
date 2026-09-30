@@ -212,6 +212,19 @@ function generateUnmuteConfirmationButtons(dbId) {
 	return [actionRow];
 }
 
+function generateReportReplyConfirmationButtons(dbId) {
+	const confirmButton = new ButtonBuilder()
+		.setCustomId(`reportReplyConfirmButton:${dbId}`)
+		.setLabel('Confirm Reply')
+		.setStyle(ButtonStyle.Success);
+	const cancelButton = new ButtonBuilder()
+		.setCustomId(`cancelReportReplyButton:${dbId}`)
+		.setLabel('Cancel')
+		.setStyle(ButtonStyle.Danger);
+	const actionRow = new ActionRowBuilder().addComponents(confirmButton, cancelButton);
+	return [actionRow];
+}
+
 module.exports = {
 	generateCaseButtons,
 	generateCloseCaseConfirmationButtons,
@@ -223,6 +236,7 @@ module.exports = {
 	generateReportUpdateButton,
 	generateUnbanConfirmationButtons,
 	generateUnmuteConfirmationButtons,
+	generateReportReplyConfirmationButtons,
 	generateUserSummaryButtons,
 	generateReportConfirmationButtons,
 	generateReportModButtons,

@@ -103,6 +103,31 @@ async function acknowledgeReport(client, reportId) {
 	return report;
 }
 
+async function replyToReport(client, reportId, replyContent) {
+	const report = await globalThis.databaseManager.getReportById(reportId);
+	if (!report) throw new Error(`Report with ID ${reportId} not found`);
+
+	report.addReasonDetails(`**(MLE Moderation)**: ${replyContent}`);
+	await globalThis.databaseManager.updateReport(reportId, { report_reason: report.getReportReason() });
+
+	const reportEmbed = await report.generateUserEmbed();
+
+	try {
+		const reporter = await globalThis.databaseManager.getUserByIdentifier(report.getReporterId(), 'db');
+		const reporterDiscordUser = await client.users.fetch(reporter.getDiscordId());
+		await reporterDiscordUser.send({
+			content: `A member of MLE Moderation has replied to your report #${report.getReportId()}.\n\n**(MLE Moderation)**: ${replyContent}`,
+			embeds: [reportEmbed],
+		});
+	} catch (dmError) {
+		logger.warn(`Could not DM reporter for report ${reportId}: ${dmError}`);
+	}
+
+	await refreshReportMessage(report);
+
+	return report;
+}
+
 async function closeReport(client, reportId) {
 	const report = await globalThis.databaseManager.getReportById(reportId);
 	if (!report) throw new Error(`Report with ID ${reportId} not found`);
@@ -138,4 +163,5 @@ module.exports = {
 	refreshReportMessage,
 	acknowledgeReport,
 	closeReport,
+	replyToReport,
 };

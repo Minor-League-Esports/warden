@@ -197,6 +197,14 @@ class Report {
 		return this._moderatorNotes;
 	}
 
+	addModeratorNote(note) {
+		if (this._moderatorNotes && this._moderatorNotes != 'N/A') {
+			this._moderatorNotes += `\n__${convertDateToTimestamp(new Date())}__\n${note}`;
+		} else {
+			this._moderatorNotes = `__${convertDateToTimestamp(new Date())}__\n${note}`;
+		}
+	}
+
 	setResponse(response) {
 		this._response = response;
 	}
