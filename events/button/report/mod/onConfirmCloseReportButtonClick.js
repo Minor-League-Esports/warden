@@ -1,10 +1,10 @@
 const log4js = require('log4js');
 const logger = log4js.getLogger('onConfirmCloseReportButtonClick');
-const { logLevel } = require('../../../config.json');
+const { logLevel } = require('../../../../config.json');
 const { MessageFlags } = require('discord.js');
 logger.level = logLevel;
 
-const { refreshReportMessage, closeReport } = require('../../../util/message/ReportMessageFunctions');
+const { refreshReportMessage, closeReport } = require('../../../../util/message/ReportMessageFunctions');
 
 async function handleConfirmCloseReportButtonClick(interaction) {
 	const buttonId = interaction.customId;
@@ -22,7 +22,7 @@ async function handleConfirmCloseReportButtonClick(interaction) {
 		await interaction.editReply({ content: `Report #${dbId} is already closed.` });
 		return;
 	}
-	await closeReport(interaction.client, dbId);
+	await closeReport(dbId);
 	await interaction.editReply({ content: `Report #${dbId} has been closed.` });
 	await interaction.message.edit({
 		content: `Report #${dbId} has been closed.`,

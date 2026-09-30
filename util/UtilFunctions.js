@@ -5,7 +5,7 @@ logger.level = logLevel;
 
 // Resolve evidence for user-facing embeds: only include current CDN attachment URLs.
 // Users typically cannot access the evidence channel, so omit jump URLs entirely.
-async function resolveEvidenceLinksForUser(rawEvidence) {
+async function resolveEvidenceLinksForUser(caseThreadLink, rawEvidence) {
 	try {
 		if (!rawEvidence || rawEvidence === 'N/A') {
 			return [];
@@ -24,15 +24,25 @@ async function resolveEvidenceLinksForUser(rawEvidence) {
 				results.push(line);
 				continue;
 			}
-			if (!globalThis.reportEvidenceChannel) {
+			if (!caseThreadLink) {
 				logger.warn('resolveEvidenceLinksForUser: evidence channel not initialized; skipping CDN resolution');
 				// Do not include jump URLs for users; omit line if it's only a jump URL.
 				// pure text safety
 				if (!hasAnyUrl) results.push(line);
 				continue;
 			}
+			const caseThread = await globalThis.discordClient.channels.fetch(
+				caseThreadLink.slice(caseThreadLink.lastIndexOf('/') + 1),
+			);
+			if (!caseThread) {
+				logger.warn('resolveEvidenceLinksForUser: failed to fetch evidence channel; skipping CDN resolution');
+				// Do not include jump URLs for users; omit line if it's only a jump URL.
+				// pure text safety
+				if (!hasAnyUrl) results.push(line);
+				continue;
+			}
 			try {
-				const message = await globalThis.reportEvidenceChannel.messages.fetch(messageId);
+				const message = await caseThread.messages.fetch(messageId);
 				const attachCount = message?.attachments?.size ?? 0;
 				if (attachCount > 0) {
 					for (const attachment of message.attachments.values()) {
@@ -58,7 +68,7 @@ async function resolveEvidenceLinksForUser(rawEvidence) {
 // Resolve evidence for moderator-facing embeds: one line per attachment as
 // "<cdn_url> (<jump_url>)". If fetching fails or there are no attachments,
 // include the original jump URL as a fallback.
-async function resolveEvidenceLinksForModerators(rawEvidence) {
+async function resolveEvidenceLinksForModerators(caseThreadLink, rawEvidence) {
 	try {
 		logger.debug('resolveEvidenceLinksForModerators: start');
 		if (!rawEvidence || rawEvidence === 'N/A') {
@@ -77,12 +87,15 @@ async function resolveEvidenceLinksForModerators(rawEvidence) {
 				results.push(line);
 				continue;
 			}
-			if (!globalThis.reportEvidenceChannel) {
+			const caseThread = await globalThis.discordClient.channels.fetch(
+				caseThreadLink.slice(caseThreadLink.lastIndexOf('/') + 1),
+			);
+			if (!caseThread) {
 				results.push(line);
 				continue;
 			}
 			try {
-				const message = await globalThis.reportEvidenceChannel.messages.fetch(messageId);
+				const message = await caseThread.messages.fetch(messageId);
 				const attachCount = message?.attachments?.size ?? 0;
 				if (attachCount > 0) {
 					for (const attachment of message.attachments.values()) {
@@ -291,8 +304,6 @@ module.exports = {
 	notifyCaseThread,
 	getCaseLinkById,
 	buildWarnUserModal,
-	buildModeratorNoteModal,
-	appendModeratorNote,
 };
 
 /**
@@ -387,54 +398,6 @@ function buildWarnUserModal(customId) {
 	);
 
 	return modal;
-}
-
-/**
- * Builds the moderator note modal used by commands and case/report action buttons.
- * @param {String} customId
- * @returns {import('discord.js').ModalBuilder}
- */
-function buildModeratorNoteModal(customId) {
-	const { ModalBuilder, TextInputBuilder, LabelBuilder, TextInputStyle } = require('discord.js');
-	const noteInput = new TextInputBuilder()
-		.setCustomId('note')
-		.setStyle(TextInputStyle.Paragraph)
-		.setPlaceholder('Add context, decisions, or follow-up information')
-		.setMaxLength(4000)
-		.setRequired(true);
-	const noteLabel = new LabelBuilder().setLabel('Moderator Note').setTextInputComponent(noteInput);
-	return new ModalBuilder().setCustomId(customId).setTitle('Add Moderator Note').addLabelComponents(noteLabel);
-}
-
-/**
- * Appends a timestamped moderator note to a case or report.
- * @param {'case'|'report'} targetType
- * @param {number|string} targetId
- * @param {String} moderatorName
- * @param {String} note
- * @returns {Promise<Case|Report>}
- */
-async function appendModeratorNote(targetType, targetId, moderatorName, note) {
-	const timestampedNote = `[${new Date().toISOString()}] ${moderatorName}: ${note.trim()}`;
-	if (targetType === 'case') {
-		const kase = await globalThis.databaseManager.getCaseById(targetId);
-		const existingNotes = kase.getNotes();
-		const combinedNotes = existingNotes === 'None' ? timestampedNote : `${existingNotes}\n${timestampedNote}`;
-		await globalThis.databaseManager.updateCase(targetId, { moderator_notes: combinedNotes });
-		kase.setNotes(combinedNotes);
-		return kase;
-	}
-
-	if (targetType === 'report') {
-		const report = await globalThis.databaseManager.getReportById(targetId);
-		const existingNotes = report.getModeratorNotes();
-		const combinedNotes = existingNotes ? `${existingNotes}\n${timestampedNote}` : timestampedNote;
-		await globalThis.databaseManager.updateReport(targetId, { moderator_notes: combinedNotes });
-		report.setModeratorNotes(combinedNotes);
-		return report;
-	}
-
-	throw new Error(`Unsupported moderator note target: ${targetType}`);
 }
 
 /**

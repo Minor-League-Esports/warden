@@ -4,14 +4,17 @@ const { logLevel } = require('../config.json');
 logger.level = logLevel;
 
 const { Events } = require('discord.js');
-const { handleOpenUserReportModalButtonClick } = require('./button/report/onOpenUserReportModalButtonClick');
-const { handleConfirmReportSubmissionButtonClick } = require('./button/report/onConfirmReportSubmissionButtonClick');
-const { handleAcknowledgeReportButtonClick } = require('./button/report/onAcknowledgeReportButtonClick');
-const { handleCloseReportButtonClick } = require('./button/report/onCloseReportButtonClick');
-const { handleConfirmCloseReportButtonClick } = require('./button/report/onConfirmCloseReportButtonClick');
-const { handleReportReplyButtonClick } = require('./button/report/onReportReplyButtonClick');
-const { handleReportAddNoteButtonClick } = require('./button/report/onReportAddNoteButtonClick');
-const { handleReportConfirmReplyButtonClick } = require('./button/report/onReportConfirmReplyButtonClick');
+const { handleOpenUserReportModalButtonClick } = require('./button/report/user/onOpenUserReportModalButtonClick');
+const {
+	handleConfirmReportSubmissionButtonClick,
+} = require('./button/report/user/onConfirmReportSubmissionButtonClick');
+const { handleAcknowledgeReportButtonClick } = require('./button/report/mod/onAcknowledgeReportButtonClick');
+const { handleCloseReportButtonClick } = require('./button/report/mod/onCloseReportButtonClick');
+const { handleConfirmCloseReportButtonClick } = require('./button/report/mod/onConfirmCloseReportButtonClick');
+const { handleReportReplyButtonClick } = require('./button/report/mod/onReportReplyButtonClick');
+const { handleReportAddNoteButtonClick } = require('./button/report/mod/onReportAddNoteButtonClick');
+const { handleReportConfirmReplyButtonClick } = require('./button/report/mod/onReportConfirmReplyButtonClick');
+const { handleReportUpdateButtonClick } = require('./button/report/user/onReportUpdateButtonClick');
 
 module.exports = {
 	name: Events.InteractionCreate,
@@ -35,6 +38,8 @@ module.exports = {
 			await handleReportAddNoteButtonClick(interaction);
 		} else if (buttonId.startsWith('reportReplyConfirmButton')) {
 			await handleReportConfirmReplyButtonClick(interaction);
+		} else if (buttonId.startsWith('reportUpdateButton')) {
+			await handleReportUpdateButtonClick(interaction);
 		}
 	},
 };

@@ -1,8 +1,8 @@
 const log4js = require('log4js');
 const logger = log4js.getLogger('onReportReplyModalSubmit');
-const { logLevel } = require('../../config.json');
+const { logLevel } = require('../../../config.json');
 logger.level = logLevel;
-const { generateReportReplyConfirmationButtons } = require('../../util/builders/ButtonFunctions');
+const { generateReportReplyConfirmationButtons } = require('../../../util/builders/ButtonFunctions');
 
 async function handleReportReplyModalSubmit(interaction) {
 	const modalId = interaction.customId;

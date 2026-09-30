@@ -9,7 +9,7 @@ async function attachReportToCaseThread(reportObj, caseObj) {
 	// Fetch the report
 	const fullReport = await globalThis.databaseManager.getReportById(reportObj.getReportId());
 	// Fetch the case thread
-	const caseThread = await globalThis.reportChannel.client.channels.fetch(
+	const caseThread = await globalThis.discordClient.channels.fetch(
 		caseObj.getCaseThreadLink().slice(caseObj.getCaseThreadLink().lastIndexOf('/') + 1),
 	);
 	if (!caseThread) {
@@ -47,7 +47,7 @@ async function refreshReportMessage(report) {
 	if (!report.getReportLink()) return;
 	try {
 		// Fetch the case thread
-		const caseThread = await globalThis.reportChannel.client.channels.fetch(
+		const caseThread = await globalThis.discordClient.channels.fetch(
 			report
 				.getCase()
 				.getCaseThreadLink()
@@ -67,14 +67,73 @@ async function refreshReportMessage(report) {
 	}
 }
 
+async function notifyReportUpdate(report, messageContent) {
+	if (!report.getReportLink()) return;
+	try {
+		// Fetch the case thread
+		const caseThread = await globalThis.discordClient.channels.fetch(
+			report
+				.getCase()
+				.getCaseThreadLink()
+				.slice(report.getCase().getCaseThreadLink().lastIndexOf('/') + 1),
+		);
+		const reportMessage = await caseThread.messages.fetch(report.getReportLink().split('/').pop());
+		if (!reportMessage) {
+			await caseThread.send({
+				content: messageContent,
+			});
+		} else {
+			await reportMessage.reply({
+				content: messageContent,
+			});
+		}
+	} catch (error) {
+		logger.warn(`Failed to notify report update for report ${report.getReportId()}: ${error}`);
+	}
+}
+
+async function attachEvidenceToReport(report, evidenceFiles) {
+	if (!report.getReportLink()) return;
+	try {
+		// Fetch the case thread
+		const caseThread = await globalThis.discordClient.channels.fetch(
+			report
+				.getCase()
+				.getCaseThreadLink()
+				.slice(report.getCase().getCaseThreadLink().lastIndexOf('/') + 1),
+		);
+		const reportMessage = await caseThread.messages.fetch(report.getReportLink().split('/').pop());
+		let evidenceMessage;
+		if (!reportMessage) {
+			evidenceMessage = await caseThread.send({
+				content: `Evidence files have been attached to report #${report.getReportId()}`,
+				files: evidenceFiles,
+			});
+		} else {
+			evidenceMessage = await reportMessage.reply({
+				content: `Evidence files have been attached to report #${report.getReportId()}`,
+				files: evidenceFiles,
+			});
+		}
+		report.addReportEvidence(evidenceMessage.url);
+		// Update the report in the DB with the new evidence files
+		await globalThis.databaseManager.updateReport(report.getReportId(), {
+			report_evidence: report.getReportEvidence(),
+		});
+		await refreshReportMessage(report);
+		return report;
+	} catch (error) {
+		logger.warn(`Failed to notify report update for report ${report.getReportId()}: ${error}`);
+	}
+}
+
 /**
  * Marks a report as acknowledged and DMs the reporter to let them know moderators are on it.
  *
- * @param {import('discord.js').Client} client
  * @param {String} reportId
  * @returns {Promise<Report>} The updated Report
  */
-async function acknowledgeReport(client, reportId) {
+async function acknowledgeReport(reportId) {
 	const report = await globalThis.databaseManager.getReportById(reportId);
 	if (!report) throw new Error(`Report with ID ${reportId} not found`);
 
@@ -90,7 +149,7 @@ async function acknowledgeReport(client, reportId) {
 
 	try {
 		const reporter = await globalThis.databaseManager.getUserByIdentifier(report.getReporterId(), 'db');
-		const reporterDiscordUser = await client.users.fetch(reporter.getDiscordId());
+		const reporterDiscordUser = await globalThis.discordClient.users.fetch(reporter.getDiscordId());
 		await reporterDiscordUser.send({
 			content: `A member of MLE Moderation has acknowledged your report #${report.getReportId()}. Our team will begin our reviewing the details provided.`,
 			embeds: [reportEmbed],
@@ -103,7 +162,7 @@ async function acknowledgeReport(client, reportId) {
 	return report;
 }
 
-async function replyToReport(client, reportId, replyContent) {
+async function replyToReport(reportId, replyContent) {
 	const report = await globalThis.databaseManager.getReportById(reportId);
 	if (!report) throw new Error(`Report with ID ${reportId} not found`);
 
@@ -114,7 +173,7 @@ async function replyToReport(client, reportId, replyContent) {
 
 	try {
 		const reporter = await globalThis.databaseManager.getUserByIdentifier(report.getReporterId(), 'db');
-		const reporterDiscordUser = await client.users.fetch(reporter.getDiscordId());
+		const reporterDiscordUser = await globalThis.discordClient.users.fetch(reporter.getDiscordId());
 		await reporterDiscordUser.send({
 			content: `A member of MLE Moderation has replied to your report #${report.getReportId()}.\n\n**(MLE Moderation)**: ${replyContent}`,
 			embeds: [reportEmbed],
@@ -128,7 +187,7 @@ async function replyToReport(client, reportId, replyContent) {
 	return report;
 }
 
-async function closeReport(client, reportId) {
+async function closeReport(reportId) {
 	const report = await globalThis.databaseManager.getReportById(reportId);
 	if (!report) throw new Error(`Report with ID ${reportId} not found`);
 
@@ -144,7 +203,7 @@ async function closeReport(client, reportId) {
 
 	try {
 		const reporter = await globalThis.databaseManager.getUserByIdentifier(report.getReporterId(), 'db');
-		const reporterDiscordUser = await client.users.fetch(reporter.getDiscordId());
+		const reporterDiscordUser = await globalThis.discordClient.users.fetch(reporter.getDiscordId());
 		await reporterDiscordUser.send({
 			content: `MLE Moderation has reviewed your report #${report.getReportId()} and concluded its investigation. Thank you for helping us maintain a safe community.`,
 			embeds: [reportEmbed],
@@ -164,4 +223,6 @@ module.exports = {
 	acknowledgeReport,
 	closeReport,
 	replyToReport,
+	notifyReportUpdate,
+	attachEvidenceToReport,
 };

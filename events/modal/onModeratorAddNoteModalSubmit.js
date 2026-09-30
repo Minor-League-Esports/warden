@@ -19,6 +19,14 @@ async function handleModeratorAddNoteModalSubmit(interaction) {
 		await interaction.editReply({
 			content: `${interaction.user.tag} added a note to ${type === 'case' ? 'Case' : 'Report'} #${dbId}.`,
 		});
+	} else if (type === 'case') {
+		const _case = await globalThis.databaseManager.getCaseById(dbId);
+		const note = interaction.fields.getTextInputValue('note').trim();
+		_case.addModeratorNote(`**(${interaction.user.tag})**: ${note}`);
+		await globalThis.databaseManager.updateCase(dbId, { moderator_notes: _case.getModeratorNotes() });
+		await interaction.editReply({
+			content: `${interaction.user.tag} added a note to Case #${dbId}.`,
+		});
 	}
 }
 

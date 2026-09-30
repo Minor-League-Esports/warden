@@ -1,9 +1,9 @@
 const log4js = require('log4js');
 const logger = log4js.getLogger('onReportReplyButtonClick');
-const { logLevel } = require('../../../config.json');
+const { logLevel } = require('../../../../config.json');
 logger.level = logLevel;
 
-const { buildReportReplyModal } = require('../../../util/builders/ModalFunctions');
+const { buildReportReplyModal } = require('../../../../util/builders/ModalFunctions');
 
 async function handleReportReplyButtonClick(interaction) {
 	const buttonId = interaction.customId;

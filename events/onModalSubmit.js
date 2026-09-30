@@ -4,9 +4,9 @@ const { logLevel } = require('../config.json');
 logger.level = logLevel;
 
 const { Events } = require('discord.js');
-const { handleReportUserModalSubmit } = require('./modal/onReportUserModalSubmit');
-const { handleReportUpdateModalSubmit } = require('./modal/onReportUpdateModalSubmit');
-const { handleReportReplyModalSubmit } = require('./modal/onReportReplyModalSubmit');
+const { handleReportUserModalSubmit } = require('./modal/report/onReportUserModalSubmit');
+const { handleReportUpdateModalSubmit } = require('./modal/report/onReportUpdateModalSubmit');
+const { handleReportReplyModalSubmit } = require('./modal/report/onReportReplyModalSubmit');
 const { handleModeratorAddNoteModalSubmit } = require('./modal/onModeratorAddNoteModalSubmit');
 
 module.exports = {
@@ -18,7 +18,7 @@ module.exports = {
 
 		if (modalId.startsWith('reportUserModal')) {
 			await handleReportUserModalSubmit(interaction);
-		} else if (modalId.startsWith('updateReportModal')) {
+		} else if (modalId.startsWith('reportUpdateModal')) {
 			await handleReportUpdateModalSubmit(interaction);
 		} else if (modalId.startsWith('reportReplyModal')) {
 			await handleReportReplyModalSubmit(interaction);

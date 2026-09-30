@@ -1,14 +1,14 @@
 const log4js = require('log4js');
 const logger = log4js.getLogger('onReportUserModalSubmit');
-const { logLevel } = require('../../config.json');
+const { logLevel } = require('../../../config.json');
 logger.level = logLevel;
 
 const { MessageFlags } = require('discord.js');
 const {
 	generateUserReportConfirmationEmbed,
 	generateFailedUserReportEmbed,
-} = require('../../util/builders/EmbedFunctions');
-const { generateReportConfirmationButtons } = require('../../util/builders/ButtonFunctions');
+} = require('../../../util/builders/EmbedFunctions');
+const { generateReportConfirmationButtons } = require('../../../util/builders/ButtonFunctions');
 
 async function handleReportUserModalSubmit(interaction) {
 	const modalId = interaction.customId;

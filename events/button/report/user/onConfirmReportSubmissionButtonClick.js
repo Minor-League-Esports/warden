@@ -1,12 +1,12 @@
 const log4js = require('log4js');
 const logger = log4js.getLogger('onConfirmReportSubmissionButtonClick');
-const { logLevel, modmailUserId } = require('../../../config.json');
+const { logLevel, modmailUserId } = require('../../../../config.json');
 logger.level = logLevel;
 
 const { MessageFlags } = require('discord.js');
-const { generateReportUpdateButton } = require('../../../util/builders/ButtonFunctions');
-const { createCaseMessage } = require('../../../util/message/CaseMessageFunctions');
-const { attachReportToCaseThread } = require('../../../util/message/ReportMessageFunctions');
+const { generateReportUpdateButton } = require('../../../../util/builders/ButtonFunctions');
+const { createCaseMessage } = require('../../../../util/message/CaseMessageFunctions');
+const { attachReportToCaseThread } = require('../../../../util/message/ReportMessageFunctions');
 
 async function handleConfirmReportSubmissionButtonClick(interaction) {
 	const buttonId = interaction.customId;

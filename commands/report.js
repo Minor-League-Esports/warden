@@ -1,19 +1,13 @@
 const log4js = require('log4js');
 const logger = log4js.getLogger('ReportCommand');
-const { logLevel, modmailUserId, moderatorRoleId } = require('../config.json');
+const { logLevel, modmailUserId } = require('../config.json');
 logger.level = logLevel;
 
-const {
-	SlashCommandBuilder,
-	MessageFlags,
-	ModalBuilder,
-	TextInputBuilder,
-	LabelBuilder,
-	TextInputStyle,
-} = require('discord.js');
-const { notifyCaseThread, getCaseLinkById } = require('../util/UtilFunctions');
+const { SlashCommandBuilder, MessageFlags } = require('discord.js');
 const { generateReportButtons, generateReportUpdateButton } = require('../util/builders/ButtonFunctions');
 const { generateReportEmbed } = require('../util/builders/EmbedFunctions');
+const { buildReportUpdateModal } = require('../util/builders/ModalFunctions');
+const { attachEvidenceToReport } = require('../util/message/ReportMessageFunctions');
 
 module.exports = {
 	data: new SlashCommandBuilder()
@@ -79,18 +73,7 @@ module.exports = {
 		if (subcommand === 'update') {
 			// Gather submitted data
 			const reportId = interaction.options.getInteger('report_id');
-
-			const modal = new ModalBuilder().setCustomId(`updateReportModal:${reportId}`).setTitle('Update Report');
-
-			const reasonInput = new TextInputBuilder()
-				.setCustomId('reason')
-				.setStyle(TextInputStyle.Paragraph)
-				.setPlaceholder('Please provide any additional details or updates regarding your report.')
-				.setRequired(true);
-			const reasonInputLabel = new LabelBuilder().setLabel('Reason for Report').setTextInputComponent(reasonInput);
-
-			modal.addLabelComponents(reasonInputLabel);
-
+			const modal = buildReportUpdateModal(reportId);
 			await interaction.showModal(modal);
 			return;
 		}
@@ -220,61 +203,12 @@ module.exports = {
 				return;
 			}
 
-			// Send the evidence files to the designated evidence channel
-			const message = await globalThis.reportEvidenceChannel.send({
-				content: `Evidence for Report ID ${reportId} submitted by ${user.getUserName()} (DB ID: ${user.getUserId()})`,
-				files: files,
-			});
-			logger.info(`Evidence files uploaded: ${message.url}`);
-			// Update the report object with the new evidence URL
-			report.addReportEvidence(message.url);
-			// Update the report in the DB with the new evidence files
-			await globalThis.databaseManager.updateReport(report.getReportId(), {
-				report_evidence: report.getReportEvidence(),
-			});
-			await notifyCaseThread(
-				interaction.client,
-				report.getCaseId(),
-				`Report #${reportId} was updated with new evidence: ${report.getReportLink() ?? 'N/A'}`,
-			);
-
-			// Generate the updated report embeds for the user and moderators
-			const reportMessageUrl = report.getReportLink();
-			const embed = await report.generateUserEmbed();
-			const updatedModEmbed = await report.generatePrivateEmbed(await getCaseLinkById(report.getCaseId()));
-
-			// Attempt to update the original report message in the report channel with the new evidence
-			try {
-				if (!reportMessageUrl) throw new Error('No report message URL found');
-				// Fetch the original report message from the report channel using the message ID extracted from the URL
-				const reportMessage = await globalThis.reportChannel.messages.fetch(reportMessageUrl.split('/').pop());
-				// Edit the original report message with the updated moderator embed
-				await reportMessage.edit({ embeds: [updatedModEmbed] });
-				// Get the thread associated with the report message
-				const reportThread = reportMessage.hasThread ? reportMessage.thread : null;
-				// Reply to the report thread if it exists, otherwise reply to the report message
-				if (reportThread) {
-					await reportThread.send(`This report has been updated with new evidence.`);
-				} else {
-					await reportMessage.reply(`This report has been updated with new evidence.`);
-				}
-				logger.info('Added evidence to report message for report ID ' + reportId);
-			} catch (e) {
-				logger.warn(`Failed to update report message for report ID ${reportId}`, e);
-				// If updating the original report message fails, send a new message with the updated moderator embed
-				const newMessage = await globalThis.reportChannel.send({
-					content: `<@&${moderatorRoleId}>\nPlease note that the report #${reportId} submitted by <@${user.getDiscordId()}> has been updated, but I was unable to update the original report message. Here is the updated report:`,
-					embeds: [updatedModEmbed],
-				});
-				// Update the report object with the new message URL in case the original message could not be updated
-				report.setReportLink(newMessage.url);
-				await globalThis.databaseManager.updateReport(report.getReportId(), { report_link: report.getReportLink() });
-			}
-
+			const updatedReport = await attachEvidenceToReport(report, files);
+			const updatedReportEmbed = await updatedReport.generateUserEmbed();
 			// Edit the interaction reply to show the updated report to the user
 			await interaction.editReply({
 				content: `Evidence has been successfully attached to report ID ${reportId}. Here is the updated report:`,
-				embeds: [embed],
+				embeds: [updatedReportEmbed],
 				components: generateReportUpdateButton(reportId),
 			});
 		} else {

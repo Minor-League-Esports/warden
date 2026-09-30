@@ -1,9 +1,9 @@
 const log4js = require('log4js');
 const logger = log4js.getLogger('onReportConfirmReplyButtonClick');
-const { logLevel } = require('../../../config.json');
+const { logLevel } = require('../../../../config.json');
 logger.level = logLevel;
 
-const { replyToReport } = require('../../../util/message/ReportMessageFunctions');
+const { replyToReport } = require('../../../../util/message/ReportMessageFunctions');
 
 async function handleReportConfirmReplyButtonClick(interaction) {
 	const buttonId = interaction.customId;
@@ -19,7 +19,7 @@ async function handleReportConfirmReplyButtonClick(interaction) {
 	const allModerationTexts = [...reasonContent.matchAll(/\*\*\(MLE Moderation\)\*\*: (.*)/g)].map((match) => match[1]);
 	const latestModerationText = allModerationTexts.pop();
 	logger.debug(`Latest moderation text: ${latestModerationText}`);
-	await replyToReport(interaction.client, dbId, latestModerationText);
+	await replyToReport(dbId, latestModerationText);
 	await interaction.editReply({
 		content: `Updated report #${dbId} with the latest moderation reply.`,
 	});

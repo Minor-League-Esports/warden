@@ -29,6 +29,21 @@ function buildReportUserModal(dbId) {
 	return modal;
 }
 
+function buildReportUpdateModal(dbId) {
+	const modal = new ModalBuilder().setCustomId(`reportUpdateModal:${dbId}`).setTitle(`Update Report #${dbId}`);
+
+	const updateInput = new TextInputBuilder()
+		.setCustomId('update')
+		.setStyle(TextInputStyle.Paragraph)
+		.setPlaceholder('Please provide any additional details or updates regarding your report.')
+		.setRequired(true);
+	const updateInputLabel = new LabelBuilder().setLabel('Update for Report').setTextInputComponent(updateInput);
+
+	modal.addLabelComponents(updateInputLabel);
+
+	return modal;
+}
+
 function buildReportReplyModal(dbId) {
 	const modal = new ModalBuilder().setCustomId(`reportReplyModal:${dbId}`).setTitle('Reply to Reporter');
 
@@ -61,6 +76,7 @@ function buildReportAddNoteModal(dbId) {
 
 module.exports = {
 	buildReportUserModal,
+	buildReportUpdateModal,
 	buildReportReplyModal,
 	buildReportAddNoteModal,
 };

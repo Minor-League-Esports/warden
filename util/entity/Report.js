@@ -287,7 +287,10 @@ class Report {
 		// Evidence (may be long)
 		let evidenceText = 'None';
 		try {
-			const lines = await resolveEvidenceLinksForModerators(this.getReportEvidence());
+			const lines = await resolveEvidenceLinksForModerators(
+				this.getCase().getCaseThreadLink(),
+				this.getReportEvidence(),
+			);
 			evidenceText = lines.length ? lines.join('\n') : 'None';
 		} catch (e) {
 			logger.error('Error building evidence for moderator embed', e);
@@ -369,7 +372,7 @@ class Report {
 		// Evidence (may be long)
 		let evidenceText = 'None';
 		try {
-			const cdnOnly = await resolveEvidenceLinksForUser(this.getReportEvidence());
+			const cdnOnly = await resolveEvidenceLinksForUser(this.getCase().getCaseThreadLink(), this.getReportEvidence());
 			evidenceText = cdnOnly.length ? cdnOnly.join('\n') : 'None';
 		} catch (e) {
 			logger.error('Error building evidence for user embed', e);
