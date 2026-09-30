@@ -103,8 +103,39 @@ async function acknowledgeReport(client, reportId) {
 	return report;
 }
 
+async function closeReport(client, reportId) {
+	const report = await globalThis.databaseManager.getReportById(reportId);
+	if (!report) throw new Error(`Report with ID ${reportId} not found`);
+
+	const timestamp = new Date().toISOString();
+	await globalThis.databaseManager.updateReport(reportId, {
+		close_timestamp: timestamp,
+		status: 'CLOSED',
+	});
+	report.setCloseTimestamp(timestamp);
+	report.setStatus('CLOSED');
+
+	const reportEmbed = await report.generateUserEmbed();
+
+	try {
+		const reporter = await globalThis.databaseManager.getUserByIdentifier(report.getReporterId(), 'db');
+		const reporterDiscordUser = await client.users.fetch(reporter.getDiscordId());
+		await reporterDiscordUser.send({
+			content: `MLE Moderation has reviewed your report #${report.getReportId()} and concluded its investigation. Thank you for helping us maintain a safe community.`,
+			embeds: [reportEmbed],
+		});
+	} catch (dmError) {
+		logger.warn(`Could not DM reporter for report ${reportId}: ${dmError}`);
+	}
+
+	await refreshReportMessage(report);
+
+	return report;
+}
+
 module.exports = {
 	attachReportToCaseThread,
 	refreshReportMessage,
 	acknowledgeReport,
+	closeReport,
 };
