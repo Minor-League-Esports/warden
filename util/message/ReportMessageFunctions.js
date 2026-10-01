@@ -53,17 +53,72 @@ async function refreshReportMessage(report) {
 				.getCaseThreadLink()
 				.slice(report.getCase().getCaseThreadLink().lastIndexOf('/') + 1),
 		);
+
+		if (!caseThread) {
+			logger.warn(`Failed to fetch case thread for link: ${report.getCase().getCaseThreadLink()}`);
+			throw new Error(`Failed to fetch case thread for link: ${report.getCase().getCaseThreadLink()}`);
+		}
+
+		if (report.getReportLink()) {
+			caseThread.messages
+				.fetch(report.getReportLink().split('/').pop())
+				.then(async (message) => {
+					const embed = await report.generatePrivateEmbed();
+					await message.edit({
+						embeds: [embed],
+						components: generateReportModButtons(report.getReportId(), {
+							acknowledged: report.isAcknowledged(),
+							closed: report.isClosed(),
+						}),
+					});
+				})
+				.catch(async (error) => {
+					// Error code for "unknown message"
+					if (error.code === 10008) {
+						logger.warn(`Failed to fetch report message for link: ${report.getReportLink()}`);
+						await recreateReportMessage(report);
+					} else {
+						logger.error(`Failed to fetch report message for link: ${report.getReportLink()}: ${error}`);
+						throw error;
+					}
+				});
+		} else {
+			await recreateReportMessage(report);
+		}
+	} catch (error) {
+		logger.warn(`Failed to refresh report message for report ${report.getReportId()}: ${error}`);
+	}
+}
+
+async function recreateReportMessage(report) {
+	try {
+		const caseThread = await globalThis.discordClient.channels.fetch(
+			report
+				.getCase()
+				.getCaseThreadLink()
+				.slice(report.getCase().getCaseThreadLink().lastIndexOf('/') + 1),
+		);
+		if (!caseThread) {
+			logger.warn(`Failed to fetch case thread for link: ${report.getCase().getCaseThreadLink()}`);
+			throw new Error(`Failed to fetch case thread for link: ${report.getCase().getCaseThreadLink()}`);
+		}
 		const embed = await report.generatePrivateEmbed();
-		const reportMessage = await caseThread.messages.fetch(report.getReportLink().split('/').pop());
-		await reportMessage.edit({
+		const newMessage = await caseThread.send({
+			content: `Recreating report message for link: ${report.getReportLink()}.`,
 			embeds: [embed],
 			components: generateReportModButtons(report.getReportId(), {
 				acknowledged: report.isAcknowledged(),
 				closed: report.isClosed(),
 			}),
 		});
+		report.setReportLink(newMessage.url);
+		await globalThis.databaseManager.updateReport(report.getReportId(), {
+			report_link: newMessage.url,
+		});
+		await newMessage.pin();
+		return newMessage;
 	} catch (error) {
-		logger.warn(`Failed to refresh report message for report ${report.getReportId()}: ${error}`);
+		logger.error(`Failed to recreate report message for report ${report.getReportId()}: ${error}`);
 	}
 }
 
@@ -77,13 +132,34 @@ async function notifyReportUpdate(report, messageContent) {
 				.getCaseThreadLink()
 				.slice(report.getCase().getCaseThreadLink().lastIndexOf('/') + 1),
 		);
-		const reportMessage = await caseThread.messages.fetch(report.getReportLink().split('/').pop());
-		if (!reportMessage) {
-			await caseThread.send({
-				content: messageContent,
-			});
+		if (!caseThread) {
+			logger.warn(`Failed to fetch case thread for link: ${report.getCase().getCaseThreadLink()}`);
+			throw new Error(`Failed to fetch case thread for link: ${report.getCase().getCaseThreadLink()}`);
+		}
+		if (report.getReportLink()) {
+			caseThread.messages
+				.fetch(report.getReportLink().split('/').pop())
+				.then(async (message) => {
+					await message.reply({
+						content: messageContent,
+					});
+				})
+				.catch(async (error) => {
+					// Error code for "unknown message"
+					if (error.code === 10008) {
+						logger.warn(`Failed to fetch report message for link: ${report.getReportLink()}`);
+						const newReportMessage = await recreateReportMessage(report);
+						await newReportMessage.reply({
+							content: messageContent,
+						});
+					} else {
+						logger.error(`Failed to fetch report message for link: ${report.getReportLink()}: ${error}`);
+						throw error;
+					}
+				});
 		} else {
-			await reportMessage.reply({
+			const newReportMessage = await recreateReportMessage(report);
+			await newReportMessage.reply({
 				content: messageContent,
 			});
 		}
@@ -102,26 +178,62 @@ async function attachEvidenceToReport(report, evidenceFiles) {
 				.getCaseThreadLink()
 				.slice(report.getCase().getCaseThreadLink().lastIndexOf('/') + 1),
 		);
-		const reportMessage = await caseThread.messages.fetch(report.getReportLink().split('/').pop());
-		let evidenceMessage;
-		if (!reportMessage) {
-			evidenceMessage = await caseThread.send({
-				content: `Evidence files have been attached to report #${report.getReportId()}`,
-				files: evidenceFiles,
-			});
-		} else {
-			evidenceMessage = await reportMessage.reply({
-				content: `Evidence files have been attached to report #${report.getReportId()}`,
-				files: evidenceFiles,
-			});
+		if (!caseThread) {
+			logger.warn(`Failed to fetch case thread for link: ${report.getCase().getCaseThreadLink()}`);
+			throw new Error(`Failed to fetch case thread for link: ${report.getCase().getCaseThreadLink()}`);
 		}
-		report.addReportEvidence(evidenceMessage.url);
-		// Update the report in the DB with the new evidence files
-		await globalThis.databaseManager.updateReport(report.getReportId(), {
-			report_evidence: report.getReportEvidence(),
-		});
-		await refreshReportMessage(report);
-		return report;
+
+		if (report.getReportLink()) {
+			caseThread.messages
+				.fetch(report.getReportLink().split('/').pop())
+				.then(async (message) => {
+					const evidenceMessage = await message.reply({
+						content: `Evidence files have been attached to report #${report.getReportId()}`,
+						files: evidenceFiles,
+					});
+					report.addReportEvidence(evidenceMessage.url);
+					// Update the report in the DB with the new evidence files
+					await globalThis.databaseManager.updateReport(report.getReportId(), {
+						report_evidence: report.getReportEvidence(),
+					});
+					await refreshReportMessage(report);
+					return report;
+				})
+				.catch(async (error) => {
+					// Error code for "unknown message"
+					if (error.code === 10008) {
+						logger.warn(`Failed to fetch report message for link: ${report.getReportLink()}`);
+						const newReportMessage = await recreateReportMessage(report);
+						await newReportMessage.reply({
+							content: `Evidence files have been attached to report #${report.getReportId()}`,
+							files: evidenceFiles,
+						});
+						report.addReportEvidence(evidenceMessage.url);
+						// Update the report in the DB with the new evidence files
+						await globalThis.databaseManager.updateReport(report.getReportId(), {
+							report_evidence: report.getReportEvidence(),
+						});
+						await refreshReportMessage(report);
+						return report;
+					} else {
+						logger.error(`Failed to fetch report message for link: ${report.getReportLink()}: ${error}`);
+						throw error;
+					}
+				});
+		} else {
+			const newReportMessage = await recreateReportMessage(report);
+			await newReportMessage.reply({
+				content: `Evidence files have been attached to report #${report.getReportId()}`,
+				files: evidenceFiles,
+			});
+			report.addReportEvidence(evidenceMessage.url);
+			// Update the report in the DB with the new evidence files
+			await globalThis.databaseManager.updateReport(report.getReportId(), {
+				report_evidence: report.getReportEvidence(),
+			});
+			await refreshReportMessage(report);
+			return report;
+		}
 	} catch (error) {
 		logger.warn(`Failed to notify report update for report ${report.getReportId()}: ${error}`);
 	}

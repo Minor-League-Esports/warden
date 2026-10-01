@@ -203,6 +203,14 @@ class Case {
 		return this._punishments ?? [];
 	}
 
+	isClaimed() {
+		return !!this.getModerator();
+	}
+
+	isClosed() {
+		return !!this.getClosedAt();
+	}
+
 	generateSummaryEmbed() {
 		const embed = new EmbedBuilder()
 			.setTitle(`Case #${this.getCaseId()} | ${this.getStatus() ?? 'Unknown'}`)

@@ -20,120 +20,6 @@ module.exports = {
 		if (interaction.isButton()) {
 			const buttonId = interaction.customId;
 
-			if (buttonId.startsWith('createNewCaseButton:')) {
-				const [, reportId] = buttonId.split(':');
-
-				await interaction.deferUpdate();
-
-				try {
-					const report = await globalThis.databaseManager.getReportById(reportId);
-					if (!report) {
-						logger.warn(`Report not found for ID: ${reportId}`);
-						await interaction.followUp({ content: `Error: Report #${reportId} not found.` });
-						return;
-					}
-
-					const moderator = await globalThis.userUtility.fetchDatabaseUser(interaction.user.id);
-
-					const newCase = await globalThis.databaseManager.createCase(
-						moderator.getUserId(),
-						report.getSubjectId(),
-						'OPEN',
-						new Date().toISOString(),
-					);
-					await globalThis.databaseManager.attachReportToCase(reportId, newCase.getCaseId());
-
-					// Post the case to the case channel with a thread for moderator discussion
-					const fullCase = await globalThis.databaseManager.getCaseById(newCase.getCaseId());
-					const caseEmbed = fullCase.generatePrivateEmbed();
-					const subjectMention = fullCase.getSubjectUser()
-						? `<@${fullCase.getSubjectUser().getDiscordId()}>`
-						: 'Unknown';
-					const caseMessage = await globalThis.caseChannel.send({
-						content: `Case #${fullCase.getCaseId()} | ${subjectMention}`,
-						embeds: [caseEmbed],
-					});
-					await caseMessage
-						.pin()
-						.catch((error) => logger.warn(`Could not pin Case #${fullCase.getCaseId()} message: ${error}`));
-					const caseThread = await caseMessage.startThread({
-						name: `Case #${fullCase.getCaseId()} (${fullCase.getSubjectUser()?.getUserName() ?? 'Unknown'})`,
-					});
-					await globalThis.databaseManager.updateCase(fullCase.getCaseId(), { case_link: caseMessage.url });
-					await caseThread.send({
-						content: `<@&${moderatorRoleId}> A new case has been opened.`,
-						components: [generateCaseButtons(fullCase.getCaseId())],
-					});
-					await notifyCaseThread(
-						interaction.client,
-						fullCase.getCaseId(),
-						`Report #${reportId} attached: ${report.getReportLink() ?? 'N/A'}`,
-					);
-
-					// Acknowledging the report is implied by assigning it to a case
-					const updatedReport = await acknowledgeReport(interaction.client, reportId);
-					await refreshReportMessage(updatedReport, caseMessage.url);
-
-					// Remove the case buttons now that the report has been assigned to a case
-					await interaction.message.edit({ components: [] });
-					await interaction.followUp({
-						content: `Created Case #${newCase.getCaseId()} and attached Report #${reportId} to it. See ${caseMessage.url}`,
-					});
-				} catch (error) {
-					logger.error(`Error creating case for report ${reportId}: ${error}`);
-					await interaction.followUp({ content: 'Error: Failed to create a new case.' });
-				}
-				return;
-			}
-
-			if (buttonId.startsWith('addToCaseButton:')) {
-				const [, reportId] = buttonId.split(':');
-
-				const modal = new ModalBuilder()
-					.setCustomId(`attachReportToCaseModal:${reportId}`)
-					.setTitle('Add Report to Case');
-
-				const caseIdInput = new TextInputBuilder()
-					.setCustomId('caseId')
-					.setStyle(TextInputStyle.Short)
-					.setPlaceholder('e.g. 42')
-					.setMinLength(1)
-					.setMaxLength(10)
-					.setRequired(true);
-				const caseIdLabel = new LabelBuilder()
-					.setLabel('Case ID to attach this report to')
-					.setTextInputComponent(caseIdInput);
-
-				modal.addLabelComponents(caseIdLabel);
-
-				await interaction.showModal(modal);
-				return;
-			}
-
-			if (buttonId.startsWith('claimCaseButton:')) {
-				const [, caseId] = buttonId.split(':');
-
-				await interaction.deferUpdate();
-
-				try {
-					const moderator = await globalThis.userUtility.fetchDatabaseUser(interaction.user.id);
-					await globalThis.databaseManager.claimCase(caseId, moderator.getUserId());
-
-					const updatedCase = await globalThis.databaseManager.getCaseById(caseId);
-					await interaction.message.edit({
-						components: [generateCaseButtons(caseId, { claimed: true })],
-					});
-					await refreshCaseSummary(updatedCase);
-					await interaction.followUp({
-						content: `Case #${caseId} claimed by <@${interaction.user.id}>. All reports attached to this case have been reassigned to this moderator.`,
-					});
-				} catch (error) {
-					logger.error(`Error claiming case ${caseId}: ${error}`);
-					await interaction.followUp({ content: 'Error: Failed to claim case.' });
-				}
-				return;
-			}
-
 			if (buttonId.startsWith('caseCreateWarningButton:')) {
 				const [, caseId] = buttonId.split(':');
 
@@ -197,7 +83,7 @@ module.exports = {
 				await interaction.reply({
 					content: `Are you sure you want to close Case #${caseId}? This will close all open reports attached to it.`,
 					flags: MessageFlags.Ephemeral,
-					components: [generateCloseCaseConfirmationButtons(caseId, interaction.user.id, interaction.message.id)],
+					components: generateCloseCaseConfirmationButtons(caseId, interaction.user.id, interaction.message.id),
 				});
 				return;
 			}
@@ -292,7 +178,7 @@ async function closeCase(interaction, caseId, sourceMessageId = null) {
 		if (sourceMessageId) {
 			const sourceMessage = await interaction.channel.messages.fetch(sourceMessageId);
 			await sourceMessage.edit({
-				components: [generateCaseButtons(caseId, { claimed: !!updatedCase.getModerator(), closed: true })],
+				components: generateCaseButtons(caseId, { claimed: !!updatedCase.getModerator(), closed: true }),
 			});
 		}
 		await refreshCaseSummary(updatedCase);

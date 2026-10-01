@@ -17,7 +17,7 @@ async function handleCloseReportButtonClick(interaction) {
 
 	await interaction.editReply({
 		content: `Are you sure you want to close Report #${dbId}?`,
-		components: [generateCloseReportConfirmationButtons(dbId, interaction.user.id)],
+		components: generateCloseReportConfirmationButtons(dbId, interaction.user.id),
 	});
 }
 

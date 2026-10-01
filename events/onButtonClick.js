@@ -15,6 +15,7 @@ const { handleReportReplyButtonClick } = require('./button/report/mod/onReportRe
 const { handleReportAddNoteButtonClick } = require('./button/report/mod/onReportAddNoteButtonClick');
 const { handleReportConfirmReplyButtonClick } = require('./button/report/mod/onReportConfirmReplyButtonClick');
 const { handleReportUpdateButtonClick } = require('./button/report/user/onReportUpdateButtonClick');
+const { handleClaimCaseButtonClick } = require('./button/case/onClaimCaseButtonClick');
 
 module.exports = {
 	name: Events.InteractionCreate,
@@ -40,6 +41,8 @@ module.exports = {
 			await handleReportConfirmReplyButtonClick(interaction);
 		} else if (buttonId.startsWith('reportUpdateButton')) {
 			await handleReportUpdateButtonClick(interaction);
+		} else if (buttonId.startsWith('claimCaseButton')) {
+			await handleClaimCaseButtonClick(interaction);
 		}
 	},
 };

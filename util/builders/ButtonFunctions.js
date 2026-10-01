@@ -10,8 +10,7 @@ function generateReportButtons(dbId) {
 		.setCustomId(`openUserReportModalButton:${dbId}`)
 		.setLabel('Report User')
 		.setStyle(ButtonStyle.Success);
-	const actionRow = new ActionRowBuilder().addComponents(reportButton);
-	return [actionRow];
+	return [new ActionRowBuilder().addComponents(reportButton)];
 }
 
 function generateReportUpdateButton(reportId) {
@@ -19,8 +18,7 @@ function generateReportUpdateButton(reportId) {
 		.setCustomId(`reportUpdateButton:${reportId}`)
 		.setLabel('Update Report')
 		.setStyle(ButtonStyle.Primary);
-	const actionRow = new ActionRowBuilder().addComponents(updateButton);
-	return [actionRow];
+	return [new ActionRowBuilder().addComponents(updateButton)];
 }
 
 function generateUserSummaryButtons(dbId, caseId = null) {
@@ -37,8 +35,7 @@ function generateUserSummaryButtons(dbId, caseId = null) {
 		.setCustomId(`userViewHistoryButton:${dbId}`)
 		.setLabel('View History')
 		.setStyle(ButtonStyle.Primary);
-	const actionRow = new ActionRowBuilder().addComponents(confirmButton, updateButton, viewButton);
-	return [actionRow];
+	return [new ActionRowBuilder().addComponents(confirmButton, updateButton, viewButton)];
 }
 
 function generateCaseReportButtons(reportId, { acknowledged = false, closed = false } = {}) {
@@ -106,7 +103,7 @@ function generateCaseButtons(caseId, { claimed = false, closed = false } = {}) {
 		.setLabel(closed ? 'Closed' : 'Close Case')
 		.setStyle(ButtonStyle.Danger)
 		.setDisabled(closed);
-	return new ActionRowBuilder().addComponents(claimButton, createWarningButton, noteButton, closeButton);
+	return [new ActionRowBuilder().addComponents(claimButton, createWarningButton, noteButton, closeButton)];
 }
 
 // Various confirmation buttons for different actions
@@ -119,8 +116,7 @@ function generateReportConfirmationButtons(subjectId, reporterId) {
 		.setCustomId(`cancelReportSubmissionButton:${reporterId}`)
 		.setLabel('Cancel')
 		.setStyle(ButtonStyle.Danger);
-	const actionRow = new ActionRowBuilder().addComponents(confirmButton, cancelButton);
-	return [actionRow];
+	return [new ActionRowBuilder().addComponents(confirmButton, cancelButton)];
 }
 
 function generateCloseCaseConfirmationButtons(caseId, userId) {
@@ -132,7 +128,7 @@ function generateCloseCaseConfirmationButtons(caseId, userId) {
 		.setCustomId(`cancelCloseCaseButton:${caseId}:${userId}`)
 		.setLabel('Cancel')
 		.setStyle(ButtonStyle.Secondary);
-	return new ActionRowBuilder().addComponents(confirmButton, cancelButton);
+	return [new ActionRowBuilder().addComponents(confirmButton, cancelButton)];
 }
 
 function generateCloseReportConfirmationButtons(reportId, userId) {
@@ -144,7 +140,7 @@ function generateCloseReportConfirmationButtons(reportId, userId) {
 		.setCustomId(`cancelCloseReportButton:${reportId}:${userId}`)
 		.setLabel('Cancel')
 		.setStyle(ButtonStyle.Secondary);
-	return new ActionRowBuilder().addComponents(confirmButton, cancelButton);
+	return [new ActionRowBuilder().addComponents(confirmButton, cancelButton)];
 }
 
 function generateBanConfirmationButtons(dbId) {
@@ -156,8 +152,7 @@ function generateBanConfirmationButtons(dbId) {
 		.setCustomId(`cancelBanButton:${dbId}`)
 		.setLabel('Cancel')
 		.setStyle(ButtonStyle.Danger);
-	const actionRow = new ActionRowBuilder().addComponents(confirmButton, cancelButton);
-	return [actionRow];
+	return [new ActionRowBuilder().addComponents(confirmButton, cancelButton)];
 }
 
 function generateKickConfirmationButtons(dbId) {
@@ -169,8 +164,7 @@ function generateKickConfirmationButtons(dbId) {
 		.setCustomId(`cancelKickButton:${dbId}`)
 		.setLabel('Cancel')
 		.setStyle(ButtonStyle.Danger);
-	const actionRow = new ActionRowBuilder().addComponents(confirmButton, cancelButton);
-	return [actionRow];
+	return [new ActionRowBuilder().addComponents(confirmButton, cancelButton)];
 }
 
 function generateMuteConfirmationButtons(dbId) {
@@ -182,8 +176,7 @@ function generateMuteConfirmationButtons(dbId) {
 		.setCustomId(`cancelMuteButton:${dbId}`)
 		.setLabel('Cancel')
 		.setStyle(ButtonStyle.Danger);
-	const actionRow = new ActionRowBuilder().addComponents(confirmButton, cancelButton);
-	return [actionRow];
+	return [new ActionRowBuilder().addComponents(confirmButton, cancelButton)];
 }
 
 function generateUnbanConfirmationButtons(dbId) {
@@ -195,8 +188,7 @@ function generateUnbanConfirmationButtons(dbId) {
 		.setCustomId(`cancelUnbanButton:${dbId}`)
 		.setLabel('Cancel')
 		.setStyle(ButtonStyle.Danger);
-	const actionRow = new ActionRowBuilder().addComponents(confirmButton, cancelButton);
-	return [actionRow];
+	return [new ActionRowBuilder().addComponents(confirmButton, cancelButton)];
 }
 
 function generateUnmuteConfirmationButtons(dbId) {
@@ -208,8 +200,7 @@ function generateUnmuteConfirmationButtons(dbId) {
 		.setCustomId(`cancelUnmuteButton:${dbId}`)
 		.setLabel('Cancel')
 		.setStyle(ButtonStyle.Danger);
-	const actionRow = new ActionRowBuilder().addComponents(confirmButton, cancelButton);
-	return [actionRow];
+	return [new ActionRowBuilder().addComponents(confirmButton, cancelButton)];
 }
 
 function generateReportReplyConfirmationButtons(dbId) {
@@ -221,8 +212,7 @@ function generateReportReplyConfirmationButtons(dbId) {
 		.setCustomId(`cancelReportReplyButton:${dbId}`)
 		.setLabel('Cancel')
 		.setStyle(ButtonStyle.Danger);
-	const actionRow = new ActionRowBuilder().addComponents(confirmButton, cancelButton);
-	return [actionRow];
+	return [new ActionRowBuilder().addComponents(confirmButton, cancelButton)];
 }
 
 module.exports = {

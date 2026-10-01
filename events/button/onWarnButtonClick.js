@@ -66,7 +66,7 @@ module.exports = {
 				const approvalEmbed = EmbedBuilder.from(proposalEmbed).setColor('#ff0000');
 				await interaction.channel.send({
 					embeds: [approvalEmbed],
-					components: [generateBanApprovalButtons(dbId, moderatorId, caseId)],
+					components: generateBanApprovalButtons(dbId, moderatorId, caseId),
 					content: `
                     <@&${directorRoleId}> please review the below ban request. Clicking "Approve Ban" will enact the ban. Ensure League Operations has moved the user to FP.`,
 				});
@@ -173,5 +173,5 @@ function generateBanApprovalButtons(dbId, moderatorId, caseId) {
 		.setCustomId(`denyBanButton:${dbId}:${moderatorId}:${caseId ?? ''}`)
 		.setLabel('Deny Ban')
 		.setStyle(ButtonStyle.Danger);
-	return new ActionRowBuilder().addComponents(approveButton, denyButton);
+	return [new ActionRowBuilder().addComponents(approveButton, denyButton)];
 }

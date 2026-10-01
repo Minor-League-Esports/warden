@@ -296,7 +296,7 @@ async function createCase(interaction) {
 		});
 		await thread.send({
 			content: `<@&${moderatorRoleId}> A new case has been opened.`,
-			components: [generateCaseButtons(fullCase.getCaseId())],
+			components: generateCaseButtons(fullCase.getCaseId()),
 		});
 		await globalThis.databaseManager.updateCase(fullCase.getCaseId(), { case_link: caseLink });
 	}
@@ -327,7 +327,7 @@ async function closeCase(interaction) {
 
 	await interaction.editReply({
 		content: `Are you sure you want to close Case #${caseId}? This will close all open reports attached to it.`,
-		components: [generateCloseCaseConfirmationButtons(caseId, interaction.user.id)],
+		components: generateCloseCaseConfirmationButtons(caseId, interaction.user.id),
 	});
 }
 
@@ -341,7 +341,7 @@ async function closeReport(interaction) {
 
 	await interaction.editReply({
 		content: `Are you sure you want to close Report #${reportId}?`,
-		components: [generateCloseReportConfirmationButtons(reportId, interaction.user.id)],
+		components: generateCloseReportConfirmationButtons(reportId, interaction.user.id),
 	});
 }
 
