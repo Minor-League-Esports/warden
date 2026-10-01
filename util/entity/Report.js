@@ -213,33 +213,6 @@ class Report {
 		return this._closeTimestamp != null;
 	}
 
-	async generateSummaryEmbed() {
-		const subject = await globalThis.databaseManager.getUserByIdentifier(this.getSubjectId(), 'db');
-		const reporter = await globalThis.databaseManager.getUserByIdentifier(this.getReporterId(), 'db');
-		const caseIdValue = this.getCase()
-			? this.getCase().getCaseThreadLink()
-				? `[#${this.getCaseId()}](${this.getCase().getCaseThreadLink()})`
-				: `#${this.getCaseId()}`
-			: 'None';
-		const reportIdValue = this.getReportLink()
-			? `[#${this.getReportId()}](${this.getReportLink()})`
-			: `#${this.getReportId()}`;
-		const embed = new EmbedBuilder()
-			.setTitle(`Report #${this.getReportId() ?? 'None'}`)
-			.setTimestamp(new Date(this.getReportTimestamp() ?? new Date().toISOString()))
-			.addFields(
-				{ name: 'Reporter', value: String(reporter?.getUserName() ?? 'Unknown'), inline: true },
-				{ name: 'Status', value: String(this.getStatus() ?? 'Unknown') },
-				{ name: 'Case ID', value: caseIdValue, inline: true },
-				{ name: 'Report ID', value: reportIdValue, inline: true },
-			)
-			.setFooter({ text: `ID: ${subject?.getDiscordId() ?? 'Unknown'}` })
-			.setThumbnail(subject?.getDiscordAvatar() ?? null)
-			.setColor('#ff761b');
-
-		return embed;
-	}
-
 	/**
 	 * Generates an embed for moderator view of a report
 	 *
@@ -257,7 +230,7 @@ class Report {
 			? `[#${this.getReportId()}](${this.getReportLink()})`
 			: `#${this.getReportId()}`;
 		const embed = new EmbedBuilder()
-			.setTitle(`${subject?.getUserName() ?? 'User'} | Report`)
+			.setTitle(`Report #${this.getReportId() ?? 'None'} | ${subject?.getUserName() ?? 'Unknown'}`)
 			.setTimestamp(new Date(this.getReportTimestamp() ?? new Date().toISOString()))
 			.addFields(
 				{ name: 'Reporter', value: String(reporter?.getUserName() ?? 'Unknown'), inline: true },

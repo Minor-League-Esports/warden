@@ -27,6 +27,7 @@ SELECT
     c.created_at AS c_created_at,
     c.closed_at AS c_closed_at,
     c.moderator_notes AS c_moderator_notes,
+    c.case_summary_link AS c_case_summary_link,
     c.case_link AS c_case_link,
     c.case_thread_link AS c_case_thread_link
 FROM Reports r

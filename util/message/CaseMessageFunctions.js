@@ -28,7 +28,7 @@ async function createCaseMessage(caseObj) {
 	// Generate the private embed for the case message
 	const summaryEmbed = await fullCase.generateSummaryEmbed();
 	// Send the case message to the case channel
-	await globalThis.caseChannel.send({
+	const summaryMessage = await globalThis.caseChannel.send({
 		content: `Case Created: Case #${fullCase.getCaseId()}`,
 		embeds: [summaryEmbed],
 	});
@@ -42,8 +42,10 @@ async function createCaseMessage(caseObj) {
 	});
 	// Update the case with the message link
 	fullCase.setCaseLink(caseThreadMessage.url);
+	fullCase.setCaseSummaryLink(summaryMessage.url);
 	await globalThis.databaseManager.updateCase(fullCase.getCaseId(), {
 		case_link: caseThreadMessage.url,
+		case_summary_link: summaryMessage.url,
 	});
 	// Pin the case thread message to make it easily accessible for moderators
 	await caseThreadMessage

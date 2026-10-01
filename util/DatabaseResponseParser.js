@@ -63,6 +63,7 @@ class DatabaseResponseParser {
 			c.setCreatedAt(row['created_at']);
 			c.setClosedAt(row['closed_at']);
 			c.setNotes(row['moderator_notes']);
+			c.setCaseSummaryLink(row['case_summary_link']);
 			c.setCaseLink(row['case_link']);
 			c.setCaseThreadLink(row['case_thread_link']);
 			cases.push(c);
@@ -166,6 +167,7 @@ class DatabaseResponseParser {
 				kase.setCreatedAt(row['c_created_at']);
 				kase.setClosedAt(row['c_closed_at']);
 				kase.setNotes(row['c_moderator_notes']);
+				kase.setCaseSummaryLink(row['c_case_summary_link']);
 				kase.setCaseLink(row['c_case_link']);
 				kase.setCaseThreadLink(row['c_case_thread_link']);
 				r.setCase(kase);

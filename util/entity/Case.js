@@ -120,6 +120,14 @@ class Case {
 		return this._notes ?? 'None';
 	}
 
+	setCaseSummaryLink(link) {
+		this._caseSummaryLink = link;
+	}
+
+	getCaseSummaryLink() {
+		return this._caseSummaryLink ?? null;
+	}
+
 	setCaseLink(link) {
 		this._caseLink = link;
 	}
@@ -197,19 +205,21 @@ class Case {
 
 	generateSummaryEmbed() {
 		const embed = new EmbedBuilder()
-			.setTitle(`Case #${this.getCaseId()}`)
+			.setTitle(`Case #${this.getCaseId()} | ${this.getStatus() ?? 'Unknown'}`)
 			.setTimestamp(new Date(this.getCreatedAt() ?? new Date().toISOString()))
 			.setThumbnail(this.getSubjectUser()?.getDiscordAvatar() ?? null)
 			.setColor('#ff761b');
 
 		embed.addFields(
 			{ name: 'Case Thread', value: String(this.getCaseThreadLink() ?? 'None') },
+			{ name: 'Status', value: String(this.getStatus() ?? 'Unknown'), inline: true },
 			{
 				name: 'Subject',
 				value: String(this.getSubjectUser() ? `${this.getSubjectUser().getUserName()}` : 'Unknown'),
 				inline: true,
 			},
-			{ name: 'Creator', value: String(this.getCreator()?.getUserName() ?? this.getCreatorId()), inline: true },
+			{ name: 'Moderator', value: String(this.getModerator()?.getUserName() ?? 'Unclaimed') },
+			{ name: 'Creator', value: String(this.getCreator()?.getUserName() ?? this.getCreatorId()) },
 		);
 
 		return embed;
@@ -221,7 +231,9 @@ class Case {
 	 */
 	generatePrivateEmbed() {
 		const embed = new EmbedBuilder()
-			.setTitle(`Case #${this.getCaseId()}`)
+			.setTitle(
+				`Case #${this.getCaseId()} | ${String(this.getSubjectUser() ? `${this.getSubjectUser().getUserName()}` : 'Unknown')}`,
+			)
 			.setTimestamp(new Date(this.getCreatedAt() ?? new Date().toISOString()))
 			.setThumbnail(this.getSubjectUser()?.getDiscordAvatar() ?? null)
 			.setColor('#ff761b');

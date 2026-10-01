@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS Cases (
     created_at TIMESTAMPTZ NOT NULL,
     closed_at TIMESTAMPTZ,
     moderator_notes TEXT,
+    case_summary_link TEXT,
     case_link TEXT,
     case_thread_link TEXT
 );
