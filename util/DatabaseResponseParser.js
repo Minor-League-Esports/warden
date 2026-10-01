@@ -147,7 +147,6 @@ class DatabaseResponseParser {
 			r.setAcknowledgeTimestamp(row['acknowledge_timestamp']);
 			r.setCloseTimestamp(row['close_timestamp']);
 			r.setReportLink(row['report_link']);
-			r.setReportThreadLink(row['report_thread_link']);
 			r.setReportReason(row['report_reason']);
 			r.setReportEvidence(row['report_evidence']);
 			r.setStatus(row['status']);

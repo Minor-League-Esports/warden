@@ -141,14 +141,6 @@ class Report {
 		return this._reportLink;
 	}
 
-	setReportThreadLink(link) {
-		this._reportThreadLink = link;
-	}
-
-	getReportThreadLink() {
-		return this._reportThreadLink;
-	}
-
 	setReportReason(reason) {
 		this._reportReason = reason;
 	}

@@ -8,7 +8,6 @@ CREATE TABLE IF NOT EXISTS Reports (
     acknowledge_timestamp TIMESTAMPTZ,
     close_timestamp TIMESTAMPTZ,
     report_link TEXT,
-    report_thread_link TEXT,
     report_reason TEXT NOT NULL,
     report_evidence TEXT,
     status TEXT NOT NULL,

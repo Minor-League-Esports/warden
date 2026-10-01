@@ -12,7 +12,6 @@ SELECT
     r.moderator_notes,
     r.response,
     r.report_link,
-    r.report_thread_link,
     -- Reporter
     u_rep.user_id AS u_rep_id,
     u_rep.discord_id AS u_rep_discord_id,
