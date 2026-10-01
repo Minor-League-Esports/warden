@@ -59,6 +59,21 @@ function buildReportReplyModal(dbId) {
 	return modal;
 }
 
+function buildCaseAddNoteModal(dbId) {
+	const modal = new ModalBuilder().setCustomId(`addModeratorNoteModal:case:${dbId}`).setTitle('Add Moderator Note');
+
+	const noteInput = new TextInputBuilder()
+		.setCustomId('note')
+		.setStyle(TextInputStyle.Paragraph)
+		.setPlaceholder('Provide your note regarding this case.')
+		.setRequired(true);
+	const noteInputLabel = new LabelBuilder().setLabel('Moderator Note').setTextInputComponent(noteInput);
+
+	modal.addLabelComponents(noteInputLabel);
+
+	return modal;
+}
+
 function buildReportAddNoteModal(dbId) {
 	const modal = new ModalBuilder().setCustomId(`addModeratorNoteModal:report:${dbId}`).setTitle('Add Moderator Note');
 
@@ -78,5 +93,6 @@ module.exports = {
 	buildReportUserModal,
 	buildReportUpdateModal,
 	buildReportReplyModal,
+	buildCaseAddNoteModal,
 	buildReportAddNoteModal,
 };

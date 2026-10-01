@@ -5,6 +5,7 @@ logger.level = logLevel;
 
 const { ChannelType } = require('discord.js');
 const { generateCaseButtons, generateUserSummaryButtons } = require('../builders/ButtonFunctions');
+const { refreshReportMessage } = require('./ReportMessageFunctions');
 
 async function createCaseMessage(caseObj) {
 	// Fetch the case
@@ -178,6 +179,7 @@ async function recreateCaseSummary(fullCase) {
 			content: `Recreating case summary message for link: ${fullCase.getCaseSummaryLink()}.`,
 			embeds: [summaryEmbed],
 		});
+		await assignCase(interaction);
 		fullCase.setCaseSummaryLink(newSummaryMessage.url);
 		await globalThis.databaseManager.updateCase(fullCase.getCaseId(), {
 			case_summary_link: newSummaryMessage.url,
@@ -196,12 +198,14 @@ async function assignCase(fullCase, moderator) {
 		fullCase.setModeratorId(moderator.getUserId());
 		fullCase.setModerator(moderator);
 		await refreshCaseMessage(fullCase);
-		const caseThread = await globalThis.discordClient.channels.fetch(
-			fullCase.getCaseThreadLink().slice(fullCase.getCaseThreadLink().lastIndexOf('/') + 1),
-		);
-		await caseThread.send({
-			content: `Moderator <@${moderator.getDiscordId()}> has been assigned to this case.`,
-		});
+		for (const report of fullCase.getReports()) {
+			await globalThis.databaseManager.updateReport(report.getReportId(), {
+				moderator_id: moderator.getUserId(),
+			});
+			report.setModeratorId(moderator.getUserId());
+			report.setModerator(moderator);
+			await refreshReportMessage(report);
+		}
 		return fullCase;
 	} catch (error) {
 		logger.warn(`Failed to assign moderator ${moderator.getUserId()} to case ${fullCase.getCaseId()}: ${error}`);

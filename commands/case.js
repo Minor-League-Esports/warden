@@ -4,7 +4,9 @@ const { logLevel, opsGuild, moderatorRoleId } = require('../config.json');
 logger.level = logLevel;
 
 const { SlashCommandBuilder, PermissionFlagsBits, InteractionContextType, MessageFlags } = require('discord.js');
-const { buildModeratorNoteModal } = require('../util/UtilFunctions');
+
+const { assignCase } = require('../util/message/CaseMessageFunctions');
+const { buildCaseAddNoteModal, buildReportAddNoteModal } = require('../util/builders/ModalFunctions');
 const {
 	generateCaseButtons,
 	generateCloseCaseConfirmationButtons,
@@ -173,7 +175,15 @@ module.exports = {
 				} else if (subcommand === 'details') {
 					await showCaseDetails(interaction);
 				} else if (subcommand === 'assign') {
-					await assignCase(interaction);
+					const caseId = interaction.options.getInteger('case_id');
+					const caseObj = await globalThis.databaseManager.getCaseById(caseId);
+					const moderator = await globalThis.userUtility.fetchDatabaseUser(interaction.options.getString('moderator'));
+					const updatedCase = await assignCase(caseObj, moderator);
+
+					await interaction.editReply({
+						content: `Assigned Case #${caseId} to <@${moderator.getDiscordId()}>. All attached reports were reassigned as well.`,
+					});
+					return updatedCase;
 				} else if (subcommand === 'close') {
 					await closeCase(interaction);
 				} else {
@@ -193,14 +203,19 @@ async function openNoteModal(interaction) {
 	const targetId =
 		targetType === 'case' ? interaction.options.getInteger('case_id') : interaction.options.getInteger('report_id');
 	try {
-		if (targetType === 'case') await globalThis.databaseManager.getCaseById(targetId);
-		else await globalThis.databaseManager.getReportById(targetId);
+		if (targetType === 'case') {
+			// Fetch the case from the database to ensure it exists before showing the modal
+			await globalThis.databaseManager.getCaseById(targetId);
+			await interaction.showModal(buildCaseAddNoteModal(targetId));
+		} else {
+			// Fetch the report from the database to ensure it exists before showing the modal
+			await globalThis.databaseManager.getReportById(targetId);
+			await interaction.showModal(buildReportAddNoteModal(targetId));
+		}
 	} catch (error) {
 		await interaction.reply({ content: `Could not find ${targetType} #${targetId}.`, flags: MessageFlags.Ephemeral });
 		return;
 	}
-
-	await interaction.showModal(buildModeratorNoteModal(`addModeratorNoteModal:${targetType}:${targetId}`));
 }
 
 async function listObjects(interaction) {
@@ -304,17 +319,6 @@ async function createCase(interaction) {
 	await interaction.editReply({
 		content: `Created Case #${fullCase.getCaseId()} for ${subject.getUserName()}.${caseLink ? ` ${caseLink}` : ''}`,
 	});
-}
-
-async function assignCase(interaction) {
-	const caseId = interaction.options.getInteger('case_id');
-	const moderator = await globalThis.userUtility.fetchDatabaseUser(interaction.options.getString('moderator'));
-	const updatedCase = await globalThis.databaseManager.claimCase(caseId, moderator.getUserId());
-
-	await interaction.editReply({
-		content: `Assigned Case #${caseId} to ${moderator.getUserName()}. All attached reports were reassigned as well.`,
-	});
-	return updatedCase;
 }
 
 async function closeCase(interaction) {
