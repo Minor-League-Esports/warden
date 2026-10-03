@@ -162,7 +162,25 @@ module.exports = {
 			if (subcommand === 'details') {
 				// Handle the 'details' subcommand
 			} else if (subcommand === 'close') {
-				// Handle the 'close' subcommand
+				const reportId = interaction.options.getInteger('report_id');
+				globalThis.databaseManager
+					.getReportById(reportId)
+					.then(async (reportObj) => {
+						if (String(reportObj.getStatus()).toUpperCase() === 'CLOSED') {
+							await interaction.editReply({ content: `Report #${reportId} is already closed.` });
+							return;
+						}
+
+						await interaction.editReply({
+							content: `Are you sure you want to close Report #${reportId}?`,
+							components: generateCloseReportConfirmationButtons(reportId, interaction.user.id),
+						});
+					})
+					.catch(async (error) => {
+						await interaction.editReply({ content: `Could not find Report #${reportId}.` });
+						logger.warn(`Error fetching report #${reportId}:`, error);
+						return;
+					});
 			} else if (subcommand === 'note') {
 				// Handle the 'note' subcommand
 			} else if (subcommand === 'reply') {
@@ -176,16 +194,57 @@ module.exports = {
 					await showCaseDetails(interaction);
 				} else if (subcommand === 'assign') {
 					const caseId = interaction.options.getInteger('case_id');
-					const caseObj = await globalThis.databaseManager.getCaseById(caseId);
-					const moderator = await globalThis.userUtility.fetchDatabaseUser(interaction.options.getString('moderator'));
-					const updatedCase = await assignCase(caseObj, moderator);
-
-					await interaction.editReply({
-						content: `Assigned Case #${caseId} to <@${moderator.getDiscordId()}>. All attached reports were reassigned as well.`,
-					});
-					return updatedCase;
+					globalThis.databaseManager
+						.getCaseById(caseId)
+						.then(async (caseObj) => {
+							globalThis.userUtility
+								.fetchDatabaseUser(interaction.options.getString('moderator'))
+								.then(async (moderator) => {
+									try {
+										await assignCase(caseObj, moderator);
+										await interaction.editReply({
+											content: `Assigned Case #${caseId} to <@${moderator.getDiscordId()}>. All attached reports were reassigned as well.`,
+										});
+									} catch (error) {
+										await interaction.editReply({
+											content: `Failed to assign Case #${caseId} to <@${moderator.getDiscordId()}>.`,
+										});
+										return;
+									}
+								})
+								.catch(async (error) => {
+									await interaction.editReply({
+										content: `Could not find moderator '${interaction.options.getString('moderator')}'.`,
+									});
+									logger.warn(`Error fetching moderator:`, error);
+									return;
+								});
+						})
+						.catch(async (error) => {
+							await interaction.editReply({ content: `Could not find Case #${caseId}.` });
+							logger.warn(`Error fetching case #${caseId}:`, error);
+							return;
+						});
 				} else if (subcommand === 'close') {
-					await closeCase(interaction);
+					const caseId = interaction.options.getInteger('case_id');
+					globalThis.databaseManager
+						.getCaseById(caseId)
+						.then(async (caseObj) => {
+							if (String(caseObj.getStatus()).toUpperCase() === 'CLOSED') {
+								await interaction.editReply({ content: `Case #${caseId} is already closed.` });
+								return;
+							}
+
+							await interaction.editReply({
+								content: `Are you sure you want to close Case #${caseId}? This will close all open reports attached to it.`,
+								components: generateCloseCaseConfirmationButtons(caseId, interaction.user.id),
+							});
+						})
+						.catch(async (error) => {
+							await interaction.editReply({ content: `Could not find Case #${caseId}.` });
+							logger.warn(`Error fetching case #${caseId}:`, error);
+							return;
+						});
 				} else {
 					await interaction.editReply({ content: 'Unknown case subcommand.' });
 				}
@@ -318,34 +377,6 @@ async function createCase(interaction) {
 
 	await interaction.editReply({
 		content: `Created Case #${fullCase.getCaseId()} for ${subject.getUserName()}.${caseLink ? ` ${caseLink}` : ''}`,
-	});
-}
-
-async function closeCase(interaction) {
-	const caseId = interaction.options.getInteger('case_id');
-	const kase = await globalThis.databaseManager.getCaseById(caseId);
-	if (String(kase.getStatus()).toUpperCase() === 'CLOSED') {
-		await interaction.editReply({ content: `Case #${caseId} is already closed.` });
-		return;
-	}
-
-	await interaction.editReply({
-		content: `Are you sure you want to close Case #${caseId}? This will close all open reports attached to it.`,
-		components: generateCloseCaseConfirmationButtons(caseId, interaction.user.id),
-	});
-}
-
-async function closeReport(interaction) {
-	const reportId = interaction.options.getInteger('report_id');
-	const report = await globalThis.databaseManager.getReportById(reportId);
-	if (String(report.getStatus()).toUpperCase() === 'CLOSED') {
-		await interaction.editReply({ content: `Report #${reportId} is already closed.` });
-		return;
-	}
-
-	await interaction.editReply({
-		content: `Are you sure you want to close Report #${reportId}?`,
-		components: generateCloseReportConfirmationButtons(reportId, interaction.user.id),
 	});
 }
 
