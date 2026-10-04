@@ -3,7 +3,11 @@ const logger = log4js.getLogger('ReportMessageFunctions');
 const { moderatorRoleId, logLevel } = require('../../config.json');
 logger.level = logLevel;
 
-const { generateCaseReportButtons, generateReportModButtons } = require('../builders/ButtonFunctions');
+const {
+	generateCaseReportButtons,
+	generateReportModButtons,
+	generateReportUpdateButton,
+} = require('../builders/ButtonFunctions');
 
 async function attachReportToCaseThread(reportObj, caseObj) {
 	// Fetch the report
@@ -290,7 +294,7 @@ async function replyToReport(reportId, replyContent) {
 		await reporterDiscordUser.send({
 			content: `A member of MLE Moderation has replied to your report #${report.getReportId()}.\n\n**(MLE Moderation)**: ${replyContent}`,
 			embeds: [reportEmbed],
-			components: generateCaseReportButtons(report.getReportId()),
+			components: generateReportUpdateButton(report.getReportId()),
 		});
 	} catch (dmError) {
 		logger.warn(`Could not DM reporter for report ${reportId}: ${dmError}`);
