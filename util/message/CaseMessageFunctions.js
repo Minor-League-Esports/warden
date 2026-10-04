@@ -5,7 +5,7 @@ logger.level = logLevel;
 
 const { ChannelType } = require('discord.js');
 const { generateCaseButtons, generateUserSummaryButtons } = require('../builders/ButtonFunctions');
-const { refreshReportMessage } = require('./ReportMessageFunctions');
+const { refreshReportMessage, closeReport } = require('./ReportMessageFunctions');
 
 async function createCaseMessage(caseObj) {
 	// Fetch the case
@@ -140,6 +140,7 @@ async function refreshCaseMessage(fullCase) {
 		}
 	} catch (error) {
 		logger.warn(`Failed to refresh case message for case ${fullCase.getCaseId()}: ${error}`);
+		throw error;
 	}
 }
 
@@ -169,6 +170,7 @@ async function recreateCaseMessage(fullCase) {
 		return fullCase;
 	} catch (error) {
 		logger.error(`Failed to recreate case thread message for case ${fullCase.getCaseId()}: ${error}`);
+		throw error;
 	}
 }
 
@@ -179,7 +181,7 @@ async function recreateCaseSummary(fullCase) {
 			content: `Recreating case summary message for link: ${fullCase.getCaseSummaryLink()}.`,
 			embeds: [summaryEmbed],
 		});
-		await assignCase(interaction);
+
 		fullCase.setCaseSummaryLink(newSummaryMessage.url);
 		await globalThis.databaseManager.updateCase(fullCase.getCaseId(), {
 			case_summary_link: newSummaryMessage.url,
@@ -187,6 +189,7 @@ async function recreateCaseSummary(fullCase) {
 		return fullCase;
 	} catch (error) {
 		logger.error(`Failed to recreate case summary message for case ${fullCase.getCaseId()}: ${error}`);
+		throw error;
 	}
 }
 
@@ -209,6 +212,50 @@ async function assignCase(fullCase, moderator) {
 		return fullCase;
 	} catch (error) {
 		logger.warn(`Failed to assign moderator ${moderator.getUserId()} to case ${fullCase.getCaseId()}: ${error}`);
+		throw error;
+	}
+}
+
+async function closeCase(fullCase) {
+	try {
+		const timestamp = new Date().toISOString();
+		await globalThis.databaseManager.updateCase(fullCase.getCaseId(), {
+			status: 'CLOSED',
+			closed_at: timestamp,
+		});
+		fullCase.setStatus('CLOSED');
+		fullCase.setClosedAt(timestamp);
+
+		for (const report of fullCase.getReports()) {
+			await closeReport(report.getReportId());
+		}
+
+		await refreshCaseMessage(fullCase);
+		return fullCase;
+	} catch (error) {
+		logger.error(`Failed to close case ${fullCase.getCaseId()}: ${error}`);
+		throw error;
+	}
+}
+
+/**
+ * Closes the thread associated with the given case.
+ * This is separate from closeCase because we reply to the interaction after closing the case.
+ * If we close the thread first, the interaction reply would just re-open the thread.
+ *
+ * @param {*} fullCase The full case object containing information about the case and its associated thread.
+ */
+async function closeCaseThread(fullCase) {
+	try {
+		const caseThread = await globalThis.discordClient.channels.fetch(
+			fullCase.getCaseThreadLink().slice(fullCase.getCaseThreadLink().lastIndexOf('/') + 1),
+		);
+		if (caseThread) {
+			await caseThread.setArchived(true);
+		}
+	} catch (error) {
+		logger.error(`Failed to close case thread for case ${fullCase.getCaseId()}: ${error}`);
+		throw error;
 	}
 }
 
@@ -216,4 +263,6 @@ module.exports = {
 	createCaseMessage,
 	refreshCaseMessage,
 	assignCase,
+	closeCase,
+	closeCaseThread,
 };

@@ -4,7 +4,7 @@ const { logLevel } = require('../../../../config.json');
 const { MessageFlags } = require('discord.js');
 logger.level = logLevel;
 
-const { refreshReportMessage, closeReport } = require('../../../../util/message/ReportMessageFunctions');
+const { closeReport } = require('../../../../util/message/ReportMessageFunctions');
 
 async function handleConfirmCloseReportButtonClick(interaction) {
 	const buttonId = interaction.customId;

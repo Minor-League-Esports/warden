@@ -45,9 +45,9 @@ module.exports = {
 						.setName('status')
 						.setDescription('Filter cases by status')
 						.addChoices(
-							{ name: 'All', value: 'all' },
-							{ name: 'Open', value: 'open' },
+							{ name: 'Open (default)', value: 'open' },
 							{ name: 'Closed', value: 'closed' },
+							{ name: 'All', value: 'all' },
 						),
 				),
 		)
@@ -119,9 +119,9 @@ module.exports = {
 								.setName('status')
 								.setDescription('Filter reports by status')
 								.addChoices(
-									{ name: 'All', value: 'all' },
-									{ name: 'Open', value: 'open' },
+									{ name: 'Open (default)', value: 'open' },
 									{ name: 'Closed', value: 'closed' },
+									{ name: 'All', value: 'all' },
 								),
 						),
 				)
@@ -283,7 +283,7 @@ async function listObjects(interaction) {
 		subcommandGroup === 'reports'
 			? await globalThis.databaseManager.getAllReports()
 			: await globalThis.databaseManager.getAllCases();
-	const statusFilter = interaction.options.getString('status') ?? 'all';
+	const statusFilter = interaction.options.getString('status') ?? 'open';
 	let objects = allObjects;
 	if (statusFilter === 'open') {
 		objects = allObjects.filter((obj) => obj.getStatus().toLowerCase() !== 'closed');
@@ -323,18 +323,18 @@ async function listObjects(interaction) {
 		const subject = await globalThis.databaseManager.getUserByIdentifier(object.getSubjectId(), 'db');
 		if (subcommandGroup === 'reports') {
 			const reporter = await globalThis.databaseManager.getUserByIdentifier(object.getReporterId(), 'db');
-			objectList += `- ${subcommandGroup.slice(0, -1).charAt(0).toUpperCase() + subcommandGroup.slice(1, -1).slice(1)} #${object.getReportId()} by ${reporter.getUserName()} against ${subject.getUserName()}, Status: ${object.getStatus()}\n`;
+			objectList += `- [Report #${object.getReportId()}](${object.getReportLink()}) - ${subject.getUserName()} (by ${reporter.getUserName()}) - ${object.getStatus()}\n`;
 			continue;
 		}
 
-		objectList += `- Case #${object.getCaseId()} against ${subject.getUserName()}, Status: ${object.getStatus()}\n`;
+		objectList += `- [Case #${object.getCaseId()}](${object.getCaseLink()}) - ${subject.getUserName()} - ${object.getStatus()}\n`;
+	}
+
+	if (objectList.length > 1800) {
+		objectList = objectList.slice(0, 1780) + '\n... (truncated)';
 	}
 
 	objectList += `\nUse the \`/case${subcommandGroup ? ' ' + subcommandGroup : ''} details\` command with an ID to view more details about a specific case/report.`;
-
-	if (objectList.length > 2000) {
-		objectList = objectList.slice(0, 1980) + '\n... (truncated)';
-	}
 	await interaction.editReply({
 		content: objectList,
 	});
