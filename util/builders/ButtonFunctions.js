@@ -215,6 +215,23 @@ function generateReportReplyConfirmationButtons(dbId) {
 	return [new ActionRowBuilder().addComponents(confirmButton, cancelButton)];
 }
 
+function generateWarnConfirmationButtons(dbId, moderatorId, recommendedAction, caseId) {
+	const confirmButton = new ButtonBuilder()
+		.setCustomId(`executeWarnButton:${dbId}:${moderatorId}:${recommendedAction}:${caseId ?? ''}`)
+		.setLabel('Confirm Recommended Action')
+		.setStyle(ButtonStyle.Success);
+	const overrideButton = new ButtonBuilder()
+		.setCustomId(`overrideWarnButton:${dbId}:${moderatorId}:${caseId ?? ''}`)
+		.setLabel('Override Action')
+		.setStyle(ButtonStyle.Danger);
+	const cancelButton = new ButtonBuilder()
+		.setCustomId(`cancelWarnButton:${dbId}:${moderatorId}:${caseId ?? ''}`)
+		.setLabel('Cancel')
+		.setStyle(ButtonStyle.Secondary);
+	const actionRow = new ActionRowBuilder().addComponents(confirmButton, overrideButton, cancelButton);
+	return [actionRow];
+}
+
 module.exports = {
 	generateCaseButtons,
 	generateCloseCaseConfirmationButtons,
@@ -231,4 +248,5 @@ module.exports = {
 	generateReportConfirmationButtons,
 	generateReportModButtons,
 	generateCaseReportButtons,
+	generateWarnConfirmationButtons,
 };

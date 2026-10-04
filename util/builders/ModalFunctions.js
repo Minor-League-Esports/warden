@@ -89,10 +89,66 @@ function buildReportAddNoteModal(dbId) {
 	return modal;
 }
 
+/**
+ * Builds the "Issue Warning to User" modal, shared by the /warn flow and the case "Create Warning" button.
+ *
+ * @param {String} customId
+ * @returns {import('discord.js').ModalBuilder}
+ */
+function buildWarnUserModal(subjectId, caseId) {
+	const modal = new ModalBuilder()
+		.setCustomId(`warnUserModal:${subjectId}:${caseId}`)
+		.setTitle('Issue Warning to User');
+
+	const rulesBrokenInput = new TextInputBuilder()
+		.setCustomId('rulesBroken')
+		.setStyle(TextInputStyle.Paragraph)
+		.setPlaceholder('1.2(1) Mildly offensive language')
+		.setRequired(true);
+	const rulesBrokenInputLabel = new LabelBuilder().setLabel('Rule(s) Broken').setTextInputComponent(rulesBrokenInput);
+
+	const violatingContentInput = new TextInputBuilder()
+		.setCustomId('violatingContent')
+		.setStyle(TextInputStyle.Paragraph)
+		.setPlaceholder('Direct quote or description of the violating content (shown to user)')
+		.setRequired(true);
+	const violatingContentInputLabel = new LabelBuilder()
+		.setLabel('Violating Content')
+		.setTextInputComponent(violatingContentInput);
+
+	const pointsAddedInput = new TextInputBuilder()
+		.setCustomId('pointsAdded')
+		.setStyle(TextInputStyle.Short)
+		.setPlaceholder('Number of points to add to user record')
+		.setMinLength(1)
+		.setMaxLength(2)
+		.setRequired(true);
+	const pointsAddedInputLabel = new LabelBuilder().setLabel('Points Added').setTextInputComponent(pointsAddedInput);
+
+	const moderatorNotesInput = new TextInputBuilder()
+		.setCustomId('moderatorNotes')
+		.setStyle(TextInputStyle.Paragraph)
+		.setPlaceholder('Additional notes from the moderator (not shown to user)')
+		.setRequired(false);
+	const moderatorNotesInputLabel = new LabelBuilder()
+		.setLabel('Moderator Notes')
+		.setTextInputComponent(moderatorNotesInput);
+
+	modal.addLabelComponents(
+		rulesBrokenInputLabel,
+		violatingContentInputLabel,
+		pointsAddedInputLabel,
+		moderatorNotesInputLabel,
+	);
+
+	return modal;
+}
+
 module.exports = {
 	buildReportUserModal,
 	buildReportUpdateModal,
 	buildReportReplyModal,
 	buildCaseAddNoteModal,
 	buildReportAddNoteModal,
+	buildWarnUserModal,
 };

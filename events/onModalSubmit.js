@@ -8,6 +8,8 @@ const { handleReportUserModalSubmit } = require('./modal/report/onReportUserModa
 const { handleReportUpdateModalSubmit } = require('./modal/report/onReportUpdateModalSubmit');
 const { handleReportReplyModalSubmit } = require('./modal/report/onReportReplyModalSubmit');
 const { handleModeratorAddNoteModalSubmit } = require('./modal/onModeratorAddNoteModalSubmit');
+const { handleWarnUserModalSubmit } = require('./modal/onWarnUserModalSubmit');
+const { handleOverrideWarnModalSubmit } = require('./modal/onOverrideWarnModalSubmit');
 
 module.exports = {
 	name: Events.InteractionCreate,
@@ -24,6 +26,10 @@ module.exports = {
 			await handleReportReplyModalSubmit(interaction);
 		} else if (modalId.startsWith('addModeratorNoteModal')) {
 			await handleModeratorAddNoteModalSubmit(interaction);
+		} else if (modalId.startsWith('warnUserModal')) {
+			await handleWarnUserModalSubmit(interaction);
+		} else if (modalId.startsWith('overrideWarnModal')) {
+			await handleOverrideWarnModalSubmit(interaction);
 		}
 	},
 };

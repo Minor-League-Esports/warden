@@ -302,8 +302,6 @@ module.exports = {
 	resolveEvidenceLinksForUser,
 	resolveEvidenceLinksForModerators,
 	notifyCaseThread,
-	getCaseLinkById,
-	buildWarnUserModal,
 };
 
 /**
@@ -325,79 +323,6 @@ async function notifyCaseThread(client, caseId, content) {
 	} catch (error) {
 		logger.warn(`Failed to notify case thread for case ${caseId}: ${error}`);
 	}
-}
-
-/**
- * Resolves the jump link to a case's discussion thread, if it has one.
- *
- * @param {String|null} caseId
- * @returns {Promise<String|null>}
- */
-async function getCaseLinkById(caseId) {
-	if (!caseId || caseId === 'N/A') return null;
-	try {
-		const kase = await globalThis.databaseManager.getCaseById(caseId);
-		return kase.getCaseLink();
-	} catch (error) {
-		logger.warn(`Failed to resolve case link for case ${caseId}: ${error}`);
-		return null;
-	}
-}
-
-/**
- * Builds the "Issue Warning to User" modal, shared by the /warn flow and the case "Create Warning" button.
- *
- * @param {String} customId
- * @returns {import('discord.js').ModalBuilder}
- */
-function buildWarnUserModal(customId) {
-	// Lazily required to avoid a require cycle at module load time
-	const { ModalBuilder, TextInputBuilder, LabelBuilder, TextInputStyle } = require('discord.js');
-
-	const modal = new ModalBuilder().setCustomId(customId).setTitle('Issue Warning to User');
-
-	const rulesBrokenInput = new TextInputBuilder()
-		.setCustomId('rulesBroken')
-		.setStyle(TextInputStyle.Paragraph)
-		.setPlaceholder('1.2(1) Mildly offensive language')
-		.setRequired(true);
-	const rulesBrokenInputLabel = new LabelBuilder().setLabel('Rule(s) Broken').setTextInputComponent(rulesBrokenInput);
-
-	const violatingContentInput = new TextInputBuilder()
-		.setCustomId('violatingContent')
-		.setStyle(TextInputStyle.Paragraph)
-		.setPlaceholder('Direct quote or description of the violating content (shown to user)')
-		.setRequired(true);
-	const violatingContentInputLabel = new LabelBuilder()
-		.setLabel('Violating Content')
-		.setTextInputComponent(violatingContentInput);
-
-	const pointsAddedInput = new TextInputBuilder()
-		.setCustomId('pointsAdded')
-		.setStyle(TextInputStyle.Short)
-		.setPlaceholder('Number of points to add to user record')
-		.setMinLength(1)
-		.setMaxLength(2)
-		.setRequired(true);
-	const pointsAddedInputLabel = new LabelBuilder().setLabel('Points Added').setTextInputComponent(pointsAddedInput);
-
-	const moderatorNotesInput = new TextInputBuilder()
-		.setCustomId('moderatorNotes')
-		.setStyle(TextInputStyle.Paragraph)
-		.setPlaceholder('Additional notes from the moderator (not shown to user)')
-		.setRequired(false);
-	const moderatorNotesInputLabel = new LabelBuilder()
-		.setLabel('Moderator Notes')
-		.setTextInputComponent(moderatorNotesInput);
-
-	modal.addLabelComponents(
-		rulesBrokenInputLabel,
-		violatingContentInputLabel,
-		pointsAddedInputLabel,
-		moderatorNotesInputLabel,
-	);
-
-	return modal;
 }
 
 /**

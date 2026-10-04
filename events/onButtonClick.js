@@ -20,6 +20,7 @@ const { handleCaseCloseButtonClick } = require('./button/case/onCaseCloseButtonC
 const { handleConfirmCloseCaseButtonClick } = require('./button/case/onConfirmCloseCaseButtonClick');
 const { handleCaseAddNoteButtonClick } = require('./button/case/onCaseAddNoteButtonClick');
 const { handleCancelButtonClick } = require('./button/onCancelButtonClick');
+const { handleCaseCreateWarningButtonClick } = require('./button/case/onCaseCreateWarningButtonClick');
 
 module.exports = {
 	name: Events.InteractionCreate,
@@ -47,6 +48,8 @@ module.exports = {
 			await handleReportUpdateButtonClick(interaction);
 		} else if (buttonId.startsWith('claimCaseButton')) {
 			await handleClaimCaseButtonClick(interaction);
+		} else if (buttonId.startsWith('caseCreateWarningButton')) {
+			await handleCaseCreateWarningButtonClick(interaction);
 		} else if (buttonId.startsWith('closeCaseButton')) {
 			await handleCaseCloseButtonClick(interaction);
 		} else if (buttonId.startsWith('confirmCloseCaseButton')) {

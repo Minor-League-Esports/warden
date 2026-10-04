@@ -71,8 +71,72 @@ function generateUserReportConfirmationEmbed(dbUser, reason, evidence) {
 	return embed;
 }
 
+function generateWarnConfirmationEmbed(
+	dbUser,
+	probationStatus,
+	rulesBroken,
+	violatingContent,
+	pointsAdded,
+	newPointsTotal,
+	moderatorNotes,
+	recommendedAction,
+	caseId,
+) {
+	return new EmbedBuilder()
+		.setColor('#ff761b')
+		.setTitle(`${dbUser.getUserName()} | Warning Proposed`)
+		.setFooter({ text: `ID: ${dbUser.getDiscordId()}` })
+		.setTimestamp()
+		.setThumbnail(dbUser.getDiscordAvatar())
+		.addFields(
+			{ name: 'User', value: `<@${dbUser.getDiscordId()}>`, inline: true },
+			{ name: 'MLE ID', value: dbUser.getMleId() ?? 'N/A', inline: true },
+			{ name: 'On Probation', value: String(probationStatus), inline: true },
+			{ name: 'Rule(s) Broken', value: String(rulesBroken ?? 'None') },
+			{ name: 'Violating Content', value: String(violatingContent ?? 'None') },
+			{
+				name: 'Points Added',
+				value: String(pointsAdded === 1 ? '1 point' : `${pointsAdded} points`),
+				inline: true,
+			},
+			{
+				name: 'New Points Total',
+				value: String(newPointsTotal === 1 ? '1 point' : `${newPointsTotal} points`),
+				inline: true,
+			},
+			{
+				name: 'Moderator Notes',
+				value: String(moderatorNotes?.trim() === '' ? 'None' : moderatorNotes.trim()),
+			},
+			{
+				name: 'Recommended Action',
+				value: String(generateRecommendedActionDescription(recommendedAction)),
+			},
+			{ name: 'Case', value: caseId ? `#${caseId}` : 'None', inline: true },
+		);
+}
+
+function generateRecommendedActionDescription(action) {
+	if (action === 'ban') {
+		return 'Ban the user';
+	} else if (action.startsWith('mute=') && action.includes(';suspension=')) {
+		const [mutePart, suspensionPart] = action.split(';');
+		const muteDays = mutePart.split('=')[1];
+		const suspensionWeeks = suspensionPart.split('=')[1];
+		return `Mute for ${muteDays} days and suspend for ${suspensionWeeks} week(s)`;
+	} else if (action.startsWith('mute=')) {
+		const muteDays = action.split('=')[1];
+		return `Mute for ${muteDays} days`;
+	} else if (action === 'warning') {
+		return 'Issue a warning';
+	} else {
+		return 'No action recommended';
+	}
+}
+
 module.exports = {
 	generateReportEmbed,
 	generateFailedUserReportEmbed,
 	generateUserReportConfirmationEmbed,
+	generateWarnConfirmationEmbed,
 };
