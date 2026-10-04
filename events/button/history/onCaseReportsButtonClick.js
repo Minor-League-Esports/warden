@@ -1,13 +1,9 @@
-const log4js = require('log4js');
-const logger = log4js.getLogger('onCaseReportsButtonClick');
-const { logLevel } = require('../../config.json');
-logger.level = logLevel;
-
-const { MessageFlags } = require('discord.js');
+const { showCasePage } = require('./caseHistoryPager');
 
 async function handleCaseReportsButtonClick(interaction) {
-	await interaction.message.edit({ content: 'Action cancelled.', components: [] });
-	await interaction.reply({ content: 'Action cancelled.', flags: MessageFlags.Ephemeral });
+	const [, caseId] = interaction.customId.split(':');
+	await interaction.deferReply();
+	await showCasePage(interaction, 'reports', caseId, 0, false);
 }
 
 module.exports = {

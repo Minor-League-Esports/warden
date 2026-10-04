@@ -26,6 +26,13 @@ const { handleWarnConfirmButtonClick } = require('./button/warn/onWarnConfirmBut
 const { handleDenyBanButtonClick } = require('./button/warn/onDenyBanButtonClick');
 const { handleApproveBanButtonClick } = require('./button/warn/onApproveBanButtonClick');
 const { handleUserSummaryWarnButtonClick } = require('./button/warn/onUserSummaryWarnButtonClick');
+const { handleCaseReportsButtonClick } = require('./button/history/onCaseReportsButtonClick');
+const { handleCaseWarningsButtonClick } = require('./button/history/onCaseWarningsButtonClick');
+const { handleCasePunishmentsButtonClick } = require('./button/history/onCasePunishmentsButtonClick');
+const {
+	handleCaseHistoryPageButtonClick,
+	handleCaseHistoryCloseButtonClick,
+} = require('./button/history/caseHistoryPager');
 
 module.exports = {
 	name: Events.InteractionCreate,
@@ -71,6 +78,16 @@ module.exports = {
 			await handleConfirmCloseCaseButtonClick(interaction);
 		} else if (buttonId.startsWith('caseAddNoteButton')) {
 			await handleCaseAddNoteButtonClick(interaction);
+		} else if (buttonId.startsWith('viewCaseReportsButton')) {
+			await handleCaseReportsButtonClick(interaction);
+		} else if (buttonId.startsWith('viewCaseWarningsButton')) {
+			await handleCaseWarningsButtonClick(interaction);
+		} else if (buttonId.startsWith('viewCasePunishmentsButton')) {
+			await handleCasePunishmentsButtonClick(interaction);
+		} else if (buttonId.startsWith('caseHistoryPage:')) {
+			await handleCaseHistoryPageButtonClick(interaction);
+		} else if (buttonId === 'caseHistoryClose') {
+			await handleCaseHistoryCloseButtonClick(interaction);
 		} else if (buttonId.startsWith('cancel')) {
 			await handleCancelButtonClick(interaction);
 		}

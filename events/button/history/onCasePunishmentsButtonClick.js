@@ -1,14 +1,9 @@
-const log4js = require('log4js');
-const logger = log4js.getLogger('onCasePunishmentsButtonClick');
-const { logLevel } = require('../../config.json');
-logger.level = logLevel;
-
-const { MessageFlags } = require('discord.js');
+const { showCasePage } = require('./caseHistoryPager');
 
 async function handleCasePunishmentsButtonClick(interaction) {
-	const buttonId = interaction.customId;
-	const [, dbId] = buttonId.split(':');
+	const [, caseId] = interaction.customId.split(':');
 	await interaction.deferReply();
+	await showCasePage(interaction, 'punishments', caseId, 0, false);
 }
 
 module.exports = {
