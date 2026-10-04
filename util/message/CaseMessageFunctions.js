@@ -90,7 +90,7 @@ async function refreshCaseMessage(fullCase) {
 		}
 
 		if (fullCase.getCaseLink()) {
-			caseThread.messages
+			await caseThread.messages
 				.fetch(fullCase.getCaseLink().split('/').pop())
 				.then(async (caseThreadMessage) => {
 					const embed = await fullCase.generatePrivateEmbed();
@@ -117,7 +117,7 @@ async function refreshCaseMessage(fullCase) {
 		}
 
 		if (fullCase.getCaseSummaryLink()) {
-			globalThis.caseChannel.messages
+			await globalThis.caseChannel.messages
 				.fetch(fullCase.getCaseSummaryLink().split('/').pop())
 				.then(async (summaryMessage) => {
 					const summaryEmbed = await fullCase.generateSummaryEmbed();

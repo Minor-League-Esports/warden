@@ -108,12 +108,13 @@ async function handleConfirmReportSubmissionButtonClick(interaction) {
 		}
 
 		// Generate the user-facing embed for the report and update the interaction reply
-		const reportUserEmbed = await report.generateUserEmbed();
+		const updatedReport = await globalThis.databaseManager.getReportById(report.getReportId());
+		const reportUserEmbed = await updatedReport.generateUserEmbed();
 		await interaction.editReply({ components: [] });
 		await interaction.followUp({
-			content: `Your report #${report.getReportId()} has been submitted to MLE Moderation. Thank you for helping keep the community safe!`,
+			content: `Your report #${updatedReport.getReportId()} has been submitted to MLE Moderation. Thank you for helping keep the community safe!`,
 			embeds: [reportUserEmbed],
-			components: generateReportUpdateButton(report.getReportId()),
+			components: generateReportUpdateButton(updatedReport.getReportId()),
 			flags: MessageFlags.Ephemeral,
 		});
 		// Also DM the user with the same information
@@ -121,12 +122,12 @@ async function handleConfirmReportSubmissionButtonClick(interaction) {
 			const reporter = await globalThis.databaseManager.getUserByIdentifier(reporterId, 'db');
 			const reporterDiscordUser = await interaction.client.users.fetch(reporter.getDiscordId());
 			await reporterDiscordUser.send({
-				content: `Your report #${report.getReportId()} has been submitted to MLE Moderation. Thank you for helping keep the community safe!`,
+				content: `Your report #${updatedReport.getReportId()} has been submitted to MLE Moderation. Thank you for helping keep the community safe!`,
 				embeds: [reportUserEmbed],
-				components: generateReportUpdateButton(report.getReportId()),
+				components: generateReportUpdateButton(updatedReport.getReportId()),
 			});
 		} catch (dmError) {
-			logger.warn(`Could not DM reporter for report ${report.getReportId()}: ${dmError}`);
+			logger.warn(`Could not DM reporter for report ${updatedReport.getReportId()}: ${dmError}`);
 		}
 	} catch (error) {
 		// Handle any errors that occur during the report creation process

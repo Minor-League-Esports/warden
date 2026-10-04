@@ -60,7 +60,7 @@ async function refreshReportMessage(report) {
 		}
 
 		if (report.getReportLink()) {
-			caseThread.messages
+			await caseThread.messages
 				.fetch(report.getReportLink().split('/').pop())
 				.then(async (message) => {
 					const embed = await report.generatePrivateEmbed();
@@ -137,7 +137,7 @@ async function notifyReportUpdate(report, messageContent) {
 			throw new Error(`Failed to fetch case thread for link: ${report.getCase().getCaseThreadLink()}`);
 		}
 		if (report.getReportLink()) {
-			caseThread.messages
+			await caseThread.messages
 				.fetch(report.getReportLink().split('/').pop())
 				.then(async (message) => {
 					await message.reply({
@@ -184,7 +184,7 @@ async function attachEvidenceToReport(report, evidenceFiles) {
 		}
 
 		if (report.getReportLink()) {
-			caseThread.messages
+			await caseThread.messages
 				.fetch(report.getReportLink().split('/').pop())
 				.then(async (message) => {
 					const evidenceMessage = await message.reply({
