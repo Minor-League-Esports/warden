@@ -250,6 +250,11 @@ async function closeCaseThread(fullCase) {
 			fullCase.getCaseThreadLink().slice(fullCase.getCaseThreadLink().lastIndexOf('/') + 1),
 		);
 		if (caseThread) {
+			await caseThread.send({
+				content: `The case has been closed.`,
+			});
+			// Rename the thread to prefix with "(C)" for closed
+			await caseThread.setName(`(C) ${caseThread.name}`);
 			await caseThread.setArchived(true);
 		}
 	} catch (error) {
