@@ -219,8 +219,6 @@ class Report {
 	 * @returns {EmbedBuilder}
 	 */
 	async generatePrivateEmbed() {
-		const subject = await globalThis.databaseManager.getUserByIdentifier(this.getSubjectId(), 'db');
-		const reporter = await globalThis.databaseManager.getUserByIdentifier(this.getReporterId(), 'db');
 		const caseIdValue = this.getCase()
 			? this.getCase().getCaseThreadLink()
 				? `[#${this.getCaseId()}](${this.getCase().getCaseThreadLink()})`
@@ -230,16 +228,16 @@ class Report {
 			? `[#${this.getReportId()}](${this.getReportLink()})`
 			: `#${this.getReportId()}`;
 		const embed = new EmbedBuilder()
-			.setTitle(`Report #${this.getReportId() ?? 'None'} | ${subject?.getUserName() ?? 'Unknown'}`)
+			.setTitle(`Report #${this.getReportId() ?? 'None'} | ${this.getSubjectUser()?.getUserName() ?? 'Unknown'}`)
 			.setTimestamp(new Date(this.getReportTimestamp() ?? new Date().toISOString()))
 			.addFields(
-				{ name: 'Reporter', value: String(reporter?.getUserName() ?? 'Unknown'), inline: true },
+				{ name: 'Reporter', value: String(this.getReporter()?.getUserName() ?? 'Unknown'), inline: true },
 				{ name: 'Status', value: String(this.getStatus() ?? 'Unknown') },
 				{ name: 'Case ID', value: caseIdValue, inline: true },
 				{ name: 'Report ID', value: reportIdValue, inline: true },
 			)
-			.setFooter({ text: `ID: ${subject?.getDiscordId() ?? 'Unknown'}` })
-			.setThumbnail(subject?.getDiscordAvatar() ?? null)
+			.setFooter({ text: `ID: ${this.getSubjectUser()?.getDiscordId() ?? 'Unknown'}` })
+			.setThumbnail(this.getSubjectUser()?.getDiscordAvatar() ?? null)
 			.setColor('#ff761b');
 
 		// Report Reason (may be long)
@@ -308,7 +306,6 @@ class Report {
 	 * @returns {EmbedBuilder}
 	 */
 	async generateUserEmbed() {
-		const subject = await globalThis.databaseManager.getUserByIdentifier(this.getSubjectId(), 'db');
 		const embed = new EmbedBuilder()
 			.setTitle(`MLE Moderation Update: Report #${this.getReportId()}`)
 			.setTimestamp(new Date(this.getReportTimestamp() ?? new Date().toISOString()))
@@ -318,7 +315,7 @@ class Report {
 			.addFields(
 				{
 					name: 'Reported User',
-					value: String(subject ? `<@${subject.getDiscordId()}>` : 'Unknown'),
+					value: String(this.getSubjectUser() ? `<@${this.getSubjectUser().getDiscordId()}>` : 'Unknown'),
 					inline: true,
 				},
 				{ name: 'Status', value: String(this.getStatus() ?? 'Unknown'), inline: true },

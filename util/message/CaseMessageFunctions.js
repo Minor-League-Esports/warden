@@ -35,7 +35,7 @@ async function createCaseMessage(caseObj) {
 	});
 
 	// Send a notification to the case thread about the new case
-	const fullEmbed = await fullCase.generatePrivateEmbed();
+	const fullEmbed = fullCase.generatePrivateEmbed();
 	const caseThreadMessage = await caseThread.send({
 		content: `<@&${moderatorRoleId}> A new case has been opened.\nCase #${fullCase.getCaseId()} | ${subjectMention} `,
 		embeds: [fullEmbed],
@@ -93,7 +93,7 @@ async function refreshCaseMessage(fullCase) {
 			await caseThread.messages
 				.fetch(fullCase.getCaseLink().split('/').pop())
 				.then(async (caseThreadMessage) => {
-					const embed = await fullCase.generatePrivateEmbed();
+					const embed = fullCase.generatePrivateEmbed();
 					await caseThreadMessage.edit({
 						embeds: [embed],
 						components: generateCaseButtons(fullCase.getCaseId(), {
@@ -153,7 +153,7 @@ async function recreateCaseMessage(fullCase) {
 			logger.warn(`Failed to fetch case thread for link: ${fullCase.getCaseThreadLink()}`);
 			throw new Error(`Failed to fetch case thread for link: ${fullCase.getCaseThreadLink()}`);
 		}
-		const embed = await fullCase.generatePrivateEmbed();
+		const embed = fullCase.generatePrivateEmbed();
 		const newMessage = await caseThread.send({
 			content: `Recreating case thread message for link: ${fullCase.getCaseThreadLink()}.`,
 			embeds: [embed],

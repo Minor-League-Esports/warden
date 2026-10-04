@@ -203,7 +203,8 @@ module.exports = {
 				return;
 			}
 
-			const updatedReport = await attachEvidenceToReport(report, files);
+			await attachEvidenceToReport(report, files);
+			const updatedReport = await globalThis.databaseManager.getReportById(reportId);
 			const updatedReportEmbed = await updatedReport.generateUserEmbed();
 			// Edit the interaction reply to show the updated report to the user
 			await interaction.editReply({

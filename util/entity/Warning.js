@@ -143,7 +143,6 @@ class Warning {
 	/**
 	 * To string method to represent the Warning as an Embed for moderators
 	 *
-	 * @param {String|null} caseLink Optional jump link to the case's discussion thread
 	 * @param {String} reporters Names of reporters attached to the parent case
 	 * @returns {Embed}
 	 */

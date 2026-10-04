@@ -33,7 +33,7 @@ async function attachReportToCaseThread(reportObj, caseObj) {
 	const fullCase = await globalThis.databaseManager.getCaseById(caseObj.getCaseId());
 	const caseMessage = await caseThread.messages.fetch(fullCase.getCaseLink().split('/').pop());
 	if (caseMessage) {
-		const caseEmbed = await fullCase.generatePrivateEmbed();
+		const caseEmbed = fullCase.generatePrivateEmbed();
 		await caseMessage.edit({ embeds: [caseEmbed] });
 	}
 }

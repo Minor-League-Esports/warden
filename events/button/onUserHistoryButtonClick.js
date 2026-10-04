@@ -40,7 +40,7 @@ module.exports = {
 					// most recent warning
 					const indexToShow = 0;
 					const caseContext = await getWarningCaseContext(warnings[indexToShow]);
-					const embed = warnings[indexToShow].generatePrivateEmbed(caseContext.link, caseContext.reporters);
+					const embed = warnings[indexToShow].generatePrivateEmbed(caseContext.reporters);
 					const components = buildPaginationComponents(dbId, indexToShow, warnings.length);
 					await interaction.editReply({
 						content: `Showing warning ${indexToShow + 1} of ${warnings.length}.`,
@@ -80,7 +80,7 @@ module.exports = {
 				// Clamp index to bounds
 				targetIndex = Math.max(0, Math.min(targetIndex, warnings.length - 1));
 				const caseContext = await getWarningCaseContext(warnings[targetIndex]);
-				const embed = warnings[targetIndex].generatePrivateEmbed(caseContext.link, caseContext.reporters);
+				const embed = warnings[targetIndex].generatePrivateEmbed(caseContext.reporters);
 				const components = buildPaginationComponents(dbId, targetIndex, warnings.length);
 
 				// Update the original message containing the buttons
@@ -114,7 +114,7 @@ module.exports = {
 				}
 				const allEmbeds = warnings.map((warning) => {
 					const caseContext = caseContexts.get(warning.getCaseId());
-					return warning.generatePrivateEmbed(caseContext.link, caseContext.reporters);
+					return warning.generatePrivateEmbed(caseContext.reporters);
 				});
 				const chunkSize = 10;
 				const chunks = [];

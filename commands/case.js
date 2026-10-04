@@ -399,12 +399,12 @@ async function showCaseDetails(interaction) {
 	await interaction.editReply({ content: `Details for Case #${caseId}`, embeds: [overview] });
 
 	const embeds = [];
-	for (const report of reports) embeds.push(await report.generatePrivateEmbed(kase.getCaseLink()));
+	for (const report of reports) embeds.push(await report.generatePrivateEmbed());
 	for (const warning of warnings) {
-		embeds.push(warning.generatePrivateEmbed(kase.getCaseLink(), kase.getReporterNames()));
+		embeds.push(warning.generatePrivateEmbed(kase.getReporterNames()));
 	}
 	for (const punishment of punishments) {
-		embeds.push(punishment.generatePrivateEmbed(kase.getCaseLink(), kase.getReporterNames()));
+		embeds.push(punishment.generatePrivateEmbed(kase.getReporterNames()));
 	}
 
 	for (let index = 0; index < embeds.length; index += 9) {
