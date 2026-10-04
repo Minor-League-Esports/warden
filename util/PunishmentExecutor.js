@@ -12,6 +12,7 @@ class PunishmentExecutor {
 	}
 
 	async execute(dbUserId, warnCreatorId, punishmentExecutorId, proposalEmbed, action, caseId = null) {
+		logger.debug(dbUserId, warnCreatorId, punishmentExecutorId, proposalEmbed, action, caseId);
 		const parsedEmbed = this.parseProposedEmbed(proposalEmbed);
 		try {
 			// Create the warning in the database
@@ -34,6 +35,7 @@ class PunishmentExecutor {
 			// For each punishment in the action string, create the punishment and link it to the warning
 			for (const pun of action.split(';')) {
 				const [type, durationStr] = pun.split('=');
+				if (type === 'warning') continue;
 				// Create the punishment in the database
 				const punishment = await globalThis.databaseManager.createPunishment(
 					dbUserId,

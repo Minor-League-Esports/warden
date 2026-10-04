@@ -95,9 +95,9 @@ function buildReportAddNoteModal(dbId) {
  * @param {String} customId
  * @returns {import('discord.js').ModalBuilder}
  */
-function buildWarnUserModal(subjectId, caseId) {
+function buildWarnUserModal(subjectId, caseId = null) {
 	const modal = new ModalBuilder()
-		.setCustomId(`warnUserModal:${subjectId}:${caseId}`)
+		.setCustomId(`warnUserModal:${subjectId}:${caseId ?? ''}`)
 		.setTitle('Issue Warning to User');
 
 	const rulesBrokenInput = new TextInputBuilder()

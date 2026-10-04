@@ -23,7 +23,7 @@ function generateReportUpdateButton(reportId) {
 
 function generateUserSummaryButtons(dbId, caseId = null) {
 	const confirmButton = new ButtonBuilder()
-		.setCustomId(`userConfirmWarnButton:${dbId}:${caseId ?? ''}`)
+		.setCustomId(`userSummaryWarnButton:${dbId}:${caseId ?? ''}`)
 		.setLabel('Warn User')
 		.setStyle(ButtonStyle.Success);
 	// TODO: Implement 'update user'

@@ -147,13 +147,12 @@ class Warning {
 	 * @param {String} reporters Names of reporters attached to the parent case
 	 * @returns {Embed}
 	 */
-	generatePrivateEmbed(caseLink = null, reporters = 'None') {
-		const caseValue =
-			this.getCaseId() && this.getCaseId() !== 'N/A'
-				? caseLink
-					? `[#${this.getCaseId()}](${caseLink})`
-					: `#${this.getCaseId()}`
-				: 'None';
+	generatePrivateEmbed(reporters = 'None') {
+		const caseIdValue = this.getCase()
+			? this.getCase().getCaseThreadLink()
+				? `[#${this.getCaseId()}](${this.getCase().getCaseThreadLink()})`
+				: `#${this.getCaseId()}`
+			: 'None';
 		const embed = new EmbedBuilder()
 			.setTitle(`${this.getSubject().getUserName()} | Warning #${this.getWarningId() ?? 'N/A'}`)
 			.setTimestamp(new Date(this.getTimestamp()))
@@ -193,7 +192,7 @@ class Warning {
 
 		embed.addFields(
 			{ name: 'Moderator Name', value: String(this.getModerator()?.getUserName() ?? 'None'), inline: true },
-			{ name: 'Case', value: caseValue, inline: true },
+			{ name: 'Case', value: caseIdValue, inline: true },
 			{ name: 'Reporters', value: String(reporters), inline: true },
 		);
 

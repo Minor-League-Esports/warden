@@ -25,6 +25,7 @@ const { handleWarnOverrideButtonClick } = require('./button/warn/onWarnOverrideB
 const { handleWarnConfirmButtonClick } = require('./button/warn/onWarnConfirmButtonClick');
 const { handleDenyBanButtonClick } = require('./button/warn/onDenyBanButtonClick');
 const { handleApproveBanButtonClick } = require('./button/warn/onApproveBanButtonClick');
+const { handleUserSummaryWarnButtonClick } = require('./button/warn/onUserSummaryWarnButtonClick');
 
 module.exports = {
 	name: Events.InteractionCreate,
@@ -56,6 +57,8 @@ module.exports = {
 			await handleWarnOverrideButtonClick(interaction);
 		} else if (buttonId.startsWith('caseCreateWarningButton')) {
 			await handleCaseCreateWarningButtonClick(interaction);
+		} else if (buttonId.startsWith('userSummaryWarnButton')) {
+			await handleUserSummaryWarnButtonClick(interaction);
 		} else if (buttonId.startsWith('denyBanButton')) {
 			await handleDenyBanButtonClick(interaction);
 		} else if (buttonId.startsWith('approveBanButton')) {
