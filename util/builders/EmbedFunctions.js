@@ -134,7 +134,24 @@ function generateRecommendedActionDescription(action) {
 	}
 }
 
+// Warnings loaded via the database manager carry a full Case, so reporters come from it directly
+function generateWarningHistoryEmbed(warning) {
+	return warning.generatePrivateEmbed(warning.getCase()?.getReporterNames() ?? 'None');
+}
+
+function generateUserHistoryEmbed(user, reports, punishments) {
+	return user.generateUserSummaryEmbed().addFields(
+		{ name: 'Reports', value: reports.length > 0 ? `${reports.length} report(s) found` : 'No reports found' },
+		{
+			name: 'Punishments',
+			value: punishments.length > 0 ? `${punishments.length} punishment(s) found` : 'No punishments found',
+		},
+	);
+}
+
 module.exports = {
+	generateWarningHistoryEmbed,
+	generateUserHistoryEmbed,
 	generateReportEmbed,
 	generateFailedUserReportEmbed,
 	generateUserReportConfirmationEmbed,

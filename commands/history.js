@@ -4,12 +4,12 @@ const { logLevel, opsGuild } = require('../config.json');
 logger.level = logLevel;
 
 const { SlashCommandBuilder, PermissionFlagsBits, InteractionContextType, MessageFlags } = require('discord.js');
-const { generateUserSummaryButtons } = require('../util/builders/ButtonFunctions');
+const { buildUserHistoryCard } = require('../util/message/HistoryMessageFunctions');
 
 module.exports = {
 	data: new SlashCommandBuilder()
 		.setName('history')
-		.setDescription('Shows the warning history of a user')
+		.setDescription('Shows the case, report, warning, and punishment history of a user')
 		.setContexts([InteractionContextType.Guild])
 		.setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
 		.addStringOption((option) =>
@@ -30,17 +30,7 @@ module.exports = {
 		const userId = interaction.options.getString('user');
 		try {
 			const user = await globalThis.userUtility.fetchDatabaseUser(userId);
-			const [warnings, cases] = await Promise.all([
-				globalThis.databaseManager.getWarnings(user.getUserId()),
-				globalThis.databaseManager.getCasesBySubjectId(user.getUserId()),
-			]);
-			user.setWarnings(warnings);
-			user.setCases(cases);
-
-			await interaction.editReply({
-				embeds: [user.generateUserSummaryEmbed()],
-				components: generateUserSummaryButtons(user.getUserId()),
-			});
+			await interaction.editReply(await buildUserHistoryCard(user));
 		} catch (error) {
 			logger.error(`Failed to fetch user history for ${userId}: ${error}`);
 			if (error.message === 'User not found by any identifier.') {

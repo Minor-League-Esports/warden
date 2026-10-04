@@ -4,19 +4,20 @@ const { logLevel } = require('../../../config.json');
 logger.level = logLevel;
 
 const { generateCaseHistoryPageButtons } = require('../../../util/builders/ButtonFunctions');
+const { sortByIdDescending } = require('../../../util/message/HistoryMessageFunctions');
 
 const TYPE_LABELS = { reports: 'report', warnings: 'warning', punishments: 'punishment' };
 
 function getItems(type, kase) {
-	if (type === 'reports') return kase.getReports();
-	if (type === 'warnings') return kase.getWarnings();
+	if (type === 'reports') return sortByIdDescending(type, kase.getReports());
+	if (type === 'warnings') return sortByIdDescending(type, kase.getWarnings());
 
 	// Punishments tied to a warning are nested under it rather than in the case's own list
 	const byId = new Map();
 	for (const p of [...kase.getPunishments(), ...kase.getWarnings().flatMap((w) => w.getPunishments())]) {
 		byId.set(p.getPunishmentId(), p);
 	}
-	return [...byId.values()];
+	return sortByIdDescending(type, [...byId.values()]);
 }
 
 async function buildEmbed(type, item, kase) {

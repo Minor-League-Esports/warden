@@ -66,6 +66,22 @@ async function getPunishmentById(punishmentId) {
 }
 
 /**
+ * Gets every punishment issued to a user, with cases loaded
+ *
+ * @param {String} userId The user's Database ID
+ * @returns {Promise<Punishment[]>}
+ */
+async function getPunishmentsBySubjectId(userId) {
+	if (this._status !== 'success') {
+		throw new Error('DB manager not initialized');
+	}
+
+	const res = await this._queryFile('queries/get/getPunishmentsBySubjectId.sql', [userId]);
+	const punishments = globalThis.databaseResponseParser.parseDatabasePunishmentResponse(res);
+	return this._hydrateCases(punishments);
+}
+
+/**
  * Gets a user's standalone punishments (punishments not attached to a case)
  *
  * @param {String} userId The user's Database ID
@@ -111,6 +127,7 @@ async function getCurrentlyBannedUsers() {
 module.exports = {
 	createPunishment,
 	getPunishmentById,
+	getPunishmentsBySubjectId,
 	getStandalonePunishments,
 	getCurrentlyBannedUsers,
 };

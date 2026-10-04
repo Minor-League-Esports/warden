@@ -277,6 +277,37 @@ function generateCaseHistoryPageButtons(type, caseId, index, total) {
 	];
 }
 
+function generateUserHistoryButtons(dbId) {
+	const button = (type, label) =>
+		new ButtonBuilder().setCustomId(`userHistoryView:${type}:${dbId}`).setLabel(label).setStyle(ButtonStyle.Primary);
+	return [
+		new ActionRowBuilder().addComponents(
+			button('warnings', 'View Warnings'),
+			button('cases', 'View Cases'),
+			button('reports', 'View Reports'),
+			button('punishments', 'View Punishments'),
+		),
+	];
+}
+
+function generateUserHistoryPageButtons(type, dbId, index, total) {
+	return [
+		new ActionRowBuilder().addComponents(
+			new ButtonBuilder()
+				.setCustomId(`userHistoryPage:${type}:${dbId}:${index - 1}`)
+				.setLabel('Prev')
+				.setStyle(ButtonStyle.Secondary)
+				.setDisabled(index <= 0),
+			new ButtonBuilder()
+				.setCustomId(`userHistoryPage:${type}:${dbId}:${index + 1}`)
+				.setLabel('Next')
+				.setStyle(ButtonStyle.Secondary)
+				.setDisabled(index >= total - 1),
+			new ButtonBuilder().setCustomId('caseHistoryClose').setLabel('Close').setStyle(ButtonStyle.Danger),
+		),
+	];
+}
+
 module.exports = {
 	generateCaseButtons,
 	generateCloseCaseConfirmationButtons,
@@ -297,4 +328,6 @@ module.exports = {
 	generateBanApprovalButtons,
 	generateCaseDetailsButtons,
 	generateCaseHistoryPageButtons,
+	generateUserHistoryButtons,
+	generateUserHistoryPageButtons,
 };
