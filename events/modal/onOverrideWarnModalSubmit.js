@@ -5,6 +5,7 @@ logger.level = logLevel;
 
 const { EmbedBuilder } = require('discord.js');
 const { generateWarnConfirmationButtons } = require('../../util/builders/ButtonFunctions');
+const { describeAction } = require('../../util/UtilFunctions');
 
 async function handleOverrideWarnModalSubmit(interaction) {
 	const buttonId = interaction.customId;
@@ -48,18 +49,6 @@ function parseOverrideAction(input) {
 		if (!/^(mute|suspension)=[1-9]\d*$/.test(action)) return null;
 	}
 	return actions.join(';');
-}
-
-function describeAction(action) {
-	return action
-		.split(';')
-		.map((entry) => {
-			if (entry === 'warning') return 'Issue an official warning';
-			if (entry === 'ban') return 'Ban the user';
-			const [type, duration] = entry.split('=');
-			return type === 'mute' ? `Mute for ${duration} day(s)` : `Suspend for ${duration} week(s)`;
-		})
-		.join('\n');
 }
 
 module.exports = {

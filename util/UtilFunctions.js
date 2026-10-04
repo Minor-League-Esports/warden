@@ -295,6 +295,18 @@ function chunkTextPreserveNewlines(text, max = 1024) {
 	return chunks.filter((c) => c.length);
 }
 
+function describeAction(action) {
+	return action
+		.split(';')
+		.map((entry) => {
+			if (entry === 'warning') return 'Issue an official warning';
+			if (entry === 'ban') return 'Ban the user';
+			const [type, duration] = entry.split('=');
+			return type === 'mute' ? `Mute for ${duration} day(s)` : `Suspend for ${duration} week(s)`;
+		})
+		.join('\n');
+}
+
 module.exports = {
 	calculateCurrentPoints,
 	getNextPointExpiry,
@@ -302,6 +314,7 @@ module.exports = {
 	resolveEvidenceLinksForUser,
 	resolveEvidenceLinksForModerators,
 	notifyCaseThread,
+	describeAction,
 };
 
 /**

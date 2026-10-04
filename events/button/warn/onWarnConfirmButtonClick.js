@@ -5,6 +5,7 @@ logger.level = logLevel;
 
 const { EmbedBuilder } = require('discord.js');
 const { generateBanApprovalButtons } = require('../../../util/builders/ButtonFunctions');
+const { describeAction } = require('../../../util/UtilFunctions');
 
 async function handleWarnConfirmButtonClick(interaction) {
 	const buttonId = interaction.customId;
@@ -34,14 +35,9 @@ async function handleWarnConfirmButtonClick(interaction) {
 			.execute(dbId, moderatorId, moderatorId, proposalEmbed, recommendedAction, caseId || null)
 			.then(async () => {
 				logger.info(`Successfully executed ${recommendedAction} for user with DB ID: ${dbId}`);
-				await interaction.followUp({ content: 'Successfully executed punishment.' });
-				if (caseId) {
-					await notifyCaseThread(
-						interaction.client,
-						caseId,
-						`Warning issued to <@${subject.getDiscordId()}> by <@${interaction.user.id}>: ${recommendedAction}`,
-					);
-				}
+				await interaction.followUp({
+					content: `Punishment executed on <@${subject.getDiscordId()}> by <@${interaction.user.id}>: ${describeAction(recommendedAction)}`,
+				});
 				if (recommendedAction.includes('suspension')) {
 					await interaction.followUp({
 						content: `Note: Suspensions are not automatically executed by Warden yet. Please handle the suspension manually via League Operations.`,
@@ -50,7 +46,7 @@ async function handleWarnConfirmButtonClick(interaction) {
 			})
 			.catch((error) => {
 				logger.error(`Error executing ${recommendedAction} for user with DB ID: ${dbId}: ${error}`);
-				interaction.followUp({ content: `Error executing ${recommendedAction}.` });
+				interaction.followUp({ content: `Error executing ${describeAction(recommendedAction)}.` });
 			});
 	}
 }
