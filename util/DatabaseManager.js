@@ -53,7 +53,8 @@ class DatabaseManager {
 	 * @returns {Promise<Array>} The same records
 	 */
 	async _hydrateCases(records) {
-		const caseIds = [...new Set(records.map((r) => r.getCaseId()).filter((id) => id != null))];
+		// Entity getCaseId() returns the display string 'N/A' when there is no case
+		const caseIds = [...new Set(records.map((r) => r.getCaseId()).filter((id) => id != null && id !== 'N/A'))];
 		if (caseIds.length === 0) return records;
 
 		const cases = new Map(await Promise.all(caseIds.map(async (id) => [id, await this.getCaseById(id)])));

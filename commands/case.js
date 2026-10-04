@@ -5,7 +5,7 @@ logger.level = logLevel;
 
 const { SlashCommandBuilder, PermissionFlagsBits, InteractionContextType, MessageFlags } = require('discord.js');
 
-const { assignCase } = require('../util/message/CaseMessageFunctions');
+const { assignCase, createCaseMessage } = require('../util/message/CaseMessageFunctions');
 const { buildCaseAddNoteModal, buildReportAddNoteModal } = require('../util/builders/ModalFunctions');
 const {
 	generateCaseButtons,
@@ -25,8 +25,7 @@ module.exports = {
 				.setDescription('Create a case without an attached report')
 				.addStringOption((option) =>
 					option.setName('subject').setDescription('The user who is the subject of the case').setRequired(true),
-				)
-				.addStringOption((option) => option.setName('notes').setDescription('Initial moderator notes')),
+				),
 		)
 		.addSubcommand((subcommand) =>
 			subcommand
@@ -189,7 +188,14 @@ module.exports = {
 		} else {
 			try {
 				if (subcommand === 'create') {
-					await createCase(interaction);
+					const creator = await globalThis.userUtility.fetchDatabaseUser(interaction.user.id);
+					const subject = await globalThis.userUtility.fetchDatabaseUser(interaction.options.getString('subject'));
+					const newCase = await globalThis.databaseManager.createCase(creator.getUserId(), subject.getUserId());
+					await createCaseMessage(newCase);
+					const updatedCase = await globalThis.databaseManager.getCaseById(newCase.getCaseId());
+					await interaction.editReply({
+						content: `Created Case [#${updatedCase.getCaseId()}](${updatedCase.getCaseLink()}).`,
+					});
 				} else if (subcommand === 'details') {
 					await showCaseDetails(interaction);
 				} else if (subcommand === 'assign') {
