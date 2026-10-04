@@ -44,6 +44,24 @@ async function createPunishment(
 	const punishments = globalThis.databaseResponseParser.parseDatabasePunishmentResponse(res);
 	if (punishments.length !== 1) throw new Error('Failed to create punishment');
 	logger.info(`Created punishment ${punishments[0].getPunishmentId()} for user ${subjectId}`);
+	return this.getPunishmentById(punishments[0].getPunishmentId());
+}
+
+/**
+ * Gets a punishment by its ID with its case loaded
+ *
+ * @param {String} punishmentId The punishment's Database ID
+ * @returns {Promise<Punishment|null>}
+ */
+async function getPunishmentById(punishmentId) {
+	if (this._status !== 'success') {
+		throw new Error('DB manager not initialized');
+	}
+
+	const res = await this._queryFile('queries/get/getPunishmentById.sql', [punishmentId]);
+	const punishments = globalThis.databaseResponseParser.parseDatabasePunishmentResponse(res);
+	if (punishments.length !== 1) return null;
+	await this._hydrateCases(punishments);
 	return punishments[0];
 }
 
@@ -92,6 +110,7 @@ async function getCurrentlyBannedUsers() {
 
 module.exports = {
 	createPunishment,
+	getPunishmentById,
 	getStandalonePunishments,
 	getCurrentlyBannedUsers,
 };

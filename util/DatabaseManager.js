@@ -47,6 +47,24 @@ class DatabaseManager {
 	}
 
 	/**
+	 * Replaces each record's core case with the fully loaded case (users, reports, warnings, punishments).
+	 * Records without a case are left alone; each distinct case is loaded once per call.
+	 * @param {Array<Report|Warning|Punishment>} records Mutated in place
+	 * @returns {Promise<Array>} The same records
+	 */
+	async _hydrateCases(records) {
+		const caseIds = [...new Set(records.map((r) => r.getCaseId()).filter((id) => id != null))];
+		if (caseIds.length === 0) return records;
+
+		const cases = new Map(await Promise.all(caseIds.map(async (id) => [id, await this.getCaseById(id)])));
+		for (const record of records) {
+			const kase = cases.get(record.getCaseId());
+			if (kase) record.setCase(kase);
+		}
+		return records;
+	}
+
+	/**
 	 * Initializes the database connection
 	 * @param None
 	 * @returns {Promise<boolean>} A promise to initialize the connection

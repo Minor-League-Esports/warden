@@ -140,7 +140,7 @@ async function createCase(
 	const cases = globalThis.databaseResponseParser.parseDatabaseCaseResponse(res);
 	if (cases.length !== 1) throw new Error('Failed to create case');
 	logger.info(`Created case ${cases[0].getCaseId()} for subject ${subjectId}`);
-	return cases[0];
+	return this.getCaseById(cases[0].getCaseId());
 }
 
 /**
@@ -176,7 +176,7 @@ async function updateCase(caseId, fields) {
 	const cases = globalThis.databaseResponseParser.parseDatabaseCaseResponse(res);
 	if (cases.length !== 1) throw new Error('Failed to update case');
 	logger.info(`Updated case with case_id ${caseId}: ` + JSON.stringify(fields));
-	return cases[0];
+	return this.getCaseById(caseId);
 }
 
 /**
@@ -195,52 +195,6 @@ async function claimCase(caseId, moderatorId) {
 	await this._pool.query('UPDATE Reports SET moderator_id = $1 WHERE case_id = $2', [moderatorId, caseId]);
 	logger.info(`Case ${caseId} claimed by moderator ${moderatorId}; cascaded to attached reports`);
 	return kase;
-}
-
-/**
- * Closes a case and all of its still-open reports as one database transaction.
- *
- * @param {String} caseId The case's Database ID
- * @param {String|Date} closedAt Timestamp used for the case and attached reports
- * @returns {Promise<{case: Case, reports: Report[]}>} The closed case and reports newly closed by this operation
- */
-async function closeCase(caseId, closedAt = new Date().toISOString()) {
-	if (this._status !== 'success') {
-		throw new Error('DB manager not initialized');
-	}
-
-	const client = await this._pool.connect();
-	try {
-		await client.query('BEGIN');
-		const caseRes = await client.query(
-			`UPDATE Cases
-				 SET status = 'CLOSED', closed_at = $2
-				 WHERE case_id = $1
-				 RETURNING *`,
-			[caseId, closedAt],
-		);
-		if (caseRes.rows.length !== 1) throw new Error('Case not found');
-
-		const reportsRes = await client.query(
-			`UPDATE Reports
-				 SET status = 'CLOSED', close_timestamp = $2
-				 WHERE case_id = $1 AND status <> 'CLOSED'
-				 RETURNING *`,
-			[caseId, closedAt],
-		);
-		await client.query('COMMIT');
-
-		const cases = globalThis.databaseResponseParser.parseDatabaseCaseResponse(caseRes);
-		const reports = globalThis.databaseResponseParser.parseDatabaseReportResponse(reportsRes);
-		logger.info(`Closed case ${caseId} and ${reports.length} attached report(s)`);
-		return { case: cases[0], reports };
-	} catch (error) {
-		await client.query('ROLLBACK').catch(() => {});
-		logger.error(`Error closing case ${caseId}: ${error}`);
-		throw error;
-	} finally {
-		client.release();
-	}
 }
 
 /**
@@ -324,7 +278,6 @@ module.exports = {
 	createCase,
 	updateCase,
 	claimCase,
-	closeCase,
 	getAllCases,
 	getCasesBySubjectId,
 	attachReportToCase,

@@ -1,12 +1,6 @@
 SELECT
-    r.*,
-    -- Reporter
-    u_rep.user_id AS u_rep_id,
-    u_rep.discord_id AS u_rep_discord_id,
-    u_rep.discord_avatar AS u_rep_avatar,
-    u_rep.user_name AS u_rep_name,
-    u_rep.mle_id AS u_rep_mle_id,
-    -- Subject (reported)
+    w.*,
+    -- Target user (warned)
     u_user.user_id AS u_user_id,
     u_user.discord_id AS u_user_discord_id,
     u_user.discord_avatar AS u_user_avatar,
@@ -30,9 +24,8 @@ SELECT
     c.case_summary_link AS c_case_summary_link,
     c.case_link AS c_case_link,
     c.case_thread_link AS c_case_thread_link
-FROM Reports r
-LEFT JOIN Users u_rep ON u_rep.user_id = r.reporter_id
-LEFT JOIN Users u_user ON u_user.user_id = r.subject_id
-LEFT JOIN Users u_mod ON u_mod.user_id = r.moderator_id
-LEFT JOIN Cases c ON c.case_id = r.case_id
-WHERE r.subject_id = $1;
+FROM Warnings w
+LEFT JOIN Users u_user ON u_user.user_id = w.subject_id
+LEFT JOIN Users u_mod ON u_mod.user_id = w.moderator_id
+LEFT JOIN Cases c ON c.case_id = w.case_id
+WHERE w.warning_id = $1;

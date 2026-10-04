@@ -37,7 +37,7 @@ async function createReport(
 	const reports = globalThis.databaseResponseParser.parseDatabaseReportResponse(res);
 	if (reports.length !== 1) throw new Error('Failed to create report');
 	logger.info(`Created report ${reports[0].getReportId()} by ${reporterId} against user ${subjectId}`);
-	return reports[0];
+	return this.getReportById(reports[0].getReportId());
 }
 
 /**
@@ -52,7 +52,7 @@ async function getAllReports() {
 
 	const res = await this._queryFile('queries/get/report/getAllReports.sql', []);
 	const reports = globalThis.databaseResponseParser.parseDatabaseReportResponse(res);
-	return reports;
+	return this._hydrateCases(reports);
 }
 
 /**
@@ -75,7 +75,7 @@ async function getReportsByUserId(userId, userType) {
 		[userId],
 	);
 	const reports = globalThis.databaseResponseParser.parseDatabaseReportResponse(res);
-	return reports;
+	return this._hydrateCases(reports);
 }
 
 /**
@@ -92,6 +92,7 @@ async function getReportById(reportId) {
 	const res = await this._queryFile('queries/get/report/getReportById.sql', [reportId]);
 	const reports = globalThis.databaseResponseParser.parseDatabaseReportResponse(res);
 	if (reports.length !== 1) return null;
+	await this._hydrateCases(reports);
 	return reports[0];
 }
 
@@ -128,7 +129,7 @@ async function updateReport(reportId, fields) {
 	const reports = globalThis.databaseResponseParser.parseDatabaseReportResponse(res);
 	if (reports.length !== 1) throw new Error('Failed to update report');
 	logger.info(`Updated report with report_id ${reportId}: ` + JSON.stringify(fields));
-	return reports[0];
+	return this.getReportById(reportId);
 }
 
 module.exports = {

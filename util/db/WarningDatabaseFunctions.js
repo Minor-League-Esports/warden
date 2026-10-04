@@ -54,6 +54,24 @@ async function createWarning(
 	const warnings = globalThis.databaseResponseParser.parseDatabaseWarningResponse(res);
 	if (warnings.length !== 1) throw new Error('Failed to create warning');
 	logger.info(`Created warning ${warnings[0].getWarningId()} for user ${subjectId}`);
+	return this.getWarningById(warnings[0].getWarningId());
+}
+
+/**
+ * Gets a warning by its ID with punishments and case loaded
+ *
+ * @param {String} warningId The warning's Database ID
+ * @returns {Promise<Warning|null>}
+ */
+async function getWarningById(warningId) {
+	if (this._status !== 'success') {
+		throw new Error('DB manager not initialized');
+	}
+
+	const res = await this._queryFile('queries/get/getWarningById.sql', [warningId]);
+	const warnings = globalThis.databaseResponseParser.parseDatabaseWarningResponse(res);
+	if (warnings.length !== 1) return null;
+	await this._hydrateWarnings(warnings);
 	return warnings[0];
 }
 
@@ -74,8 +92,18 @@ async function getWarnings(userId, limit = null) {
 	if (limit && Number.isInteger(limit)) {
 		warnings = warnings.slice(0, limit);
 	}
-	await this._attachPunishmentsToWarnings(warnings);
+	await this._hydrateWarnings(warnings);
 	return warnings;
+}
+
+/**
+ * Attaches punishments to the warnings, then loads full cases for the warnings and those punishments (mutates in place)
+ *
+ * @param {Warning[]} warnings
+ */
+async function _hydrateWarnings(warnings) {
+	await this._attachPunishmentsToWarnings(warnings);
+	await this._hydrateCases([...warnings, ...warnings.flatMap((w) => w.getPunishments())]);
 }
 
 /**
@@ -169,6 +197,8 @@ async function getUsersWithCurrentPointsAtOrAbove(threshold = 3, asOf = new Date
 module.exports = {
 	createWarning,
 	getWarnings,
+	getWarningById,
+	_hydrateWarnings,
 	_attachPunishmentsToWarnings,
 	getUsersWithCurrentPointsAtOrAbove,
 };

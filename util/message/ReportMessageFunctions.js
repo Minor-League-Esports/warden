@@ -265,6 +265,7 @@ async function acknowledgeReport(reportId) {
 		await reporterDiscordUser.send({
 			content: `A member of MLE Moderation has acknowledged your report #${report.getReportId()}. Our team will begin our reviewing the details provided.`,
 			embeds: [reportEmbed],
+			components: generateCaseReportButtons(report.getReportId()),
 		});
 	} catch (dmError) {
 		logger.warn(`Could not DM reporter for report ${reportId}: ${dmError}`);
@@ -289,6 +290,7 @@ async function replyToReport(reportId, replyContent) {
 		await reporterDiscordUser.send({
 			content: `A member of MLE Moderation has replied to your report #${report.getReportId()}.\n\n**(MLE Moderation)**: ${replyContent}`,
 			embeds: [reportEmbed],
+			components: generateCaseReportButtons(report.getReportId()),
 		});
 	} catch (dmError) {
 		logger.warn(`Could not DM reporter for report ${reportId}: ${dmError}`);

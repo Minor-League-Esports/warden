@@ -3,6 +3,7 @@ SELECT
     r.reporter_id,
     r.subject_id,
     r.moderator_id,
+    r.case_id,
     r.report_timestamp,
     r.acknowledge_timestamp,
     r.close_timestamp,
