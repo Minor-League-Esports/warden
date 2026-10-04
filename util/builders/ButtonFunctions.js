@@ -113,7 +113,7 @@ function generateReportConfirmationButtons(subjectId, reporterId) {
 		.setLabel('Confirm Report Submission')
 		.setStyle(ButtonStyle.Success);
 	const cancelButton = new ButtonBuilder()
-		.setCustomId(`cancelReportSubmissionButton:${reporterId}`)
+		.setCustomId(`wardenCancelButton`)
 		.setLabel('Cancel')
 		.setStyle(ButtonStyle.Danger);
 	return [new ActionRowBuilder().addComponents(confirmButton, cancelButton)];
@@ -125,7 +125,7 @@ function generateCloseCaseConfirmationButtons(caseId, userId) {
 		.setLabel('Confirm Close')
 		.setStyle(ButtonStyle.Danger);
 	const cancelButton = new ButtonBuilder()
-		.setCustomId(`cancelCloseCaseButton:${caseId}:${userId}`)
+		.setCustomId(`wardenCancelButton`)
 		.setLabel('Cancel')
 		.setStyle(ButtonStyle.Secondary);
 	return [new ActionRowBuilder().addComponents(confirmButton, cancelButton)];
@@ -137,7 +137,7 @@ function generateCloseReportConfirmationButtons(reportId, userId) {
 		.setLabel('Confirm Close')
 		.setStyle(ButtonStyle.Danger);
 	const cancelButton = new ButtonBuilder()
-		.setCustomId(`cancelCloseReportButton:${reportId}:${userId}`)
+		.setCustomId(`wardenCancelButton`)
 		.setLabel('Cancel')
 		.setStyle(ButtonStyle.Secondary);
 	return [new ActionRowBuilder().addComponents(confirmButton, cancelButton)];
@@ -145,11 +145,11 @@ function generateCloseReportConfirmationButtons(reportId, userId) {
 
 function generateBanConfirmationButtons(dbId) {
 	const confirmButton = new ButtonBuilder()
-		.setCustomId(`banConfirmButton:${dbId}`)
+		.setCustomId(`confirmManualPunishmentButton:ban:${dbId}`)
 		.setLabel('Ban User')
 		.setStyle(ButtonStyle.Success);
 	const cancelButton = new ButtonBuilder()
-		.setCustomId(`cancelBanButton:${dbId}`)
+		.setCustomId(`wardenCancelButton`)
 		.setLabel('Cancel')
 		.setStyle(ButtonStyle.Danger);
 	return [new ActionRowBuilder().addComponents(confirmButton, cancelButton)];
@@ -157,11 +157,11 @@ function generateBanConfirmationButtons(dbId) {
 
 function generateKickConfirmationButtons(dbId) {
 	const confirmButton = new ButtonBuilder()
-		.setCustomId(`kickConfirmButton:${dbId}`)
+		.setCustomId(`confirmManualPunishmentButton:kick:${dbId}`)
 		.setLabel('Kick User')
 		.setStyle(ButtonStyle.Success);
 	const cancelButton = new ButtonBuilder()
-		.setCustomId(`cancelKickButton:${dbId}`)
+		.setCustomId(`wardenCancelButton`)
 		.setLabel('Cancel')
 		.setStyle(ButtonStyle.Danger);
 	return [new ActionRowBuilder().addComponents(confirmButton, cancelButton)];
@@ -169,11 +169,11 @@ function generateKickConfirmationButtons(dbId) {
 
 function generateMuteConfirmationButtons(dbId) {
 	const confirmButton = new ButtonBuilder()
-		.setCustomId(`muteConfirmButton:${dbId}`)
+		.setCustomId(`confirmManualPunishmentButton:mute:${dbId}`)
 		.setLabel('Mute User')
 		.setStyle(ButtonStyle.Success);
 	const cancelButton = new ButtonBuilder()
-		.setCustomId(`cancelMuteButton:${dbId}`)
+		.setCustomId(`wardenCancelButton`)
 		.setLabel('Cancel')
 		.setStyle(ButtonStyle.Danger);
 	return [new ActionRowBuilder().addComponents(confirmButton, cancelButton)];
@@ -181,11 +181,11 @@ function generateMuteConfirmationButtons(dbId) {
 
 function generateUnbanConfirmationButtons(dbId) {
 	const confirmButton = new ButtonBuilder()
-		.setCustomId(`unbanConfirmButton:${dbId}`)
+		.setCustomId(`confirmManualPunishmentButton:unban:${dbId}`)
 		.setLabel('Unban User')
 		.setStyle(ButtonStyle.Success);
 	const cancelButton = new ButtonBuilder()
-		.setCustomId(`cancelUnbanButton:${dbId}`)
+		.setCustomId(`wardenCancelButton`)
 		.setLabel('Cancel')
 		.setStyle(ButtonStyle.Danger);
 	return [new ActionRowBuilder().addComponents(confirmButton, cancelButton)];
@@ -193,11 +193,11 @@ function generateUnbanConfirmationButtons(dbId) {
 
 function generateUnmuteConfirmationButtons(dbId) {
 	const confirmButton = new ButtonBuilder()
-		.setCustomId(`unmuteConfirmButton:${dbId}`)
+		.setCustomId(`confirmManualPunishmentButton:unmute:${dbId}`)
 		.setLabel('Unmute User')
 		.setStyle(ButtonStyle.Success);
 	const cancelButton = new ButtonBuilder()
-		.setCustomId(`cancelUnmuteButton:${dbId}`)
+		.setCustomId(`wardenCancelButton`)
 		.setLabel('Cancel')
 		.setStyle(ButtonStyle.Danger);
 	return [new ActionRowBuilder().addComponents(confirmButton, cancelButton)];
@@ -209,7 +209,7 @@ function generateReportReplyConfirmationButtons(dbId) {
 		.setLabel('Confirm Reply')
 		.setStyle(ButtonStyle.Success);
 	const cancelButton = new ButtonBuilder()
-		.setCustomId(`cancelReportReplyButton:${dbId}`)
+		.setCustomId(`wardenCancelButton`)
 		.setLabel('Cancel')
 		.setStyle(ButtonStyle.Danger);
 	return [new ActionRowBuilder().addComponents(confirmButton, cancelButton)];
@@ -225,7 +225,7 @@ function generateWarnConfirmationButtons(dbId, moderatorId, recommendedAction, c
 		.setLabel('Override Action')
 		.setStyle(ButtonStyle.Danger);
 	const cancelButton = new ButtonBuilder()
-		.setCustomId(`cancelWarnButton:${dbId}:${moderatorId}:${caseId ?? ''}`)
+		.setCustomId(`wardenCancelButton`)
 		.setLabel('Cancel')
 		.setStyle(ButtonStyle.Secondary);
 	return [new ActionRowBuilder().addComponents(confirmButton, overrideButton, cancelButton)];

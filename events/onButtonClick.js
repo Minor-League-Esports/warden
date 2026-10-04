@@ -33,6 +33,7 @@ const {
 	handleCaseHistoryPageButtonClick,
 	handleCaseHistoryCloseButtonClick,
 } = require('./button/history/caseHistoryPager');
+const { handleConfirmPunishmentButtonClick } = require('./button/warn/onConfirmPunishmentButtonClick');
 
 module.exports = {
 	name: Events.InteractionCreate,
@@ -72,6 +73,8 @@ module.exports = {
 			await handleApproveBanButtonClick(interaction);
 		} else if (buttonId.startsWith('executeWarnButton')) {
 			await handleWarnConfirmButtonClick(interaction);
+		} else if (buttonId.startsWith('confirmManualPunishmentButton')) {
+			await handleConfirmPunishmentButtonClick(interaction);
 		} else if (buttonId.startsWith('closeCaseButton')) {
 			await handleCaseCloseButtonClick(interaction);
 		} else if (buttonId.startsWith('confirmCloseCaseButton')) {
@@ -84,11 +87,13 @@ module.exports = {
 			await handleCaseWarningsButtonClick(interaction);
 		} else if (buttonId.startsWith('viewCasePunishmentsButton')) {
 			await handleCasePunishmentsButtonClick(interaction);
+		} else if (buttonId.startsWith('confirmManualPunishmentButton')) {
+			await handleConfirmManualPunishmentButtonClick(interaction);
 		} else if (buttonId.startsWith('caseHistoryPage:')) {
 			await handleCaseHistoryPageButtonClick(interaction);
 		} else if (buttonId === 'caseHistoryClose') {
 			await handleCaseHistoryCloseButtonClick(interaction);
-		} else if (buttonId.startsWith('cancel')) {
+		} else if (buttonId === 'wardenCancelButton') {
 			await handleCancelButtonClick(interaction);
 		}
 	},
