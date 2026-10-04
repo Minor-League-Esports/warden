@@ -131,6 +131,18 @@ function generateCloseCaseConfirmationButtons(caseId, userId) {
 	return [new ActionRowBuilder().addComponents(confirmButton, cancelButton)];
 }
 
+function generateMergeUsersConfirmationButtons(sourceId, targetId, userId) {
+	const confirmButton = new ButtonBuilder()
+		.setCustomId(`confirmMergeUsersButton:${sourceId}:${targetId}:${userId}`)
+		.setLabel('Confirm Merge')
+		.setStyle(ButtonStyle.Danger);
+	const cancelButton = new ButtonBuilder()
+		.setCustomId(`wardenCancelButton`)
+		.setLabel('Cancel')
+		.setStyle(ButtonStyle.Secondary);
+	return [new ActionRowBuilder().addComponents(confirmButton, cancelButton)];
+}
+
 function generateCloseReportConfirmationButtons(reportId, userId) {
 	const confirmButton = new ButtonBuilder()
 		.setCustomId(`confirmCloseReportButton:${reportId}:${userId}`)
@@ -312,6 +324,7 @@ module.exports = {
 	generateCaseButtons,
 	generateCloseCaseConfirmationButtons,
 	generateCloseReportConfirmationButtons,
+	generateMergeUsersConfirmationButtons,
 	generateBanConfirmationButtons,
 	generateKickConfirmationButtons,
 	generateMuteConfirmationButtons,

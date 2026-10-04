@@ -3,6 +3,16 @@ const logger = log4js.getLogger('DatabaseManager:User');
 const { logLevel } = require('../../config.json');
 logger.level = logLevel;
 
+const { calculateCurrentPoints } = require('../UtilFunctions');
+
+// Every column that references Users(user_id)
+const USER_REFERENCES = {
+	Cases: ['creator_id', 'subject_id', 'moderator_id'],
+	Reports: ['reporter_id', 'subject_id', 'moderator_id'],
+	Warnings: ['subject_id', 'moderator_id'],
+	Punishments: ['subject_id', 'moderator_id'],
+};
+
 /**
  * Creates a new user object and returns it
  * Updates name and avatar if already exists
@@ -139,8 +149,94 @@ async function updateUser(userId, fields) {
 	return users[0];
 }
 
+/**
+ * Moves every case, report, warning, and punishment from one user to another, then deletes the source user.
+ * Runs as one transaction and recomputes the target's warning point totals afterward.
+ *
+ * @param {String} sourceId DB user_id of the profile being merged away
+ * @param {String} targetId DB user_id of the profile being kept
+ * @returns {Promise<{caseIds: Number[], reports: Number, warnings: Number, punishments: Number}>} What was moved
+ */
+async function mergeUsers(sourceId, targetId) {
+	if (this._status !== 'success') {
+		throw new Error('DB manager not initialized');
+	}
+	if (String(sourceId) === String(targetId)) {
+		throw new Error('Cannot merge a user into themselves');
+	}
+
+	const client = await this._pool.connect();
+	try {
+		await client.query('BEGIN');
+
+		const users = await client.query(
+			'SELECT user_id, mle_id FROM Users WHERE user_id = ANY($1::int[]) FOR UPDATE',
+			[[sourceId, targetId]],
+		);
+		const source = users.rows.find((row) => String(row.user_id) === String(sourceId));
+		const target = users.rows.find((row) => String(row.user_id) === String(targetId));
+		if (!source || !target) throw new Error('User not found');
+
+		// Count affected rows before updating, since one row can reference the source in several columns
+		const counts = {};
+		for (const [table, columns] of Object.entries(USER_REFERENCES)) {
+			const where = columns.map((column) => `${column} = $1`).join(' OR ');
+			const res = await client.query(`SELECT COUNT(*)::int AS n FROM ${table} WHERE ${where}`, [sourceId]);
+			counts[table] = res.rows[0].n;
+		}
+		const caseRes = await client.query(
+			'SELECT case_id FROM Cases WHERE creator_id = $1 OR subject_id = $1 OR moderator_id = $1',
+			[sourceId],
+		);
+
+		for (const [table, columns] of Object.entries(USER_REFERENCES)) {
+			for (const column of columns) {
+				await client.query(`UPDATE ${table} SET ${column} = $2 WHERE ${column} = $1`, [sourceId, targetId]);
+			}
+		}
+
+		if (!target.mle_id && source.mle_id) {
+			await client.query('UPDATE Users SET mle_id = $2 WHERE user_id = $1', [targetId, source.mle_id]);
+		}
+		await client.query('DELETE FROM Users WHERE user_id = $1', [sourceId]);
+
+		// Point totals are cumulative per user, so the merged history needs them rebuilt in order
+		const warningRes = await client.query(
+			'SELECT warning_id, timestamp, points_added, new_point_total FROM Warnings WHERE subject_id = $1 ORDER BY timestamp ASC, warning_id ASC',
+			[targetId],
+		);
+		const warnings = warningRes.rows;
+		for (let i = 0; i < warnings.length; i++) {
+			const before = calculateCurrentPoints(warnings.slice(0, i), warnings[i].timestamp);
+			const total = before + (warnings[i].points_added || 0);
+			if (total !== warnings[i].new_point_total) {
+				await client.query('UPDATE Warnings SET new_point_total = $2 WHERE warning_id = $1', [
+					warnings[i].warning_id,
+					total,
+				]);
+			}
+		}
+
+		await client.query('COMMIT');
+		logger.info(`Merged user ${sourceId} into user ${targetId}`);
+		return {
+			caseIds: caseRes.rows.map((row) => row.case_id),
+			reports: counts.Reports,
+			warnings: counts.Warnings,
+			punishments: counts.Punishments,
+		};
+	} catch (error) {
+		await client.query('ROLLBACK').catch(() => {});
+		logger.error(`Error merging user ${sourceId} into ${targetId}: ${error}`);
+		throw error;
+	} finally {
+		client.release();
+	}
+}
+
 module.exports = {
 	createUser,
 	getUserByIdentifier,
 	updateUser,
+	mergeUsers,
 };

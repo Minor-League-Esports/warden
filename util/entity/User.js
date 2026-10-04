@@ -86,8 +86,8 @@ class User {
 				{ name: 'User Name', value: this.getUserName() },
 				{ name: 'MLE ID', value: this.getMleId() },
 				{ name: 'Discord User', value: `<@${this.getDiscordId()}>` },
-				{ name: 'Discord ID', value: this.getDiscordId() },
-				{ name: 'Warden ID', value: this.getUserId() },
+				{ name: 'Discord ID', value: String(this.getDiscordId()) },
+				{ name: 'Warden ID', value: String(this.getUserId()) },
 			);
 	}
 

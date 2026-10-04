@@ -58,6 +58,34 @@ async function createWarning(
 }
 
 /**
+ * Updates an existing warning and returns it with punishments and case loaded
+ *
+ * @param {String} warningId The warning's Database ID
+ * @param {Object} fields Columns to update (e.g., { moderator_notes: 'text', case_id: null })
+ * @returns {Promise<Warning>}
+ */
+async function updateWarning(warningId, fields) {
+	if (this._status !== 'success') {
+		throw new Error('DB manager not initialized');
+	}
+
+	if (!warningId || !fields || Object.keys(fields).length === 0) {
+		throw new Error('warningId and at least one field are required to update a warning');
+	}
+
+	const setClauses = Object.keys(fields)
+		.map((key, idx) => `${key} = $${idx + 2}`)
+		.join(', ');
+	const res = await this._pool.query(
+		`UPDATE Warnings SET ${setClauses} WHERE warning_id = $1 RETURNING warning_id`,
+		[warningId, ...Object.values(fields)],
+	);
+	if (res.rows.length !== 1) throw new Error('Failed to update warning');
+	logger.info(`Updated warning with warning_id ${warningId}: ` + JSON.stringify(fields));
+	return this.getWarningById(warningId);
+}
+
+/**
  * Gets a warning by its ID with punishments and case loaded
  *
  * @param {String} warningId The warning's Database ID
@@ -198,6 +226,7 @@ module.exports = {
 	createWarning,
 	getWarnings,
 	getWarningById,
+	updateWarning,
 	_hydrateWarnings,
 	_attachPunishmentsToWarnings,
 	getUsersWithCurrentPointsAtOrAbove,

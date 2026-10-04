@@ -31,6 +31,14 @@ async function handleModeratorAddNoteModalSubmit(interaction) {
 		await interaction.editReply({
 			content: `${interaction.user.tag} added a note to Case #${dbId}.`,
 		});
+	} else if (type === 'warning') {
+		const warning = await globalThis.databaseManager.getWarningById(dbId);
+		const note = interaction.fields.getTextInputValue('note').trim();
+		warning.addModeratorNote(`**(${interaction.user.tag})**: ${note}`);
+		await globalThis.databaseManager.updateWarning(dbId, { moderator_notes: warning.getModeratorNotes() });
+		await interaction.editReply({
+			content: `${interaction.user.tag} added a note to Warning #${dbId}.`,
+		});
 	}
 }
 

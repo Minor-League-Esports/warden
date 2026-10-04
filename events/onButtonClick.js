@@ -35,6 +35,7 @@ const {
 } = require('./button/history/caseHistoryPager');
 const { handleConfirmPunishmentButtonClick } = require('./button/warn/onConfirmPunishmentButtonClick');
 const { handleUserViewHistoryButtonClick } = require('./button/history/onUserViewHistoryButtonClick');
+const { handleConfirmMergeUsersButtonClick } = require('./button/manage/onConfirmMergeUsersButtonClick');
 const {
 	handleUserHistoryViewButtonClick,
 	handleUserHistoryPageButtonClick,
@@ -98,6 +99,8 @@ module.exports = {
 			await handleCaseHistoryCloseButtonClick(interaction);
 		} else if (buttonId.startsWith('userViewHistoryButton:')) {
 			await handleUserViewHistoryButtonClick(interaction);
+		} else if (buttonId.startsWith('confirmMergeUsersButton')) {
+			await handleConfirmMergeUsersButtonClick(interaction);
 		} else if (buttonId.startsWith('userHistoryView:')) {
 			await handleUserHistoryViewButtonClick(interaction);
 		} else if (buttonId.startsWith('userHistoryPage:')) {

@@ -3,11 +3,9 @@ const logger = log4js.getLogger('onCancelButtonClick');
 const { logLevel } = require('../../config.json');
 logger.level = logLevel;
 
-const { MessageFlags } = require('discord.js');
-
 async function handleCancelButtonClick(interaction) {
-	await interaction.message.edit({ content: 'Action cancelled.', components: [] });
-	await interaction.reply({ content: 'Action cancelled.', flags: MessageFlags.Ephemeral });
+	// update() edits the clicked message directly, which works for ephemeral messages where message.edit() fails
+	await interaction.update({ content: 'Action cancelled.', components: [] });
 }
 
 module.exports = {

@@ -1,5 +1,5 @@
 const { EmbedBuilder } = require('discord.js');
-const { chunkTextPreserveNewlines } = require('../UtilFunctions');
+const { chunkTextPreserveNewlines, convertDateToTimestamp } = require('../UtilFunctions');
 
 class Warning {
 	// Getters and setters
@@ -112,6 +112,14 @@ class Warning {
 
 	getModeratorNotes() {
 		return this._moderatorNotes ?? 'None';
+	}
+
+	addModeratorNote(note) {
+		if (this._moderatorNotes && this._moderatorNotes != 'None') {
+			this._moderatorNotes += `\n__${convertDateToTimestamp(new Date())}__\n${note}`;
+		} else {
+			this._moderatorNotes = `__${convertDateToTimestamp(new Date())}__\n${note}`;
+		}
 	}
 
 	/**

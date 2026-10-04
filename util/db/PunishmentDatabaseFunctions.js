@@ -66,6 +66,34 @@ async function getPunishmentById(punishmentId) {
 }
 
 /**
+ * Updates an existing punishment and returns it with its case loaded
+ *
+ * @param {String} punishmentId The punishment's Database ID
+ * @param {Object} fields Columns to update (e.g., { case_id: 5 })
+ * @returns {Promise<Punishment>}
+ */
+async function updatePunishment(punishmentId, fields) {
+	if (this._status !== 'success') {
+		throw new Error('DB manager not initialized');
+	}
+
+	if (!punishmentId || !fields || Object.keys(fields).length === 0) {
+		throw new Error('punishmentId and at least one field are required to update a punishment');
+	}
+
+	const setClauses = Object.keys(fields)
+		.map((key, idx) => `${key} = $${idx + 2}`)
+		.join(', ');
+	const res = await this._pool.query(
+		`UPDATE Punishments SET ${setClauses} WHERE punishment_id = $1 RETURNING punishment_id`,
+		[punishmentId, ...Object.values(fields)],
+	);
+	if (res.rows.length !== 1) throw new Error('Failed to update punishment');
+	logger.info(`Updated punishment with punishment_id ${punishmentId}: ` + JSON.stringify(fields));
+	return this.getPunishmentById(punishmentId);
+}
+
+/**
  * Gets every punishment issued to a user, with cases loaded
  *
  * @param {String} userId The user's Database ID
@@ -127,6 +155,7 @@ async function getCurrentlyBannedUsers() {
 module.exports = {
 	createPunishment,
 	getPunishmentById,
+	updatePunishment,
 	getPunishmentsBySubjectId,
 	getStandalonePunishments,
 	getCurrentlyBannedUsers,

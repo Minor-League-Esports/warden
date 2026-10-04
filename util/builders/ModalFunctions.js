@@ -89,6 +89,21 @@ function buildReportAddNoteModal(dbId) {
 	return modal;
 }
 
+function buildWarningAddNoteModal(dbId) {
+	const modal = new ModalBuilder().setCustomId(`addModeratorNoteModal:warning:${dbId}`).setTitle('Add Moderator Note');
+
+	const noteInput = new TextInputBuilder()
+		.setCustomId('note')
+		.setStyle(TextInputStyle.Paragraph)
+		.setPlaceholder('Provide your note regarding this warning.')
+		.setRequired(true);
+	const noteInputLabel = new LabelBuilder().setLabel('Moderator Note').setTextInputComponent(noteInput);
+
+	modal.addLabelComponents(noteInputLabel);
+
+	return modal;
+}
+
 /**
  * Builds the "Issue Warning to User" modal, shared by the /warn flow and the case "Create Warning" button.
  *
@@ -167,6 +182,7 @@ module.exports = {
 	buildReportReplyModal,
 	buildCaseAddNoteModal,
 	buildReportAddNoteModal,
+	buildWarningAddNoteModal,
 	buildWarnUserModal,
 	buildOverrideWarnModal,
 };
