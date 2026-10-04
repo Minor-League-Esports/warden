@@ -7,9 +7,11 @@ const { buildOverrideWarnModal } = require('../../../util/builders/ModalFunction
 
 async function handleWarnOverrideButtonClick(interaction) {
 	const buttonId = interaction.customId;
-	const [, dbId] = buttonId.split(':');
-	logger.debug(`Handling warn override button click for DB ID: ${dbId}`);
-	const modal = buildOverrideWarnModal(dbId);
+	const [, dbId, moderatorId, caseId] = buttonId.split(':');
+	logger.debug(
+		`Handling warn override button click for DB ID: ${dbId}, Moderator ID: ${moderatorId}, Case ID: ${caseId}`,
+	);
+	const modal = buildOverrideWarnModal(dbId, moderatorId, caseId);
 	await interaction.showModal(modal);
 }
 

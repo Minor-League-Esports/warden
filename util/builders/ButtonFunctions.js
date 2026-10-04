@@ -216,6 +216,9 @@ function generateReportReplyConfirmationButtons(dbId) {
 }
 
 function generateWarnConfirmationButtons(dbId, moderatorId, recommendedAction, caseId) {
+	logger.debug(
+		`Generating warn confirmation buttons for dbId: ${dbId}, moderatorId: ${moderatorId}, recommendedAction: ${recommendedAction}, caseId: ${caseId}`,
+	);
 	const confirmButton = new ButtonBuilder()
 		.setCustomId(`executeWarnButton:${dbId}:${moderatorId}:${recommendedAction}:${caseId ?? ''}`)
 		.setLabel('Confirm Recommended Action')
