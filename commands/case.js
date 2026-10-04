@@ -8,7 +8,7 @@ const { SlashCommandBuilder, PermissionFlagsBits, InteractionContextType, Messag
 const { assignCase, createCaseMessage } = require('../util/message/CaseMessageFunctions');
 const { buildCaseAddNoteModal, buildReportAddNoteModal } = require('../util/builders/ModalFunctions');
 const {
-	generateCaseButtons,
+	generateCaseDetailsButtons,
 	generateCloseCaseConfirmationButtons,
 	generateCloseReportConfirmationButtons,
 } = require('../util/builders/ButtonFunctions');
@@ -197,7 +197,26 @@ module.exports = {
 						content: `Created Case [#${updatedCase.getCaseId()}](${updatedCase.getCaseLink()}).`,
 					});
 				} else if (subcommand === 'details') {
-					await showCaseDetails(interaction);
+					const caseId = interaction.options.getInteger('case_id');
+					const kase = await globalThis.databaseManager.getCaseById(caseId);
+					const reports = kase.getReports();
+					const warnings = kase.getWarnings();
+					const punishments = uniquePunishments([
+						...kase.getPunishments(),
+						...warnings.flatMap((warning) => warning.getPunishments()),
+					]);
+
+					const overview = kase.generatePrivateEmbed();
+					overview.addFields(
+						{ name: 'Reports', value: String(reports.length), inline: true },
+						{ name: 'Warnings', value: String(warnings.length), inline: true },
+						{ name: 'Punishments', value: String(punishments.length), inline: true },
+					);
+					await interaction.editReply({
+						content: `Details for Case #${caseId}`,
+						embeds: [overview],
+						components: generateCaseDetailsButtons(caseId),
+					});
 				} else if (subcommand === 'assign') {
 					const caseId = interaction.options.getInteger('case_id');
 					globalThis.databaseManager
@@ -344,78 +363,6 @@ async function listObjects(interaction) {
 	await interaction.editReply({
 		content: objectList,
 	});
-}
-
-async function createCase(interaction) {
-	const creator = await globalThis.userUtility.fetchDatabaseUser(interaction.user.id);
-	const subject = await globalThis.userUtility.fetchDatabaseUser(interaction.options.getString('subject'));
-	const notes = interaction.options.getString('notes');
-	const createdCase = await globalThis.databaseManager.createCase(
-		creator.getUserId(),
-		subject.getUserId(),
-		'OPEN',
-		new Date().toISOString(),
-		null,
-		notes,
-	);
-
-	const fullCase = await globalThis.databaseManager.getCaseById(createdCase.getCaseId());
-	let caseLink = null;
-	if (globalThis.caseChannel) {
-		const subjectMention = fullCase.getSubjectUser()?.getDiscordId()
-			? `<@${fullCase.getSubjectUser().getDiscordId()}>`
-			: fullCase.getSubjectId();
-		const message = await globalThis.caseChannel.send({
-			content: `Case #${fullCase.getCaseId()} | ${subjectMention}`,
-			embeds: [fullCase.generatePrivateEmbed()],
-		});
-		await message.pin().catch((error) => logger.warn(`Could not pin Case #${fullCase.getCaseId()} message: ${error}`));
-		caseLink = message.url;
-		const thread = await message.startThread({
-			name: `Case #${fullCase.getCaseId()} (${fullCase.getSubjectUser()?.getUserName() ?? 'Unknown'})`,
-		});
-		await thread.send({
-			content: `<@&${moderatorRoleId}> A new case has been opened.`,
-			components: generateCaseButtons(fullCase.getCaseId()),
-		});
-		await globalThis.databaseManager.updateCase(fullCase.getCaseId(), { case_link: caseLink });
-	}
-
-	await interaction.editReply({
-		content: `Created Case #${fullCase.getCaseId()} for ${subject.getUserName()}.${caseLink ? ` ${caseLink}` : ''}`,
-	});
-}
-
-async function showCaseDetails(interaction) {
-	const caseId = interaction.options.getInteger('case_id');
-	const kase = await globalThis.databaseManager.getCaseById(caseId);
-	const reports = kase.getReports();
-	const warnings = kase.getWarnings();
-	const punishments = uniquePunishments([
-		...kase.getPunishments(),
-		...warnings.flatMap((warning) => warning.getPunishments()),
-	]);
-
-	const overview = kase.generatePrivateEmbed();
-	overview.addFields(
-		{ name: 'Reports', value: String(reports.length), inline: true },
-		{ name: 'Warnings', value: String(warnings.length), inline: true },
-		{ name: 'Punishments', value: String(punishments.length), inline: true },
-	);
-	await interaction.editReply({ content: `Details for Case #${caseId}`, embeds: [overview] });
-
-	const embeds = [];
-	for (const report of reports) embeds.push(await report.generatePrivateEmbed());
-	for (const warning of warnings) {
-		embeds.push(warning.generatePrivateEmbed(kase.getReporterNames()));
-	}
-	for (const punishment of punishments) {
-		embeds.push(punishment.generatePrivateEmbed(kase.getReporterNames()));
-	}
-
-	for (let index = 0; index < embeds.length; index += 9) {
-		await interaction.followUp({ embeds: embeds.slice(index, index + 9) });
-	}
 }
 
 function uniquePunishments(punishments) {

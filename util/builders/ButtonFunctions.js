@@ -216,9 +216,6 @@ function generateReportReplyConfirmationButtons(dbId) {
 }
 
 function generateWarnConfirmationButtons(dbId, moderatorId, recommendedAction, caseId) {
-	logger.debug(
-		`Generating warn confirmation buttons for dbId: ${dbId}, moderatorId: ${moderatorId}, recommendedAction: ${recommendedAction}, caseId: ${caseId}`,
-	);
 	const confirmButton = new ButtonBuilder()
 		.setCustomId(`executeWarnButton:${dbId}:${moderatorId}:${recommendedAction}:${caseId ?? ''}`)
 		.setLabel('Confirm Recommended Action')
@@ -246,6 +243,22 @@ function generateBanApprovalButtons(dbId, moderatorId, caseId) {
 	return [new ActionRowBuilder().addComponents(approveButton, denyButton)];
 }
 
+function generateCaseDetailsButtons(caseId) {
+	const reportsButton = new ButtonBuilder()
+		.setCustomId(`viewCaseReportsButton:${caseId}`)
+		.setLabel('View Reports')
+		.setStyle(ButtonStyle.Primary);
+	const warningsButton = new ButtonBuilder()
+		.setCustomId(`viewCaseWarningsButton:${caseId}`)
+		.setLabel('View Warnings')
+		.setStyle(ButtonStyle.Primary);
+	const punishmentsButton = new ButtonBuilder()
+		.setCustomId(`viewCasePunishmentsButton:${caseId}`)
+		.setLabel('View Punishments')
+		.setStyle(ButtonStyle.Primary);
+	return [new ActionRowBuilder().addComponents(reportsButton, warningsButton, punishmentsButton)];
+}
+
 module.exports = {
 	generateCaseButtons,
 	generateCloseCaseConfirmationButtons,
@@ -264,4 +277,5 @@ module.exports = {
 	generateCaseReportButtons,
 	generateWarnConfirmationButtons,
 	generateBanApprovalButtons,
+	generateCaseDetailsButtons,
 };

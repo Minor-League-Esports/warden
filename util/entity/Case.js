@@ -267,7 +267,9 @@ class Case {
 
 		const reports = String(
 			this.getReports()
-				?.map((report) => `[#${report.getReportId()}](${report.getReportLink()})`)
+				?.map((report) =>
+					report.getReportLink() ? `[#${report.getReportId()}](${report.getReportLink()})` : `#${report.getReportId()}`,
+				)
 				.join(', ') ?? 'None',
 		);
 		if (reports && reports.trim().length > 0) {
