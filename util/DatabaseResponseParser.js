@@ -62,7 +62,7 @@ class DatabaseResponseParser {
 			c.setStatus(row['status']);
 			c.setCreatedAt(row['created_at']);
 			c.setClosedAt(row['closed_at']);
-			c.setNotes(row['moderator_notes']);
+			c.setModeratorNotes(row['moderator_notes']);
 			c.setCaseSummaryLink(row['case_summary_link']);
 			c.setCaseLink(row['case_link']);
 			c.setCaseThreadLink(row['case_thread_link']);

@@ -112,12 +112,20 @@ class Case {
 		return this._closedAt ?? null;
 	}
 
-	setNotes(notes) {
-		this._notes = notes;
+	setModeratorNotes(notes) {
+		this._moderatorNotes = notes;
 	}
 
-	getNotes() {
-		return this._notes ?? 'None';
+	getModeratorNotes() {
+		return this._moderatorNotes ?? 'None';
+	}
+
+	addModeratorNote(note) {
+		if (this._moderatorNotes && this._moderatorNotes != 'None') {
+			this._moderatorNotes += `\n__${convertDateToTimestamp(new Date())}__\n${note}`;
+		} else {
+			this._moderatorNotes = `__${convertDateToTimestamp(new Date())}__\n${note}`;
+		}
 	}
 
 	setCaseSummaryLink(link) {
@@ -266,7 +274,7 @@ class Case {
 			embed.addFields({ name: 'Reports', value: reports });
 		}
 
-		const notes = String(this.getNotes() ?? 'None');
+		const notes = this.getModeratorNotes();
 		if (notes && notes.trim().length > 0) {
 			const notesChunks = chunkTextPreserveNewlines(notes, 1024);
 			for (let i = 0; i < notesChunks.length; i++) {

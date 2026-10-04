@@ -33,7 +33,7 @@ async function getCaseById(caseId) {
 		kase.setStatus(cRow['status']);
 		kase.setCreatedAt(cRow['created_at']);
 		kase.setClosedAt(cRow['closed_at']);
-		kase.setNotes(cRow['notes']);
+		kase.setModeratorNotes(cRow['notes']);
 		kase.setCaseSummaryLink(cRow['case_summary_link']);
 		kase.setCaseLink(cRow['case_link']);
 		kase.setCaseThreadLink(cRow['case_thread_link']);

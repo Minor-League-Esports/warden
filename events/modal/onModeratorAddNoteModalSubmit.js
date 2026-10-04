@@ -2,7 +2,9 @@ const log4js = require('log4js');
 const logger = log4js.getLogger('onModeratorAddNoteModalSubmit');
 const { logLevel } = require('../../config.json');
 logger.level = logLevel;
+
 const { refreshReportMessage } = require('../../util/message/ReportMessageFunctions');
+const { refreshCaseMessage } = require('../../util/message/CaseMessageFunctions');
 
 async function handleModeratorAddNoteModalSubmit(interaction) {
 	const modalId = interaction.customId;
@@ -10,6 +12,7 @@ async function handleModeratorAddNoteModalSubmit(interaction) {
 	await interaction.deferReply();
 
 	const [, type, dbId] = modalId.split(':');
+	logger.debug(`Handling moderator add note modal submit for type: ${type}, DB ID: ${dbId}`);
 	if (type === 'report') {
 		const report = await globalThis.databaseManager.getReportById(dbId);
 		const note = interaction.fields.getTextInputValue('note').trim();
@@ -24,6 +27,7 @@ async function handleModeratorAddNoteModalSubmit(interaction) {
 		const note = interaction.fields.getTextInputValue('note').trim();
 		_case.addModeratorNote(`**(${interaction.user.tag})**: ${note}`);
 		await globalThis.databaseManager.updateCase(dbId, { moderator_notes: _case.getModeratorNotes() });
+		await refreshCaseMessage(_case);
 		await interaction.editReply({
 			content: `${interaction.user.tag} added a note to Case #${dbId}.`,
 		});

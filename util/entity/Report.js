@@ -186,11 +186,11 @@ class Report {
 	}
 
 	getModeratorNotes() {
-		return this._moderatorNotes;
+		return this._moderatorNotes ?? 'None';
 	}
 
 	addModeratorNote(note) {
-		if (this._moderatorNotes && this._moderatorNotes != 'N/A') {
+		if (this._moderatorNotes && this._moderatorNotes != 'None') {
 			this._moderatorNotes += `\n__${convertDateToTimestamp(new Date())}__\n${note}`;
 		} else {
 			this._moderatorNotes = `__${convertDateToTimestamp(new Date())}__\n${note}`;
@@ -267,7 +267,7 @@ class Report {
 		}
 
 		// Moderator notes (may be long)
-		const modNotes = String(this.getModeratorNotes() ?? 'None');
+		const modNotes = this.getModeratorNotes();
 		const notesChunks = chunkTextPreserveNewlines(modNotes, 1024);
 		for (let i = 0; i < notesChunks.length; i++) {
 			embed.addFields({ name: i === 0 ? 'Moderator Notes' : 'Moderator Notes (cont.)', value: notesChunks[i] });
