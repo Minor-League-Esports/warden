@@ -131,7 +131,6 @@ async function handleConfirmReportSubmissionButtonClick(interaction) {
 	} catch (error) {
 		// Handle any errors that occur during the report creation process
 		logger.error(`Error creating report in database: ${error}`);
-		// await interaction.editReply({ components: [] });
 		await interaction.followUp({
 			content: `There was an error submitting your report. Please try again later or contact <@&${modmailUserId}>.`,
 			flags: MessageFlags.Ephemeral,

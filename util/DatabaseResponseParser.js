@@ -166,7 +166,7 @@ class DatabaseResponseParser {
 				kase.setStatus(row['c_status']);
 				kase.setCreatedAt(row['c_created_at']);
 				kase.setClosedAt(row['c_closed_at']);
-				kase.setNotes(row['c_moderator_notes']);
+				kase.setModeratorNotes(row['c_moderator_notes']);
 				kase.setCaseSummaryLink(row['c_case_summary_link']);
 				kase.setCaseLink(row['c_case_link']);
 				kase.setCaseThreadLink(row['c_case_thread_link']);
