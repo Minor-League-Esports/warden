@@ -26,16 +26,11 @@ function generateUserSummaryButtons(dbId, caseId = null) {
 		.setCustomId(`userSummaryWarnButton:${dbId}:${caseId ?? ''}`)
 		.setLabel('Warn User')
 		.setStyle(ButtonStyle.Success);
-	// TODO: Implement 'update user'
-	const updateButton = new ButtonBuilder()
-		.setCustomId(`userUpdateButton:${dbId}`)
-		.setLabel('[Unimplemented]')
-		.setStyle(ButtonStyle.Danger);
 	const viewButton = new ButtonBuilder()
 		.setCustomId(`userViewHistoryButton:${dbId}`)
 		.setLabel('View History')
 		.setStyle(ButtonStyle.Primary);
-	return [new ActionRowBuilder().addComponents(confirmButton, updateButton, viewButton)];
+	return [new ActionRowBuilder().addComponents(confirmButton, viewButton)];
 }
 
 function generateCaseReportButtons(reportId, { acknowledged = false, closed = false } = {}) {
