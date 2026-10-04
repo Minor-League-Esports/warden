@@ -31,7 +31,7 @@ async function handleOverrideWarnModalSubmit(interaction) {
 		embeds: [overrideEmbed],
 		components: generateWarnConfirmationButtons(dbId, moderatorId, action, caseId),
 	});
-	await interaction.message.reply({
+	await interaction.followUp({
 		content: `<@${interaction.user.id}> has proposed the following override action:\n${describeAction(action)}`,
 	});
 }

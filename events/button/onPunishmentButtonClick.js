@@ -12,14 +12,6 @@ module.exports = {
 
 		const buttonId = interaction.customId;
 
-		if (buttonId.startsWith('cancel')) {
-			await interaction.update({
-				content: 'Action cancelled.',
-				components: [],
-			});
-			return;
-		}
-
 		if (buttonId.includes('ConfirmButton:')) {
 			await interaction.deferReply();
 			await interaction.message.edit({

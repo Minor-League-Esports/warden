@@ -228,8 +228,19 @@ function generateWarnConfirmationButtons(dbId, moderatorId, recommendedAction, c
 		.setCustomId(`cancelWarnButton:${dbId}:${moderatorId}:${caseId ?? ''}`)
 		.setLabel('Cancel')
 		.setStyle(ButtonStyle.Secondary);
-	const actionRow = new ActionRowBuilder().addComponents(confirmButton, overrideButton, cancelButton);
-	return [actionRow];
+	return [new ActionRowBuilder().addComponents(confirmButton, overrideButton, cancelButton)];
+}
+
+function generateBanApprovalButtons(dbId, moderatorId, caseId) {
+	const approveButton = new ButtonBuilder()
+		.setCustomId(`approveBanButton:${dbId}:${moderatorId}:${caseId ?? ''}`)
+		.setLabel('Approve Ban')
+		.setStyle(ButtonStyle.Success);
+	const denyButton = new ButtonBuilder()
+		.setCustomId(`denyBanButton:${dbId}:${moderatorId}:${caseId ?? ''}`)
+		.setLabel('Deny Ban')
+		.setStyle(ButtonStyle.Danger);
+	return [new ActionRowBuilder().addComponents(approveButton, denyButton)];
 }
 
 module.exports = {
@@ -249,4 +260,5 @@ module.exports = {
 	generateReportModButtons,
 	generateCaseReportButtons,
 	generateWarnConfirmationButtons,
+	generateBanApprovalButtons,
 };
