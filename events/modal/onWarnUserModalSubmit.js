@@ -93,32 +93,6 @@ function calculateRecommendedAction(totalPoints, onProbation) {
 	}
 }
 
-function parseOverrideAction(input) {
-	const actions = input
-		.split(';')
-		.map((action) => action.trim().toLowerCase())
-		.filter(Boolean);
-	if (actions.length === 0 || new Set(actions).size !== actions.length) return null;
-
-	for (const action of actions) {
-		if (action === 'warning' || action === 'ban') continue;
-		if (!/^(mute|suspension)=[1-9]\d*$/.test(action)) return null;
-	}
-	return actions.join(';');
-}
-
-function describeAction(action) {
-	return action
-		.split(';')
-		.map((entry) => {
-			if (entry === 'warning') return 'Issue an official warning';
-			if (entry === 'ban') return 'Ban the user';
-			const [type, duration] = entry.split('=');
-			return type === 'mute' ? `Mute for ${duration} day(s)` : `Suspend for ${duration} week(s)`;
-		})
-		.join('\n');
-}
-
 module.exports = {
 	handleWarnUserModalSubmit,
 };

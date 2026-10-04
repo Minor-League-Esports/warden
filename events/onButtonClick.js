@@ -21,6 +21,7 @@ const { handleConfirmCloseCaseButtonClick } = require('./button/case/onConfirmCl
 const { handleCaseAddNoteButtonClick } = require('./button/case/onCaseAddNoteButtonClick');
 const { handleCancelButtonClick } = require('./button/onCancelButtonClick');
 const { handleCaseCreateWarningButtonClick } = require('./button/case/onCaseCreateWarningButtonClick');
+const { handleWarnOverrideButtonClick } = require('./button/warn/onWarnOverrideButtonClick');
 
 module.exports = {
 	name: Events.InteractionCreate,
@@ -48,6 +49,8 @@ module.exports = {
 			await handleReportUpdateButtonClick(interaction);
 		} else if (buttonId.startsWith('claimCaseButton')) {
 			await handleClaimCaseButtonClick(interaction);
+		} else if (buttonId.startsWith('overrideWarnButton')) {
+			await handleWarnOverrideButtonClick(interaction);
 		} else if (buttonId.startsWith('caseCreateWarningButton')) {
 			await handleCaseCreateWarningButtonClick(interaction);
 		} else if (buttonId.startsWith('closeCaseButton')) {

@@ -144,6 +144,23 @@ function buildWarnUserModal(subjectId, caseId) {
 	return modal;
 }
 
+function buildOverrideWarnModal(dbId, moderatorId, caseId = null) {
+	const modal = new ModalBuilder()
+		.setCustomId(`overrideWarnModal:${dbId}:${moderatorId}:${caseId ?? ''}`)
+		.setTitle('Override Suggested Action');
+	const punishmentsInput = new TextInputBuilder()
+		.setCustomId('punishments')
+		.setStyle(TextInputStyle.Short)
+		.setPlaceholder('warning;mute=7;suspension=1')
+		.setRequired(true);
+	const punishmentsLabel = new LabelBuilder()
+		.setLabel('Punishments, separated by semicolons')
+		.setTextInputComponent(punishmentsInput);
+	modal.addLabelComponents(punishmentsLabel);
+
+	return modal;
+}
+
 module.exports = {
 	buildReportUserModal,
 	buildReportUpdateModal,
@@ -151,4 +168,5 @@ module.exports = {
 	buildCaseAddNoteModal,
 	buildReportAddNoteModal,
 	buildWarnUserModal,
+	buildOverrideWarnModal,
 };
