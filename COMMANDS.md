@@ -332,9 +332,9 @@ Start the warning workflow for a user.
 When `case_id` is supplied, the case must belong to the selected user and the warning is linked to that case. Without a
 case, Warden asks whether you are sure and notes that most warnings should go through a case.
 
-The response is the user's summary (current points, warning count, and case count) with **Warn User**, **View History**,
-and an update-user button that is not implemented yet. **Warn User** opens the warning form. See the
-[moderation workflow](MODERATION_WORKFLOW.md#5-warn-and-punish) for what happens next.
+The response is the user's summary (current points, warning count, and case count) with **Warn User** and **View
+History**. **Warn User** opens the warning form. See the [moderation workflow](MODERATION_WORKFLOW.md#5-warn-and-punish)
+for what happens next.
 
 ### `/history`
 

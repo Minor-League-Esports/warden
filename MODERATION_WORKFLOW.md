@@ -41,7 +41,7 @@ The case thread has three kinds of messages:
 - **The case message** with the controls **Claim Case**, **Create Warning**, **Add Note**, and **Close Case**.
 - **One message per report**, each pinned, with **Acknowledge**, **Add Note**, **Reply**, and **Close Report**. Evidence
   uploads and report updates from the reporter appear as replies to the report's message.
-- **The subject summary**, with **Warn User**, **View History**, and an update-user button that is not implemented yet.
+- **The subject summary**, with **Warn User** and **View History**.
 
 Before acting, review:
 
