@@ -5,7 +5,7 @@ logger.level = logLevel;
 
 // Resolve evidence for user-facing embeds: only include current CDN attachment URLs.
 // Users typically cannot access the evidence channel, so omit jump URLs entirely.
-async function resolveEvidenceLinksForUser(rawEvidence) {
+async function resolveEvidenceLinksForUser(caseThreadLink, rawEvidence) {
 	try {
 		if (!rawEvidence || rawEvidence === 'N/A') {
 			return [];
@@ -24,15 +24,25 @@ async function resolveEvidenceLinksForUser(rawEvidence) {
 				results.push(line);
 				continue;
 			}
-			if (!globalThis.reportEvidenceChannel) {
+			if (!caseThreadLink) {
 				logger.warn('resolveEvidenceLinksForUser: evidence channel not initialized; skipping CDN resolution');
 				// Do not include jump URLs for users; omit line if it's only a jump URL.
 				// pure text safety
 				if (!hasAnyUrl) results.push(line);
 				continue;
 			}
+			const caseThread = await globalThis.discordClient.channels.fetch(
+				caseThreadLink.slice(caseThreadLink.lastIndexOf('/') + 1),
+			);
+			if (!caseThread) {
+				logger.warn('resolveEvidenceLinksForUser: failed to fetch evidence channel; skipping CDN resolution');
+				// Do not include jump URLs for users; omit line if it's only a jump URL.
+				// pure text safety
+				if (!hasAnyUrl) results.push(line);
+				continue;
+			}
 			try {
-				const message = await globalThis.reportEvidenceChannel.messages.fetch(messageId);
+				const message = await caseThread.messages.fetch(messageId);
 				const attachCount = message?.attachments?.size ?? 0;
 				if (attachCount > 0) {
 					for (const attachment of message.attachments.values()) {
@@ -58,7 +68,7 @@ async function resolveEvidenceLinksForUser(rawEvidence) {
 // Resolve evidence for moderator-facing embeds: one line per attachment as
 // "<cdn_url> (<jump_url>)". If fetching fails or there are no attachments,
 // include the original jump URL as a fallback.
-async function resolveEvidenceLinksForModerators(rawEvidence) {
+async function resolveEvidenceLinksForModerators(caseThreadLink, rawEvidence) {
 	try {
 		logger.debug('resolveEvidenceLinksForModerators: start');
 		if (!rawEvidence || rawEvidence === 'N/A') {
@@ -77,12 +87,15 @@ async function resolveEvidenceLinksForModerators(rawEvidence) {
 				results.push(line);
 				continue;
 			}
-			if (!globalThis.reportEvidenceChannel) {
+			const caseThread = await globalThis.discordClient.channels.fetch(
+				caseThreadLink.slice(caseThreadLink.lastIndexOf('/') + 1),
+			);
+			if (!caseThread) {
 				results.push(line);
 				continue;
 			}
 			try {
-				const message = await globalThis.reportEvidenceChannel.messages.fetch(messageId);
+				const message = await caseThread.messages.fetch(messageId);
 				const attachCount = message?.attachments?.size ?? 0;
 				if (attachCount > 0) {
 					for (const attachment of message.attachments.values()) {
@@ -282,6 +295,18 @@ function chunkTextPreserveNewlines(text, max = 1024) {
 	return chunks.filter((c) => c.length);
 }
 
+function describeAction(action) {
+	return action
+		.split(';')
+		.map((entry) => {
+			if (entry === 'warning') return 'Issue an official warning';
+			if (entry === 'ban') return 'Ban the user';
+			const [type, duration] = entry.split('=');
+			return type === 'mute' ? `Mute for ${duration} day(s)` : `Suspend for ${duration} week(s)`;
+		})
+		.join('\n');
+}
+
 module.exports = {
 	calculateCurrentPoints,
 	getNextPointExpiry,
@@ -289,13 +314,7 @@ module.exports = {
 	resolveEvidenceLinksForUser,
 	resolveEvidenceLinksForModerators,
 	notifyCaseThread,
-	refreshReportMessage,
-	acknowledgeReport,
-	getCaseLinkById,
-	buildWarnUserModal,
-	buildUserSummaryButtons,
-	buildModeratorNoteModal,
-	appendModeratorNote,
+	describeAction,
 };
 
 /**
@@ -317,185 +336,6 @@ async function notifyCaseThread(client, caseId, content) {
 	} catch (error) {
 		logger.warn(`Failed to notify case thread for case ${caseId}: ${error}`);
 	}
-}
-
-/**
- * Re-renders a report's moderator-facing embed on its original message (e.g. after it's attached to a case).
- *
- * @param {Report} report
- * @param {String|null} caseLink Optional jump link to the case's discussion thread
- */
-async function refreshReportMessage(report, caseLink = null) {
-	if (!report.getReportLink()) return;
-	try {
-		const reportMessage = await globalThis.reportChannel.messages.fetch(report.getReportLink().split('/').pop());
-		const embed = await report.generatePrivateEmbed(caseLink);
-		await reportMessage.edit({ embeds: [embed] });
-	} catch (error) {
-		logger.warn(`Failed to refresh report message for report ${report.getReportId()}: ${error}`);
-	}
-}
-
-/**
- * Marks a report as acknowledged and DMs the reporter to let them know moderators are on it.
- *
- * @param {import('discord.js').Client} client
- * @param {String} reportId
- * @returns {Promise<Report>} The updated Report
- */
-async function acknowledgeReport(client, reportId) {
-	const report = await globalThis.databaseManager.updateReport(reportId, {
-		acknowledge_timestamp: new Date().toISOString(),
-		status: 'ACKNOWLEDGED',
-	});
-	const reportEmbed = await report.generateUserEmbed();
-
-	try {
-		const reporter = await globalThis.databaseManager.getUserByIdentifier(report.getReporterId(), 'db');
-		const reporterDiscordUser = await client.users.fetch(reporter.getDiscordId());
-		await reporterDiscordUser.send({
-			content: `A member of MLE Moderation has acknowledged your report #${report.getReportId()}. Our team will begin our reviewing the details provided.`,
-			embeds: [reportEmbed],
-		});
-	} catch (dmError) {
-		logger.warn(`Could not DM reporter for report ${reportId}: ${dmError}`);
-	}
-
-	return report;
-}
-
-/**
- * Resolves the jump link to a case's discussion thread, if it has one.
- *
- * @param {String|null} caseId
- * @returns {Promise<String|null>}
- */
-async function getCaseLinkById(caseId) {
-	if (!caseId || caseId === 'N/A') return null;
-	try {
-		const kase = await globalThis.databaseManager.getCaseById(caseId);
-		return kase.getCaseLink();
-	} catch (error) {
-		logger.warn(`Failed to resolve case link for case ${caseId}: ${error}`);
-		return null;
-	}
-}
-
-/**
- * Builds the "Issue Warning to User" modal, shared by the /warn flow and the case "Create Warning" button.
- *
- * @param {String} customId
- * @returns {import('discord.js').ModalBuilder}
- */
-function buildWarnUserModal(customId) {
-	// Lazily required to avoid a require cycle at module load time
-	const { ModalBuilder, TextInputBuilder, LabelBuilder, TextInputStyle } = require('discord.js');
-
-	const modal = new ModalBuilder().setCustomId(customId).setTitle('Issue Warning to User');
-
-	const rulesBrokenInput = new TextInputBuilder()
-		.setCustomId('rulesBroken')
-		.setStyle(TextInputStyle.Paragraph)
-		.setPlaceholder('1.2(1) Mildly offensive language')
-		.setRequired(true);
-	const rulesBrokenInputLabel = new LabelBuilder().setLabel('Rule(s) Broken').setTextInputComponent(rulesBrokenInput);
-
-	const violatingContentInput = new TextInputBuilder()
-		.setCustomId('violatingContent')
-		.setStyle(TextInputStyle.Paragraph)
-		.setPlaceholder('Direct quote or description of the violating content (shown to user)')
-		.setRequired(true);
-	const violatingContentInputLabel = new LabelBuilder()
-		.setLabel('Violating Content')
-		.setTextInputComponent(violatingContentInput);
-
-	const pointsAddedInput = new TextInputBuilder()
-		.setCustomId('pointsAdded')
-		.setStyle(TextInputStyle.Short)
-		.setPlaceholder('Number of points to add to user record')
-		.setMinLength(1)
-		.setMaxLength(2)
-		.setRequired(true);
-	const pointsAddedInputLabel = new LabelBuilder().setLabel('Points Added').setTextInputComponent(pointsAddedInput);
-
-	const moderatorNotesInput = new TextInputBuilder()
-		.setCustomId('moderatorNotes')
-		.setStyle(TextInputStyle.Paragraph)
-		.setPlaceholder('Additional notes from the moderator (not shown to user)')
-		.setRequired(false);
-	const moderatorNotesInputLabel = new LabelBuilder()
-		.setLabel('Moderator Notes')
-		.setTextInputComponent(moderatorNotesInput);
-
-	modal.addLabelComponents(
-		rulesBrokenInputLabel,
-		violatingContentInputLabel,
-		pointsAddedInputLabel,
-		moderatorNotesInputLabel,
-	);
-
-	return modal;
-}
-
-function buildUserSummaryButtons(dbId) {
-	const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-	const updateButton = new ButtonBuilder()
-		.setCustomId(`userUpdateButton:${dbId}`)
-		.setLabel('[Unimplemented]')
-		.setStyle(ButtonStyle.Danger);
-	const viewButton = new ButtonBuilder()
-		.setCustomId(`userViewHistoryButton:${dbId}`)
-		.setLabel('View History')
-		.setStyle(ButtonStyle.Primary);
-	return [new ActionRowBuilder().addComponents(viewButton, updateButton)];
-}
-
-/**
- * Builds the moderator note modal used by commands and case/report action buttons.
- * @param {String} customId
- * @returns {import('discord.js').ModalBuilder}
- */
-function buildModeratorNoteModal(customId) {
-	const { ModalBuilder, TextInputBuilder, LabelBuilder, TextInputStyle } = require('discord.js');
-	const noteInput = new TextInputBuilder()
-		.setCustomId('note')
-		.setStyle(TextInputStyle.Paragraph)
-		.setPlaceholder('Add context, decisions, or follow-up information')
-		.setMaxLength(4000)
-		.setRequired(true);
-	const noteLabel = new LabelBuilder().setLabel('Moderator Note').setTextInputComponent(noteInput);
-	return new ModalBuilder().setCustomId(customId).setTitle('Add Moderator Note').addLabelComponents(noteLabel);
-}
-
-/**
- * Appends a timestamped moderator note to a case or report.
- * @param {'case'|'report'} targetType
- * @param {number|string} targetId
- * @param {String} moderatorName
- * @param {String} note
- * @returns {Promise<Case|Report>}
- */
-async function appendModeratorNote(targetType, targetId, moderatorName, note) {
-	const timestampedNote = `[${new Date().toISOString()}] ${moderatorName}: ${note.trim()}`;
-	if (targetType === 'case') {
-		const kase = await globalThis.databaseManager.getCaseById(targetId);
-		const existingNotes = kase.getNotes();
-		const combinedNotes = existingNotes === 'None' ? timestampedNote : `${existingNotes}\n${timestampedNote}`;
-		await globalThis.databaseManager.updateCase(targetId, { moderator_notes: combinedNotes });
-		kase.setNotes(combinedNotes);
-		return kase;
-	}
-
-	if (targetType === 'report') {
-		const report = await globalThis.databaseManager.getReportById(targetId);
-		const existingNotes = report.getModeratorNotes();
-		const combinedNotes = existingNotes ? `${existingNotes}\n${timestampedNote}` : timestampedNote;
-		await globalThis.databaseManager.updateReport(targetId, { moderator_notes: combinedNotes });
-		report.setModeratorNotes(combinedNotes);
-		return report;
-	}
-
-	throw new Error(`Unsupported moderator note target: ${targetType}`);
 }
 
 /**
@@ -561,4 +401,16 @@ function getContributingWarnings(warnings, asOf = Date.now()) {
 	return contributingIdx.map((i) => sorted[i]);
 }
 
+/**
+ * Converts a JS date object into a Discord timestamp format
+ * <t:1790804566:S> becomes 09/30/2026, 4:42:46 PM (localized)
+ *
+ * @param {Date} date
+ * @returns {string} Discord timestamp string in the format <t:TIMESTAMP:S>
+ */
+function convertDateToTimestamp(date) {
+	return `<t:${Math.floor(date.getTime() / 1000)}:S>`;
+}
+
 module.exports.getContributingWarnings = getContributingWarnings;
+module.exports.convertDateToTimestamp = convertDateToTimestamp;

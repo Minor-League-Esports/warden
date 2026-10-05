@@ -10,8 +10,6 @@
 	"opsLogChannelId": "<OPS CHANNEL>",
 	"caseChannelId": "<CASE CHANNEL>",
 	"caseLogChannelId": "<CASE LOG CHANNEL>",
-	"reportChannelId": "<REPORT CHANNEL>",
-	"reportEvidenceChannelId": "<REPORT EVIDENCE CHANNEL>",
     "announcementChannelId": "<ANNOUNCEMENT CHANNEL>",	
 	"guildList": [<GUILD LIST>],
     "database": {

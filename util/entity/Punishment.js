@@ -153,19 +153,21 @@ class Punishment {
 	 * @param {String} reporters Names of reporters attached to the parent case
 	 * @returns {EmbedBuilder}
 	 */
-	generatePrivateEmbed(caseLink = null, reporters = 'None') {
-		const caseValue = this.getCaseId() && this.getCaseId() !== 'N/A'
-			? (caseLink ? `[#${this.getCaseId()}](${caseLink})` : `#${this.getCaseId()}`)
+	generatePrivateEmbed(reporters = 'None') {
+		const caseIdValue = this.getCase()
+			? this.getCase().getCaseThreadLink()
+				? `[#${this.getCaseId()}](${this.getCase().getCaseThreadLink()})`
+				: `#${this.getCaseId()}`
 			: 'None';
 		const embed = new EmbedBuilder()
-			.setTitle(`${this.getSubject()?.getUserName() ?? 'User'} | Punishment`)
+			.setTitle(`${this.getSubject()?.getUserName() ?? 'User'} | Punishment #${this.getPunishmentId()}`)
 			.setTimestamp(new Date(this.getTimestamp()))
 			.addFields(
 				{ name: 'Type', value: String(this.getType() ?? 'Unknown'), inline: true },
 				{ name: 'Duration', value: String(this.getDuration() ?? 'N/A'), inline: true },
 				{ name: 'Details', value: String(this.getFriendlyString() ?? 'None') },
 				{ name: 'Moderator Name', value: String(this.getModerator()?.getUserName() ?? 'None'), inline: true },
-				{ name: 'Case', value: caseValue, inline: true },
+				{ name: 'Case', value: caseIdValue, inline: true },
 				{ name: 'Reporters', value: String(reporters), inline: true },
 				{ name: 'Warning ID', value: String(this.getWarningId() ?? 'None'), inline: true },
 			)

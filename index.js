@@ -67,10 +67,9 @@ globalThis.sprocketDatasetParser = new SprocketDatasetParser(globalThis.remoteMa
 globalThis.discordLogger = null;
 globalThis.caseLogger = null;
 globalThis.caseChannel = null;
-globalThis.reportChannel = null;
-globalThis.reportEvidenceChannel = null;
 globalThis.punishmentExecutor = null;
 globalThis.userUtility = null;
+globalThis.discordClient = client;
 
 // Global process-level guards to avoid full bot crashes
 process.on('unhandledRejection', (reason, promise) => {

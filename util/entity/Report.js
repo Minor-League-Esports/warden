@@ -8,6 +8,7 @@ const {
 	chunkTextPreserveNewlines,
 	resolveEvidenceLinksForUser,
 	resolveEvidenceLinksForModerators,
+	convertDateToTimestamp,
 } = require('../UtilFunctions');
 
 class Report {
@@ -50,6 +51,38 @@ class Report {
 
 	getModeratorId() {
 		return this._moderatorId;
+	}
+
+	/**
+	 * Setter for the User who is the subject of this report
+	 * @param {User} user
+	 */
+	setSubjectUser(user) {
+		this._subjectUser = user;
+	}
+
+	/**
+	 * Getter for the User who is the subject of this report
+	 * @returns {User}
+	 */
+	getSubjectUser() {
+		return this._subjectUser;
+	}
+
+	/**
+	 * Setter for the User who is the moderator assigned to this report
+	 * @param {User} user
+	 */
+	setModerator(user) {
+		this._moderator = user;
+	}
+
+	/**
+	 * Getter for the User who is the moderator assigned to this report
+	 * @returns {User}
+	 */
+	getModerator() {
+		return this._moderator;
 	}
 
 	setCaseId(caseId) {
@@ -114,9 +147,9 @@ class Report {
 
 	addReasonDetails(details) {
 		if (this._reportReason && this._reportReason != 'N/A') {
-			this._reportReason += `\n__${new Date().toISOString()}__\n${details}`;
+			this._reportReason += `\n__${convertDateToTimestamp(new Date())}__\n${details}`;
 		} else {
-			this._reportReason = `__${new Date().toISOString()}__\n${details}`;
+			this._reportReason = `__${convertDateToTimestamp(new Date())}__\n${details}`;
 		}
 	}
 
@@ -130,9 +163,9 @@ class Report {
 
 	addReportEvidence(evidence) {
 		if (this._reportEvidence && this._reportEvidence != 'N/A') {
-			this._reportEvidence += `\n__${new Date().toISOString()}__\n${evidence}`;
+			this._reportEvidence += `\n__${convertDateToTimestamp(new Date())}__\n${evidence}`;
 		} else {
-			this._reportEvidence = `__${new Date().toISOString()}__\n${evidence}`;
+			this._reportEvidence = `__${convertDateToTimestamp(new Date())}__\n${evidence}`;
 		}
 	}
 
@@ -153,7 +186,15 @@ class Report {
 	}
 
 	getModeratorNotes() {
-		return this._moderatorNotes;
+		return this._moderatorNotes ?? 'None';
+	}
+
+	addModeratorNote(note) {
+		if (this._moderatorNotes && this._moderatorNotes != 'None') {
+			this._moderatorNotes += `\n__${convertDateToTimestamp(new Date())}__\n${note}`;
+		} else {
+			this._moderatorNotes = `__${convertDateToTimestamp(new Date())}__\n${note}`;
+		}
 	}
 
 	setResponse(response) {
@@ -164,31 +205,39 @@ class Report {
 		return this._response;
 	}
 
+	isAcknowledged() {
+		return this._acknowledgeTimestamp != null;
+	}
+
+	isClosed() {
+		return this._closeTimestamp != null;
+	}
+
 	/**
 	 * Generates an embed for moderator view of a report
 	 *
-	 * @param {String|null} caseLink Optional jump link to the case's discussion thread
 	 * @returns {EmbedBuilder}
 	 */
-	async generatePrivateEmbed(caseLink = null) {
-		const subject = await globalThis.databaseManager.getUserByIdentifier(this.getSubjectId(), 'db');
-		const reporter = await globalThis.databaseManager.getUserByIdentifier(this.getReporterId(), 'db');
-		const caseIdValue = this.getCaseId()
-			? caseLink
-				? `[#${this.getCaseId()}](${caseLink})`
+	async generatePrivateEmbed() {
+		const caseIdValue = this.getCase()
+			? this.getCase().getCaseThreadLink()
+				? `[#${this.getCaseId()}](${this.getCase().getCaseThreadLink()})`
 				: `#${this.getCaseId()}`
 			: 'None';
+		const reportIdValue = this.getReportLink()
+			? `[#${this.getReportId()}](${this.getReportLink()})`
+			: `#${this.getReportId()}`;
 		const embed = new EmbedBuilder()
-			.setTitle(`${subject?.getUserName() ?? 'User'} | Report`)
+			.setTitle(`Report #${this.getReportId() ?? 'None'} | ${this.getSubjectUser()?.getUserName() ?? 'Unknown'}`)
 			.setTimestamp(new Date(this.getReportTimestamp() ?? new Date().toISOString()))
 			.addFields(
-				{ name: 'Reporter', value: String(reporter?.getUserName() ?? 'Unknown'), inline: true },
+				{ name: 'Reporter', value: String(this.getReporter()?.getUserName() ?? 'Unknown'), inline: true },
 				{ name: 'Status', value: String(this.getStatus() ?? 'Unknown') },
 				{ name: 'Case ID', value: caseIdValue, inline: true },
-				{ name: 'Report ID', value: String(this.getReportId() ?? 'None'), inline: true },
+				{ name: 'Report ID', value: reportIdValue, inline: true },
 			)
-			.setFooter({ text: `ID: ${subject?.getDiscordId() ?? 'Unknown'}` })
-			.setThumbnail(subject?.getDiscordAvatar() ?? null)
+			.setFooter({ text: `ID: ${this.getSubjectUser()?.getDiscordId() ?? 'Unknown'}` })
+			.setThumbnail(this.getSubjectUser()?.getDiscordAvatar() ?? null)
 			.setColor('#ff761b');
 
 		// Report Reason (may be long)
@@ -201,7 +250,10 @@ class Report {
 		// Evidence (may be long)
 		let evidenceText = 'None';
 		try {
-			const lines = await resolveEvidenceLinksForModerators(this.getReportEvidence());
+			const lines = await resolveEvidenceLinksForModerators(
+				this.getCase().getCaseThreadLink(),
+				this.getReportEvidence(),
+			);
 			evidenceText = lines.length ? lines.join('\n') : 'None';
 		} catch (e) {
 			logger.error('Error building evidence for moderator embed', e);
@@ -213,7 +265,7 @@ class Report {
 		}
 
 		// Moderator notes (may be long)
-		const modNotes = String(this.getModeratorNotes() ?? 'None');
+		const modNotes = this.getModeratorNotes();
 		const notesChunks = chunkTextPreserveNewlines(modNotes, 1024);
 		for (let i = 0; i < notesChunks.length; i++) {
 			embed.addFields({ name: i === 0 ? 'Moderator Notes' : 'Moderator Notes (cont.)', value: notesChunks[i] });
@@ -232,12 +284,16 @@ class Report {
 		if (this.getAcknowledgeTimestamp()) {
 			embed.addFields({
 				name: 'Acknowledged At',
-				value: new Date(this.getAcknowledgeTimestamp()).toISOString(),
+				value: convertDateToTimestamp(new Date(this.getAcknowledgeTimestamp())),
 				inline: true,
 			});
 		}
 		if (this.getCloseTimestamp()) {
-			embed.addFields({ name: 'Closed At', value: new Date(this.getCloseTimestamp()).toISOString(), inline: true });
+			embed.addFields({
+				name: 'Closed At',
+				value: convertDateToTimestamp(new Date(this.getCloseTimestamp())),
+				inline: true,
+			});
 		}
 
 		return embed;
@@ -250,17 +306,16 @@ class Report {
 	 * @returns {EmbedBuilder}
 	 */
 	async generateUserEmbed() {
-		const subject = await globalThis.databaseManager.getUserByIdentifier(this.getSubjectId(), 'db');
 		const embed = new EmbedBuilder()
 			.setTitle(`MLE Moderation Update: Report #${this.getReportId()}`)
 			.setTimestamp(new Date(this.getReportTimestamp() ?? new Date().toISOString()))
 			.setDescription(
-				'To attach evidence to this report, use the `/report evidence` command. Use the button below to provide more details.',
+				'To attach evidence to this report, use the `/report evidence` command. To provide more details, use the `/report update` command or the button below.',
 			)
 			.addFields(
 				{
 					name: 'Reported User',
-					value: String(subject ? `<@${subject.getDiscordId()}>` : 'Unknown'),
+					value: String(this.getSubjectUser() ? `<@${this.getSubjectUser().getDiscordId()}>` : 'Unknown'),
 					inline: true,
 				},
 				{ name: 'Status', value: String(this.getStatus() ?? 'Unknown'), inline: true },
@@ -279,7 +334,7 @@ class Report {
 		// Evidence (may be long)
 		let evidenceText = 'None';
 		try {
-			const cdnOnly = await resolveEvidenceLinksForUser(this.getReportEvidence());
+			const cdnOnly = await resolveEvidenceLinksForUser(this.getCase().getCaseThreadLink(), this.getReportEvidence());
 			evidenceText = cdnOnly.length ? cdnOnly.join('\n') : 'None';
 		} catch (e) {
 			logger.error('Error building evidence for user embed', e);
@@ -303,12 +358,16 @@ class Report {
 		if (this.getAcknowledgeTimestamp()) {
 			embed.addFields({
 				name: 'Acknowledged At',
-				value: new Date(this.getAcknowledgeTimestamp()).toISOString(),
+				value: convertDateToTimestamp(new Date(this.getAcknowledgeTimestamp())),
 				inline: true,
 			});
 		}
 		if (this.getCloseTimestamp()) {
-			embed.addFields({ name: 'Closed At', value: new Date(this.getCloseTimestamp()).toISOString(), inline: true });
+			embed.addFields({
+				name: 'Closed At',
+				value: convertDateToTimestamp(new Date(this.getCloseTimestamp())),
+				inline: true,
+			});
 		}
 
 		return embed;

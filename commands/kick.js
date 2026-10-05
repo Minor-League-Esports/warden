@@ -1,5 +1,5 @@
 const log4js = require('log4js');
-const logger = log4js.getLogger('UnmuteCommand');
+const logger = log4js.getLogger('KickCommand');
 const { logLevel, opsGuild } = require('../config.json');
 logger.level = logLevel;
 
@@ -8,18 +8,16 @@ const {
 	SlashCommandBuilder,
 	PermissionFlagsBits,
 	InteractionContextType,
-	ButtonBuilder,
-	ButtonStyle,
-	ActionRowBuilder,
 	EmbedBuilder,
 } = require('discord.js');
+const { generateKickConfirmationButtons } = require('../util/builders/ButtonFunctions');
 
 module.exports = {
 	data: new SlashCommandBuilder()
 		.setName('kick')
 		.setDescription('Kicks a user')
 		.setContexts([InteractionContextType.Guild])
-		.setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
+		.setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
 		.addStringOption((option) =>
 			option
 				.setName('user')
@@ -45,7 +43,7 @@ module.exports = {
 		const user = await globalThis.userUtility.fetchDatabaseUser(userId);
 
 		const embed = generateConfirmationEmbed(user);
-		const components = generateConfirmationButtons(user.getUserId());
+		const components = generateKickConfirmationButtons(user.getUserId());
 		await interaction.editReply({
 			embeds: [embed],
 			components,
@@ -62,17 +60,4 @@ function generateConfirmationEmbed(dbUser) {
 		.setTimestamp()
 		.setThumbnail(dbUser.getDiscordAvatar() ?? null);
 	return embed;
-}
-
-function generateConfirmationButtons(dbId) {
-	const confirmButton = new ButtonBuilder()
-		.setCustomId(`kickConfirmButton:${dbId}`)
-		.setLabel('Kick User')
-		.setStyle(ButtonStyle.Success);
-	const cancelButton = new ButtonBuilder()
-		.setCustomId(`cancelKickButton:${dbId}`)
-		.setLabel('Cancel')
-		.setStyle(ButtonStyle.Danger);
-	const actionRow = new ActionRowBuilder().addComponents(confirmButton, cancelButton);
-	return [actionRow];
 }

@@ -4,7 +4,7 @@ const { logLevel } = require('../../config.json');
 logger.level = logLevel;
 
 const { EmbedBuilder } = require('discord.js');
-const { chunkTextPreserveNewlines } = require('../UtilFunctions');
+const { chunkTextPreserveNewlines, convertDateToTimestamp } = require('../UtilFunctions');
 
 class Case {
 	// Getters and setters
@@ -112,12 +112,28 @@ class Case {
 		return this._closedAt ?? null;
 	}
 
-	setNotes(notes) {
-		this._notes = notes;
+	setModeratorNotes(notes) {
+		this._moderatorNotes = notes;
 	}
 
-	getNotes() {
-		return this._notes ?? 'None';
+	getModeratorNotes() {
+		return this._moderatorNotes ?? 'None';
+	}
+
+	addModeratorNote(note) {
+		if (this._moderatorNotes && this._moderatorNotes != 'None') {
+			this._moderatorNotes += `\n__${convertDateToTimestamp(new Date())}__\n${note}`;
+		} else {
+			this._moderatorNotes = `__${convertDateToTimestamp(new Date())}__\n${note}`;
+		}
+	}
+
+	setCaseSummaryLink(link) {
+		this._caseSummaryLink = link;
+	}
+
+	getCaseSummaryLink() {
+		return this._caseSummaryLink ?? null;
 	}
 
 	setCaseLink(link) {
@@ -126,6 +142,14 @@ class Case {
 
 	getCaseLink() {
 		return this._caseLink ?? null;
+	}
+
+	setCaseThreadLink(link) {
+		this._caseThreadLink = link;
+	}
+
+	getCaseThreadLink() {
+		return this._caseThreadLink ?? null;
 	}
 
 	/**
@@ -187,13 +211,45 @@ class Case {
 		return this._punishments ?? [];
 	}
 
+	isClaimed() {
+		return !!this.getModerator();
+	}
+
+	isClosed() {
+		return !!this.getClosedAt();
+	}
+
+	generateSummaryEmbed() {
+		const embed = new EmbedBuilder()
+			.setTitle(`Case #${this.getCaseId()} | ${this.getStatus() ?? 'Unknown'}`)
+			.setTimestamp(new Date(this.getCreatedAt() ?? new Date().toISOString()))
+			.setThumbnail(this.getSubjectUser()?.getDiscordAvatar() ?? null)
+			.setColor('#ff761b');
+
+		embed.addFields(
+			{ name: 'Case Thread', value: String(this.getCaseThreadLink() ?? 'None') },
+			{ name: 'Status', value: String(this.getStatus() ?? 'Unknown'), inline: true },
+			{
+				name: 'Subject',
+				value: String(this.getSubjectUser() ? `${this.getSubjectUser().getUserName()}` : 'Unknown'),
+				inline: true,
+			},
+			{ name: 'Moderator', value: String(this.getModerator()?.getUserName() ?? 'Unclaimed') },
+			{ name: 'Creator', value: String(this.getCreator()?.getUserName() ?? this.getCreatorId()) },
+		);
+
+		return embed;
+	}
+
 	/**
 	 * Generates an internal moderator-facing summary embed for the Case
 	 * @returns {EmbedBuilder}
 	 */
 	generatePrivateEmbed() {
 		const embed = new EmbedBuilder()
-			.setTitle(`Case #${this.getCaseId()}`)
+			.setTitle(
+				`Case #${this.getCaseId()} | ${String(this.getSubjectUser() ? `${this.getSubjectUser().getUserName()}` : 'Unknown')}`,
+			)
 			.setTimestamp(new Date(this.getCreatedAt() ?? new Date().toISOString()))
 			.setThumbnail(this.getSubjectUser()?.getDiscordAvatar() ?? null)
 			.setColor('#ff761b');
@@ -209,7 +265,18 @@ class Case {
 			{ name: 'Creator', value: String(this.getCreator()?.getUserName() ?? this.getCreatorId()), inline: true },
 		);
 
-		const notes = String(this.getNotes() ?? 'None');
+		const reports = String(
+			this.getReports()
+				?.map((report) =>
+					report.getReportLink() ? `[#${report.getReportId()}](${report.getReportLink()})` : `#${report.getReportId()}`,
+				)
+				.join(', ') ?? 'None',
+		);
+		if (reports && reports.trim().length > 0) {
+			embed.addFields({ name: 'Reports', value: reports });
+		}
+
+		const notes = this.getModeratorNotes();
 		if (notes && notes.trim().length > 0) {
 			const notesChunks = chunkTextPreserveNewlines(notes, 1024);
 			for (let i = 0; i < notesChunks.length; i++) {
@@ -218,7 +285,7 @@ class Case {
 		}
 
 		if (this.getClosedAt()) {
-			embed.addFields({ name: 'Closed At', value: new Date(this.getClosedAt()).toISOString() });
+			embed.addFields({ name: 'Closed At', value: convertDateToTimestamp(new Date(this.getClosedAt())) });
 		}
 
 		return embed;

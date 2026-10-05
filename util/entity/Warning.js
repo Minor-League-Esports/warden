@@ -1,5 +1,5 @@
 const { EmbedBuilder } = require('discord.js');
-const { chunkTextPreserveNewlines } = require('../UtilFunctions');
+const { chunkTextPreserveNewlines, convertDateToTimestamp } = require('../UtilFunctions');
 
 class Warning {
 	// Getters and setters
@@ -114,6 +114,14 @@ class Warning {
 		return this._moderatorNotes ?? 'None';
 	}
 
+	addModeratorNote(note) {
+		if (this._moderatorNotes && this._moderatorNotes != 'None') {
+			this._moderatorNotes += `\n__${convertDateToTimestamp(new Date())}__\n${note}`;
+		} else {
+			this._moderatorNotes = `__${convertDateToTimestamp(new Date())}__\n${note}`;
+		}
+	}
+
 	/**
 	 * Setter for punishments collection
 	 * @param {Punishment[]} punishments
@@ -143,17 +151,15 @@ class Warning {
 	/**
 	 * To string method to represent the Warning as an Embed for moderators
 	 *
-	 * @param {String|null} caseLink Optional jump link to the case's discussion thread
 	 * @param {String} reporters Names of reporters attached to the parent case
 	 * @returns {Embed}
 	 */
-	generatePrivateEmbed(caseLink = null, reporters = 'None') {
-		const caseValue =
-			this.getCaseId() && this.getCaseId() !== 'N/A'
-				? caseLink
-					? `[#${this.getCaseId()}](${caseLink})`
-					: `#${this.getCaseId()}`
-				: 'None';
+	generatePrivateEmbed(reporters = 'None') {
+		const caseIdValue = this.getCase()
+			? this.getCase().getCaseThreadLink()
+				? `[#${this.getCaseId()}](${this.getCase().getCaseThreadLink()})`
+				: `#${this.getCaseId()}`
+			: 'None';
 		const embed = new EmbedBuilder()
 			.setTitle(`${this.getSubject().getUserName()} | Warning #${this.getWarningId() ?? 'N/A'}`)
 			.setTimestamp(new Date(this.getTimestamp()))
@@ -193,7 +199,7 @@ class Warning {
 
 		embed.addFields(
 			{ name: 'Moderator Name', value: String(this.getModerator()?.getUserName() ?? 'None'), inline: true },
-			{ name: 'Case', value: caseValue, inline: true },
+			{ name: 'Case', value: caseIdValue, inline: true },
 			{ name: 'Reporters', value: String(reporters), inline: true },
 		);
 

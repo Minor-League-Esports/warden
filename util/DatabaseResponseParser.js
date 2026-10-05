@@ -21,6 +21,24 @@ function buildUserFromPrefix(row, prefix) {
 	return u;
 }
 
+// Builds a core Case from a joined row's c_* columns; null when the row has no case
+function buildCaseFromRow(row) {
+	if (!row['c_id']) return null;
+	const kase = new Case();
+	kase.setCaseId(row['c_id']);
+	kase.setCreatorId(row['c_creator_id']);
+	kase.setSubjectId(row['c_subject_id']);
+	kase.setModeratorId(row['c_moderator_id']);
+	kase.setStatus(row['c_status']);
+	kase.setCreatedAt(row['c_created_at']);
+	kase.setClosedAt(row['c_closed_at']);
+	kase.setModeratorNotes(row['c_moderator_notes']);
+	kase.setCaseSummaryLink(row['c_case_summary_link']);
+	kase.setCaseLink(row['c_case_link']);
+	kase.setCaseThreadLink(row['c_case_thread_link']);
+	return kase;
+}
+
 class DatabaseResponseParser {
 	/**
 	 * Parses raw database data into an array of Users
@@ -62,8 +80,10 @@ class DatabaseResponseParser {
 			c.setStatus(row['status']);
 			c.setCreatedAt(row['created_at']);
 			c.setClosedAt(row['closed_at']);
-			c.setNotes(row['moderator_notes']);
+			c.setModeratorNotes(row['moderator_notes']);
+			c.setCaseSummaryLink(row['case_summary_link']);
 			c.setCaseLink(row['case_link']);
+			c.setCaseThreadLink(row['case_thread_link']);
 			cases.push(c);
 		}
 
@@ -93,6 +113,8 @@ class DatabaseResponseParser {
 			w.setModeratorNotes(row['moderator_notes']);
 			w.setSubject(buildUserFromPrefix(row, 'u_user'));
 			w.setModerator(buildUserFromPrefix(row, 'u_mod'));
+			const warningCase = buildCaseFromRow(row);
+			if (warningCase) w.setCase(warningCase);
 			warnings.push(w);
 		}
 
@@ -120,6 +142,8 @@ class DatabaseResponseParser {
 			p.setDuration(row['punishment_duration']);
 			p.setSubject(buildUserFromPrefix(row, 'u_user'));
 			p.setModerator(buildUserFromPrefix(row, 'u_mod'));
+			const punishmentCase = buildCaseFromRow(row);
+			if (punishmentCase) p.setCase(punishmentCase);
 			punishments.push(p);
 		}
 
@@ -152,6 +176,10 @@ class DatabaseResponseParser {
 			r.setModeratorNotes(row['moderator_notes']);
 			r.setResponse(row['response']);
 			r.setReporter(buildUserFromPrefix(row, 'u_rep'));
+			r.setSubjectUser(buildUserFromPrefix(row, 'u_user'));
+			r.setModerator(buildUserFromPrefix(row, 'u_mod'));
+			const reportCase = buildCaseFromRow(row);
+			if (reportCase) r.setCase(reportCase);
 			reports.push(r);
 		}
 

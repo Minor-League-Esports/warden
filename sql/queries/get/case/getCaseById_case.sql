@@ -7,7 +7,9 @@ SELECT
     c.created_at,
     c.closed_at,
     c.moderator_notes AS notes,
+    c.case_summary_link,
     c.case_link,
+    c.case_thread_link,
     -- Creator
     u_cre.user_id AS cre_id,
     u_cre.discord_id AS cre_discord_id,
