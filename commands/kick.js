@@ -17,7 +17,7 @@ module.exports = {
 		.setName('kick')
 		.setDescription('Kicks a user')
 		.setContexts([InteractionContextType.Guild])
-		.setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
+		.setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
 		.addStringOption((option) =>
 			option
 				.setName('user')

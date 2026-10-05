@@ -7,9 +7,8 @@ commands are registered; Discord administrators can further restrict them with t
 
 - Unless noted otherwise, commands are guild-only and must be run in the MLE Staff server. Commands that fail the
   staff-server check return an ephemeral error.
-- `ModerateMembers` is required for `/manage`, `/history`, `/warn`, `/ineligible`, `/banlist`, `/kick`, `/mute`, and
-  `/unmute`.
-- `BanMembers` is required for `/ban`, `/unban`, and `/loadusers`.
+- `ModerateMembers` is required for `/manage`, `/history`, `/warn`, `/ineligible`, `/banlist`, `/mute`, and `/unmute`.
+- `BanMembers` is required for `/ban`, `/unban`, `/kick`, and `/loadusers`.
 - `/report` does not declare a default permission and is intended for members submitting reports. Guild replies are
   ephemeral; direct-message replies are visible to the user.
 - User-facing report activity (acknowledgements, replies, closures) is delivered to the reporter by direct message.
