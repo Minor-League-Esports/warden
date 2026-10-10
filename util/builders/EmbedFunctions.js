@@ -80,7 +80,7 @@ function generateWarnConfirmationEmbed(
 	newPointsTotal,
 	moderatorNotes,
 	recommendedAction,
-	caseId,
+	caseObj,
 ) {
 	return new EmbedBuilder()
 		.setColor('#ff761b')
@@ -112,7 +112,11 @@ function generateWarnConfirmationEmbed(
 				name: 'Recommended Action',
 				value: String(generateRecommendedActionDescription(recommendedAction)),
 			},
-			{ name: 'Case', value: caseId ? `#${caseId}` : 'None', inline: true },
+			{
+				name: 'Case',
+				value: caseObj ? `[#${caseObj.getCaseId()}](${caseObj.getCaseThreadLink()})` : '**No case, please verify!**',
+				inline: true,
+			},
 		);
 }
 

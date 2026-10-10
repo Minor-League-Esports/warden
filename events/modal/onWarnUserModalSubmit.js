@@ -30,6 +30,7 @@ async function handleWarnUserModalSubmit(interaction) {
 		.getUserByIdentifier(dbId, 'db')
 		.then(async (dbUser) => {
 			dbUser.setWarnings(await globalThis.databaseManager.getWarnings(dbUser.getUserId()));
+			const caseObj = caseId ? await globalThis.databaseManager.getCaseById(caseId) : null;
 
 			// Fetch guild member to get join date
 			const mainServer = interaction.client.guilds.cache.get(mainGuild);
@@ -59,7 +60,7 @@ async function handleWarnUserModalSubmit(interaction) {
 				newPointsTotal,
 				moderatorNotes,
 				recommendedAction,
-				caseId,
+				caseObj,
 			);
 			await interaction.editReply({
 				embeds: [embed],

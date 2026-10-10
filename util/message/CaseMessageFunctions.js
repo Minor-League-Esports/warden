@@ -64,7 +64,7 @@ async function createCaseMessage(caseObj) {
 		subjectUser.setCases(filteredCases);
 		await caseThread.send({
 			embeds: [subjectUser.generateUserSummaryEmbed()],
-			components: generateUserSummaryButtons(subjectUser.getUserId()),
+			components: generateUserSummaryButtons(subjectUser.getUserId(), fullCase.getCaseId()),
 		});
 	} catch (historyError) {
 		logger.error(`Failed to add subject history to case ${fullCase.getCaseId()} thread: ${historyError}`);
