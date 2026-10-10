@@ -67,7 +67,7 @@ module.exports = {
 			const reportList = openReports
 				.map(
 					(report) =>
-						`#${report.getReportId()} (${report.getSubjectUser() ? `<@${report.getSubjectUser().getDiscordId()}>` : 'Unknown'})`,
+						`#${report.getReportId()} (${report.getSubjectUser() ? report.getSubjectUser().getDiscordMention() : 'Unknown'})`,
 				)
 				.join('\n');
 			await interaction.reply(

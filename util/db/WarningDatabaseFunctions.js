@@ -4,7 +4,6 @@ const { logLevel } = require('../../config.json');
 logger.level = logLevel;
 
 const Warning = require('../entity/Warning');
-const User = require('../entity/User');
 const { calculateCurrentPoints } = require('../UtilFunctions');
 
 /**
@@ -183,13 +182,7 @@ async function getUsersWithCurrentPointsAtOrAbove(threshold = 3, asOf = new Date
 				for (const row of rows) {
 					let entry = byUser.get(row['user_id']);
 					if (!entry) {
-						const user = new User(
-							row['user_id'],
-							row['discord_id'],
-							row['discord_avatar'],
-							row['user_name'],
-							row['mle_id'],
-						);
+						const [user] = globalThis.databaseResponseParser.parseDatabaseUserResponse({ rows: [row] });
 						entry = { user, warnings: [] };
 						byUser.set(row['user_id'], entry);
 					}

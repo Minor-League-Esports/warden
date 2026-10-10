@@ -261,6 +261,24 @@ module.exports = {
 				)
 				.addSubcommand((sub) =>
 					sub
+						.setName('set_discord_username')
+						.setDescription("Set a user's Discord handle")
+						.addStringOption(userOption())
+						.addStringOption((option) =>
+							option.setName('discord_username').setDescription('The Discord handle').setRequired(true),
+						),
+				)
+				.addSubcommand((sub) =>
+					sub
+						.setName('set_alternate_identifier')
+						.setDescription("Set a user's alternate identifier (any other name they can be looked up by)")
+						.addStringOption(userOption())
+						.addStringOption((option) =>
+							option.setName('alternate_identifier').setDescription('The alternate identifier').setRequired(true),
+						),
+				)
+				.addSubcommand((sub) =>
+					sub
 						.setName('merge')
 						.setDescription('Merge a duplicate profile into another and delete it')
 						.addStringOption((option) =>

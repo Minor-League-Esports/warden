@@ -8,7 +8,8 @@ const {
 	generateUserReportConfirmationEmbed,
 	generateFailedUserReportEmbed,
 } = require('../../../util/builders/EmbedFunctions');
-const { generateReportConfirmationButtons } = require('../../../util/builders/ButtonFunctions');
+const { generateReportConfirmationButtons, generateUnmatchedReportConfirmationButtons } = require('../../../util/builders/ButtonFunctions');
+const User = require('../../../util/entity/User');
 
 async function handleReportUserModalSubmit(interaction) {
 	const modalId = interaction.customId;
@@ -27,15 +28,31 @@ async function handleReportUserModalSubmit(interaction) {
 	if (evidenceText.length === 0) evidenceText = 'N/A';
 
 	try {
-		const subject = await globalThis.userUtility.fetchDatabaseUser(subjectInput);
-		const confirmationEmbed = generateUserReportConfirmationEmbed(subject, reason, evidenceText);
-		const buttons = generateReportConfirmationButtons(subject.getUserId(), dbId);
+		let subject = null;
+		try {
+			subject = await globalThis.userUtility.fetchDatabaseUser(subjectInput);
+		} catch (lookupErr) {
+			logger.info(`Reported user not found: ${subjectInput}: ${lookupErr}`);
+		}
+
+		if (subject) {
+			await interaction.editReply({
+				embeds: [generateUserReportConfirmationEmbed(subject, reason, evidenceText)],
+				components: generateReportConfirmationButtons(subject.getUserId(), dbId),
+			});
+			return;
+		}
+
+		// Nothing is saved until the reporter confirms, so typos don't create users
+		const unmatched = new User();
+		unmatched.setUserName(subjectInput);
+		unmatched.setAlternateIdentifier(subjectInput);
 		await interaction.editReply({
-			embeds: [confirmationEmbed],
-			components: buttons,
+			embeds: [generateUserReportConfirmationEmbed(unmatched, reason, evidenceText, subjectInput)],
+			components: generateUnmatchedReportConfirmationButtons(dbId),
 		});
 	} catch (err) {
-		logger.info(`Reported user not found: ${subjectInput}: ${err}`);
+		logger.error(`Error handling report user modal submission for ${subjectInput}: ${err}`);
 		const embed = generateFailedUserReportEmbed(subjectInput);
 		await interaction.editReply({
 			embeds: [embed],

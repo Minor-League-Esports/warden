@@ -4,6 +4,7 @@
 	"modmailUserId": "<MODMAIL USER ID>",
 	"guildId": "<GUILD ID>",
     "mainGuild": "<MAIN GUILD>",
+	"tmGuild": "<TM GUILD>",
 	"opsGuild": "<OPS GUILD>",
 	"moderatorRoleId": "<MODERATOR ROLE>",
     "directorRoleId": "<DIRECTOR ROLE>",

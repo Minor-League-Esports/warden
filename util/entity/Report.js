@@ -315,7 +315,7 @@ class Report {
 			.addFields(
 				{
 					name: 'Reported User',
-					value: String(this.getSubjectUser() ? `<@${this.getSubjectUser().getDiscordId()}>` : 'Unknown'),
+					value: String(this.getSubjectUser() ? this.getSubjectUser().getDiscordMention() : 'Unknown'),
 					inline: true,
 				},
 				{ name: 'Status', value: String(this.getStatus() ?? 'Unknown'), inline: true },

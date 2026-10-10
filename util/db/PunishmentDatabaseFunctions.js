@@ -3,7 +3,6 @@ const logger = log4js.getLogger('DatabaseManager:Punishment');
 const { logLevel } = require('../../config.json');
 logger.level = logLevel;
 
-const User = require('../entity/User');
 
 /**
  * Creates a new Punishment object
@@ -139,9 +138,7 @@ async function getCurrentlyBannedUsers() {
 		this._pool
 			.query(this._loadSql('queries/get/getCurrentlyBannedUsers.sql'))
 			.then((result) => {
-				const users = (result.rows || []).map(
-					(row) => new User(row['user_id'], row['discord_id'], row['discord_avatar'], row['user_name'], row['mle_id']),
-				);
+				const users = globalThis.databaseResponseParser.parseDatabaseUserResponse({ rows: result.rows || [] });
 				resolve(users);
 			})
 			.catch((error) => {

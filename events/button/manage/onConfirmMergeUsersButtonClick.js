@@ -5,6 +5,7 @@ logger.level = logLevel;
 
 const { MessageFlags } = require('discord.js');
 const { refreshCaseMessage } = require('../../../util/message/CaseMessageFunctions');
+const { refreshReportMessage } = require('../../../util/message/ReportMessageFunctions');
 
 async function handleConfirmMergeUsersButtonClick(interaction) {
 	const [, sourceId, targetId, userId] = interaction.customId.split(':');
@@ -34,6 +35,14 @@ async function handleConfirmMergeUsersButtonClick(interaction) {
 				await refreshCaseMessage(await globalThis.databaseManager.getCaseById(caseId));
 			} catch (error) {
 				logger.warn(`Failed to refresh case #${caseId} after merge: ${error}`);
+			}
+		}
+
+		for (const reportId of moved.reportIds) {
+			try {
+				await refreshReportMessage(await globalThis.databaseManager.getReportById(reportId));
+			} catch (error) {
+				logger.warn(`Failed to refresh report #${reportId} after merge: ${error}`);
 			}
 		}
 	} catch (error) {

@@ -39,29 +39,55 @@ async function getCaseById(caseId) {
 		kase.setCaseThreadLink(cRow['case_thread_link']);
 
 		// Attach user objects if present (User has no constructor args, must use setters)
-		const buildUser = (id, discordId, avatar, name, mleId) => {
+		const buildUser = (id, discordId, avatar, name, discordUsername, alternateIdentifier, mleId) => {
 			const u = new User();
 			u.setUserId(id);
 			u.setDiscordId(discordId);
 			u.setDiscordAvatar(avatar);
 			u.setUserName(name);
+			u.setDiscordUsername(discordUsername);
+			u.setAlternateIdentifier(alternateIdentifier);
 			u.setMleId(mleId);
 			return u;
 		};
 
 		if (cRow['cre_id']) {
 			kase.setCreator(
-				buildUser(cRow['cre_id'], cRow['cre_discord_id'], cRow['cre_avatar'], cRow['cre_name'], cRow['cre_mle_id']),
+				buildUser(
+					cRow['cre_id'],
+					cRow['cre_discord_id'],
+					cRow['cre_avatar'],
+					cRow['cre_name'],
+					cRow['cre_discord_username'],
+					cRow['cre_alternate_identifier'],
+					cRow['cre_mle_id'],
+				),
 			);
 		}
 		if (cRow['sub_id']) {
 			kase.setSubjectUser(
-				buildUser(cRow['sub_id'], cRow['sub_discord_id'], cRow['sub_avatar'], cRow['sub_name'], cRow['sub_mle_id']),
+				buildUser(
+					cRow['sub_id'],
+					cRow['sub_discord_id'],
+					cRow['sub_avatar'],
+					cRow['sub_name'],
+					cRow['sub_discord_username'],
+					cRow['sub_alternate_identifier'],
+					cRow['sub_mle_id'],
+				),
 			);
 		}
 		if (cRow['mod_id']) {
 			kase.setModerator(
-				buildUser(cRow['mod_id'], cRow['mod_discord_id'], cRow['mod_avatar'], cRow['mod_name'], cRow['mod_mle_id']),
+				buildUser(
+					cRow['mod_id'],
+					cRow['mod_discord_id'],
+					cRow['mod_avatar'],
+					cRow['mod_name'],
+					cRow['mod_discord_username'],
+					cRow['mod_alternate_identifier'],
+					cRow['mod_mle_id'],
+				),
 			);
 		}
 

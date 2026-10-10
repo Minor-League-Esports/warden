@@ -70,6 +70,40 @@ async function setUsername(interaction) {
 	await interaction.editReply({ content: `Renamed ${previousName} to ${username}.` });
 }
 
+async function setDiscordUsername(interaction) {
+	const user = await fetchUserOrReply(interaction, interaction.options.getString('user'));
+	if (!user) return;
+
+	const handle = interaction.options.getString('discord_username').trim();
+	const existing = await globalThis.databaseManager.getUserByIdentifier(handle, 'discordname');
+	if (existing && existing.getUserId() !== user.getUserId()) {
+		await interaction.editReply({
+			content: `The Discord username ${handle} already belongs to ${existing.getUserName()}. Use \`/manage user merge\` to combine the two profiles.`,
+		});
+		return;
+	}
+
+	await globalThis.databaseManager.updateUser(user.getUserId(), { discord_username: handle });
+	await interaction.editReply({ content: `Set the Discord username for ${user.getUserName()} to ${handle}.` });
+}
+
+async function setAlternateIdentifier(interaction) {
+	const user = await fetchUserOrReply(interaction, interaction.options.getString('user'));
+	if (!user) return;
+
+	const identifier = interaction.options.getString('alternate_identifier').trim();
+	const existing = await globalThis.databaseManager.getUserByIdentifier(identifier, 'alt');
+	if (existing && existing.getUserId() !== user.getUserId()) {
+		await interaction.editReply({
+			content: `The alternate identifier ${identifier} already belongs to ${existing.getUserName()}. Use \`/manage user merge\` to combine the two profiles.`,
+		});
+		return;
+	}
+
+	await globalThis.databaseManager.updateUser(user.getUserId(), { alternate_identifier: identifier });
+	await interaction.editReply({ content: `Set the alternate identifier for ${user.getUserName()} to ${identifier}.` });
+}
+
 // Destructive, so it only prompts; the confirm button performs the merge
 async function merge(interaction) {
 	const source = await fetchUserOrReply(interaction, interaction.options.getString('source'));
@@ -92,5 +126,13 @@ async function merge(interaction) {
 }
 
 module.exports = {
-	handlers: { details, set_mle_id: setMleId, set_discord_id: setDiscordId, set_username: setUsername, merge },
+	handlers: {
+		details,
+		set_mle_id: setMleId,
+		set_discord_id: setDiscordId,
+		set_username: setUsername,
+		set_discord_username: setDiscordUsername,
+		set_alternate_identifier: setAlternateIdentifier,
+		merge,
+	},
 };
