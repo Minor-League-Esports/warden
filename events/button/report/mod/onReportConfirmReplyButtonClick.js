@@ -14,10 +14,9 @@ async function handleReportConfirmReplyButtonClick(interaction) {
 	const embed = interaction.message.embeds[0];
 	// Find the field containing the report reason in the embed
 	const reasonContent = embed.fields.find((field) => field.name === 'Report Reason')?.value;
-	// Look for the text with "**(MLE Moderation)**:" in the reason content
-	// There can be multiple replies so only find the latest one
-	const allModerationTexts = [...reasonContent.matchAll(/\*\*\(MLE Moderation\)\*\*: (.*)/g)].map((match) => match[1]);
-	const latestModerationText = allModerationTexts.pop();
+	const moderationMarker = '**(MLE Moderation)**: ';
+	const latestModerationIndex = reasonContent.lastIndexOf(moderationMarker);
+	const latestModerationText = reasonContent.slice(latestModerationIndex + moderationMarker.length);
 	logger.debug(`Latest moderation text: ${latestModerationText}`);
 	await replyToReport(dbId, latestModerationText);
 	await interaction.editReply({

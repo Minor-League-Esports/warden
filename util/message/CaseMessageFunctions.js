@@ -13,7 +13,7 @@ async function createCaseMessage(caseObj) {
 	// Capture the subject now; updateCase below returns a fresh object without joined user data
 	const subjectUser = fullCase.getSubjectUser();
 	// Get the subject mention for the case message
-	const subjectMention = subjectUser ? `<@${subjectUser.getDiscordId()}>` : 'Unknown';
+	const subjectMention = subjectUser ? subjectUser.getDiscordMention() : 'Unknown';
 	// Create a private thread for the case discussion among moderators
 	// We do this first to ensure that the discussion thread exists before posting the case message
 	// This way we don't have to update the original case embed after creating the thread
@@ -64,7 +64,7 @@ async function createCaseMessage(caseObj) {
 		subjectUser.setCases(filteredCases);
 		await caseThread.send({
 			embeds: [subjectUser.generateUserSummaryEmbed()],
-			components: generateUserSummaryButtons(subjectUser.getUserId()),
+			components: generateUserSummaryButtons(subjectUser.getUserId(), fullCase.getCaseId()),
 		});
 	} catch (historyError) {
 		logger.error(`Failed to add subject history to case ${fullCase.getCaseId()} thread: ${historyError}`);
@@ -86,6 +86,14 @@ async function refreshCaseMessage(fullCase) {
 		if (!caseThread) {
 			logger.error(`Failed to fetch case thread for link: ${fullCase.getCaseThreadLink()}`);
 			throw new Error(`Failed to fetch case thread for link: ${fullCase.getCaseThreadLink()}`);
+		}
+
+		// Rename the case thread if necessary
+		const desiredThreadName = `Case #${fullCase.getCaseId()} (${fullCase.getSubjectUser()?.getUserName()})`;
+		if (caseThread.name !== desiredThreadName) {
+			await caseThread.setName(desiredThreadName).catch((error) => {
+				logger.warn(`Failed to rename case thread for Case #${fullCase.getCaseId()}: ${error}`);
+			});
 		}
 
 		if (fullCase.getCaseLink()) {

@@ -15,18 +15,24 @@ SELECT
     u_cre.discord_id AS cre_discord_id,
     u_cre.discord_avatar AS cre_avatar,
     u_cre.user_name AS cre_name,
+    u_cre.discord_username AS cre_discord_username,
+    u_cre.alternate_identifier AS cre_alternate_identifier,
     u_cre.mle_id AS cre_mle_id,
     -- Subject
     u_sub.user_id AS sub_id,
     u_sub.discord_id AS sub_discord_id,
     u_sub.discord_avatar AS sub_avatar,
     u_sub.user_name AS sub_name,
+    u_sub.discord_username AS sub_discord_username,
+    u_sub.alternate_identifier AS sub_alternate_identifier,
     u_sub.mle_id AS sub_mle_id,
     -- Moderator
     u_mod.user_id AS mod_id,
     u_mod.discord_id AS mod_discord_id,
     u_mod.discord_avatar AS mod_avatar,
     u_mod.user_name AS mod_name,
+    u_mod.discord_username AS mod_discord_username,
+    u_mod.alternate_identifier AS mod_alternate_identifier,
     u_mod.mle_id AS mod_mle_id
 FROM Cases c
 LEFT JOIN Users u_cre ON u_cre.user_id = c.creator_id

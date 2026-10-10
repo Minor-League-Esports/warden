@@ -48,13 +48,15 @@ module.exports = {
 			membersData.map(async (member) => {
 				try {
 					let avatarUrl = undefined;
+					let discordUsername = undefined;
 					if (fetchAvatars) {
 						try {
 							const discordUser = await interaction.client.users.fetch(member.discord_id);
 							avatarUrl = discordUser.displayAvatarURL();
+							discordUsername = discordUser.username;
 						} catch (_) {
 							_;
-							// Ignore avatar fetch failure; proceed without avatar
+							// Ignore fetch failure; proceed without avatar or username
 						}
 					}
 
@@ -64,6 +66,7 @@ module.exports = {
 						member.name,
 						member.mle_id,
 						avatarUrl,
+						discordUsername,
 					);
 
 					if (action === 'created') created++;

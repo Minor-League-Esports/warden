@@ -12,7 +12,14 @@ async function handleConfirmReportSubmissionButtonClick(interaction) {
 	const buttonId = interaction.customId;
 	logger.debug(`Confirm report submission button clicked with ID: ${buttonId}`);
 
-	const [, subjectId, reporterId] = buttonId.split(':');
+	const isUnmatched = buttonId.startsWith('confirmUnmatchedReportButton');
+	let subjectId;
+	let reporterId;
+	if (isUnmatched) {
+		[, reporterId] = buttonId.split(':');
+	} else {
+		[, subjectId, reporterId] = buttonId.split(':');
+	}
 	const embed = interaction.message.embeds[0];
 
 	// Ensure the interaction message contains an embed with the report details
@@ -72,6 +79,11 @@ async function handleConfirmReportSubmissionButtonClick(interaction) {
 
 	// Create the report in the database with the extracted reason and evidence fields
 	try {
+		if (isUnmatched) {
+			const unmatchedInput = embed.fields.find((field) => field.name === 'Unmatched Subject')?.value;
+			if (!unmatchedInput) throw new Error('Unmatched subject missing from embed');
+			subjectId = (await globalThis.databaseManager.createUserByAlternateIdentifier(unmatchedInput)).getUserId();
+		}
 		const report = await globalThis.databaseManager.createReport(subjectId, reporterId, reason, evidence);
 		// Fetch the subject and reporter user objects from the database
 		logger.debug(
@@ -133,7 +145,7 @@ async function handleConfirmReportSubmissionButtonClick(interaction) {
 		// Handle any errors that occur during the report creation process
 		logger.error(`Error creating report in database: ${error}`);
 		await interaction.followUp({
-			content: `There was an error submitting your report. Please try again later or contact <@&${modmailUserId}>.`,
+			content: `There was an error submitting your report. Please try again later or contact <@${modmailUserId}>.`,
 			flags: MessageFlags.Ephemeral,
 		});
 		return;

@@ -310,12 +310,12 @@ class Report {
 			.setTitle(`MLE Moderation Update: Report #${this.getReportId()}`)
 			.setTimestamp(new Date(this.getReportTimestamp() ?? new Date().toISOString()))
 			.setDescription(
-				'To attach evidence to this report, use the `/report evidence` command. To provide more details, use the `/report update` command or the button below.',
+				'To attach evidence to this report, send files in a DM to me. To provide more details, use the `/report update` command or the button below.',
 			)
 			.addFields(
 				{
 					name: 'Reported User',
-					value: String(this.getSubjectUser() ? `<@${this.getSubjectUser().getDiscordId()}>` : 'Unknown'),
+					value: String(this.getSubjectUser() ? this.getSubjectUser().getDiscordMention() : 'Unknown'),
 					inline: true,
 				},
 				{ name: 'Status', value: String(this.getStatus() ?? 'Unknown'), inline: true },

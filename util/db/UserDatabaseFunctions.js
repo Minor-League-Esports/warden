@@ -13,68 +13,69 @@ const USER_REFERENCES = {
 	Punishments: ['subject_id', 'moderator_id'],
 };
 
+function describeUser(user) {
+	return (
+		`#${user.getUserId()} {name: ${user.getUserName()}, discord_id: ${user.getDiscordId()}, ` +
+		`discord_username: ${user.getDiscordUsername()}, mle_id: ${user.getMleId()}, ` +
+		`alternate_identifier: ${user.getAlternateIdentifier()}, avatar: ${user.getDiscordAvatar()}}`
+	);
+}
+
 /**
  * Creates a new user object and returns it
  * Updates name and avatar if already exists
  *
- * @param {String} userId The user's Discord ID
+ * @param {String} discordId The user's Discord ID
  * @param {String} userName The user's Discord username
  * @param {String|null} mleId The user's MLE ID (optional)
  * @param {String|null} discordAvatar The user's Discord avatar URL (optional)
+ * @param {String|null} discordUsername The user's Discord handle (optional)
+ * @param {String|null} alternateIdentifier Free-form alternate name for lookups (optional)
  * @returns {Object} An Object with {user, action, ?reason}
  */
-async function createUser(discordId, userName, mleId = null, discordAvatar = null) {
+async function createUser(
+	discordId,
+	userName,
+	mleId = null,
+	discordAvatar = null,
+	discordUsername = null,
+	alternateIdentifier = null,
+) {
 	if (this._status !== 'success') {
 		throw new Error('DB manager not initialized');
 	}
 
-	if (!discordId || !userName) {
-		throw new Error('discordId and userName are required to create a user');
+	if (!userName || (!discordId && !mleId)) {
+		throw new Error('userName and either discordId or mleId are required to create a user');
 	}
 
-	// First check if the user already exists
-	const existing = await this._queryFile('queries/get/user/getUserByIdentifier_discord.sql', [discordId]);
+	// Users without a Discord ID are matched by MLE ID
+	const lookupFile = discordId ? 'getUserByIdentifier_discord' : 'getUserByIdentifier_mle';
+	const existing = await this._queryFile(`queries/get/user/${lookupFile}.sql`, [discordId || mleId]);
 	const users = globalThis.databaseResponseParser.parseDatabaseUserResponse(existing);
 
 	if (users.length === 1) {
 		const user = users[0];
 
 		// User exists, check if we need to update
-		let updateName = false;
-		let updateAvatar = false;
-		if (userName != user.getUserName()) {
-			updateName = true;
+		const changes = {};
+		if (userName != user.getUserName()) changes.user_name = userName;
+		if (discordAvatar != null && discordAvatar != user.getDiscordAvatar()) changes.discord_avatar = discordAvatar;
+		if (discordUsername != null && discordUsername != user.getDiscordUsername()) {
+			changes.discord_username = discordUsername;
 		}
-		if (discordAvatar != null && discordAvatar != user.getDiscordAvatar()) {
-			updateAvatar = true;
+		if (alternateIdentifier != null && alternateIdentifier != user.getAlternateIdentifier()) {
+			changes.alternate_identifier = alternateIdentifier;
 		}
 
-		if (updateName && updateAvatar) {
-			const updated = await this.updateUser(user.getUserId(), {
-				user_name: userName,
-				discord_avatar: discordAvatar,
-			});
-			logger.info(`Updated user ${user.getUserId()} with new name and avatar.`);
+		if (Object.keys(changes).length > 0) {
+			const updated = await this.updateUser(user.getUserId(), changes);
+			const fields = Object.keys(changes).join(', ');
+			logger.info(`Updated user ${describeUser(updated)} (changed: ${fields}).`);
 			return {
 				user: updated,
 				action: 'updated',
-				reason: 'discord_id existed; updated name and avatar',
-			};
-		} else if (updateName) {
-			const updated = await this.updateUser(user.getUserId(), { user_name: userName });
-			logger.info(`Updated user ${user.getUserId()} with new name.`);
-			return {
-				user: updated,
-				action: 'updated',
-				reason: 'discord_id existed; updated name',
-			};
-		} else if (updateAvatar) {
-			const updated = await this.updateUser(user.getUserId(), { discord_avatar: discordAvatar });
-			logger.info(`Updated user ${user.getUserId()} with new avatar.`);
-			return {
-				user: updated,
-				action: 'updated',
-				reason: 'discord_id existed; updated avatar',
+				reason: `discord_id existed; updated ${fields}`,
 			};
 		} else {
 			return {
@@ -85,15 +86,44 @@ async function createUser(discordId, userName, mleId = null, discordAvatar = nul
 		}
 	} else {
 		// User doesn't exist, create them
-		const res = await this._queryFile('queries/insert/insertUser.sql', [discordId, discordAvatar, userName, mleId]);
+		const res = await this._queryFile('queries/insert/insertUser.sql', [
+			discordId || null,
+			discordAvatar,
+			userName,
+			mleId,
+			discordUsername,
+			alternateIdentifier,
+		]);
 		const created = globalThis.databaseResponseParser.parseDatabaseUserResponse(res);
 		if (created.length !== 1) throw new Error('Failed to create user');
-		logger.info(`Created user ${created[0].getUserId()} with discord_id ${discordId}`);
+		logger.info(`Created user ${describeUser(created[0])}`);
 		return {
 			user: created[0],
 			action: 'created',
 		};
 	}
+}
+
+/**
+ * Creates a user with no Discord account, identified only by free-form text a reporter entered.
+ * Returns the existing user if that alternate identifier is already stored.
+ *
+ * @param {String} identifier The text the reporter entered
+ * @returns {Promise<User>}
+ */
+async function createUserByAlternateIdentifier(identifier) {
+	if (this._status !== 'success') {
+		throw new Error('DB manager not initialized');
+	}
+
+	const existing = await this.getUserByIdentifier(identifier, 'alt');
+	if (existing) return existing;
+
+	const res = await this._queryFile('queries/insert/insertUser.sql', [null, null, identifier, null, null, identifier]);
+	const created = globalThis.databaseResponseParser.parseDatabaseUserResponse(res);
+	if (created.length !== 1) throw new Error('Failed to create user');
+	logger.info(`Created user ${created[0].getUserId()} from alternate identifier '${identifier}'`);
+	return created[0];
 }
 
 /**
@@ -169,10 +199,9 @@ async function mergeUsers(sourceId, targetId) {
 	try {
 		await client.query('BEGIN');
 
-		const users = await client.query(
-			'SELECT user_id, mle_id FROM Users WHERE user_id = ANY($1::int[]) FOR UPDATE',
-			[[sourceId, targetId]],
-		);
+		const users = await client.query('SELECT user_id, mle_id, discord_username, alternate_identifier FROM Users WHERE user_id = ANY($1::int[]) FOR UPDATE', [
+			[sourceId, targetId],
+		]);
 		const source = users.rows.find((row) => String(row.user_id) === String(sourceId));
 		const target = users.rows.find((row) => String(row.user_id) === String(targetId));
 		if (!source || !target) throw new Error('User not found');
@@ -188,6 +217,10 @@ async function mergeUsers(sourceId, targetId) {
 			'SELECT case_id FROM Cases WHERE creator_id = $1 OR subject_id = $1 OR moderator_id = $1',
 			[sourceId],
 		);
+		const reportRes = await client.query(
+			'SELECT report_id FROM Reports WHERE reporter_id = $1 OR subject_id = $1 OR moderator_id = $1',
+			[sourceId],
+		);
 
 		for (const [table, columns] of Object.entries(USER_REFERENCES)) {
 			for (const column of columns) {
@@ -197,6 +230,11 @@ async function mergeUsers(sourceId, targetId) {
 
 		if (!target.mle_id && source.mle_id) {
 			await client.query('UPDATE Users SET mle_id = $2 WHERE user_id = $1', [targetId, source.mle_id]);
+		}
+		for (const column of ['discord_username', 'alternate_identifier']) {
+			if (!target[column] && source[column]) {
+				await client.query(`UPDATE Users SET ${column} = $2 WHERE user_id = $1`, [targetId, source[column]]);
+			}
 		}
 		await client.query('DELETE FROM Users WHERE user_id = $1', [sourceId]);
 
@@ -221,6 +259,7 @@ async function mergeUsers(sourceId, targetId) {
 		logger.info(`Merged user ${sourceId} into user ${targetId}`);
 		return {
 			caseIds: caseRes.rows.map((row) => row.case_id),
+			reportIds: reportRes.rows.map((row) => row.report_id),
 			reports: counts.Reports,
 			warnings: counts.Warnings,
 			punishments: counts.Punishments,
@@ -236,6 +275,7 @@ async function mergeUsers(sourceId, targetId) {
 
 module.exports = {
 	createUser,
+	createUserByAlternateIdentifier,
 	getUserByIdentifier,
 	updateUser,
 	mergeUsers,

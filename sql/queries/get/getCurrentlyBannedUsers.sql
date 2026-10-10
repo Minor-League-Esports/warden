@@ -26,6 +26,8 @@ SELECT
     u.discord_id AS discord_id,
     u.discord_avatar AS discord_avatar,
     u.user_name AS user_name,
+    u.discord_username AS discord_username,
+    u.alternate_identifier AS alternate_identifier,
     u.mle_id AS mle_id
 FROM Users u
 JOIN ban_status bs ON bs.user_id = u.user_id

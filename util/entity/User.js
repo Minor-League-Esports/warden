@@ -19,6 +19,12 @@ class User {
 		return this._discordId;
 	}
 
+	// Users without a Discord account (e.g. reported by free-form name) can't be mentioned
+	getDiscordMention() {
+		if (this._discordId) return `<@${this._discordId}>`;
+		return this.getDiscordUsername() ?? this.getAlternateIdentifier() ?? this.getUserName() ?? 'Unknown';
+	}
+
 	setDiscordAvatar(discordAvatar) {
 		this._discordAvatar = discordAvatar;
 	}
@@ -33,6 +39,22 @@ class User {
 
 	getUserName() {
 		return this._userName;
+	}
+
+	setDiscordUsername(discordUsername) {
+		this._discordUsername = discordUsername;
+	}
+
+	getDiscordUsername() {
+		return this._discordUsername ?? null;
+	}
+
+	setAlternateIdentifier(alternateIdentifier) {
+		this._alternateIdentifier = alternateIdentifier;
+	}
+
+	getAlternateIdentifier() {
+		return this._alternateIdentifier ?? null;
 	}
 
 	setMleId(mleId) {
@@ -79,14 +101,16 @@ class User {
 		return new EmbedBuilder()
 			.setColor('#0000ff')
 			.setTitle(`${this._userName} | Info`)
-			.setFooter({ text: `ID: ${this.getDiscordId()}` })
+			.setFooter({ text: `ID: ${this.getDiscordId() ?? 'N/A'}` })
 			.setTimestamp()
 			.setThumbnail(this.getDiscordAvatar())
 			.addFields(
 				{ name: 'User Name', value: this.getUserName() },
 				{ name: 'MLE ID', value: this.getMleId() },
-				{ name: 'Discord User', value: `<@${this.getDiscordId()}>` },
-				{ name: 'Discord ID', value: String(this.getDiscordId()) },
+				{ name: 'Discord User', value: this.getDiscordMention() },
+				{ name: 'Discord Username', value: this.getDiscordUsername() ?? 'N/A' },
+				{ name: 'Alternate Identifier', value: this.getAlternateIdentifier() ?? 'N/A' },
+				{ name: 'Discord ID', value: String(this.getDiscordId() ?? 'N/A') },
 				{ name: 'Warden ID', value: String(this.getUserId()) },
 			);
 	}
@@ -100,11 +124,11 @@ class User {
 		return new EmbedBuilder()
 			.setColor('#ff761b')
 			.setTitle(`${this._userName} | Summary`)
-			.setFooter({ text: `ID: ${this._discordId}` })
+			.setFooter({ text: `ID: ${this._discordId ?? 'N/A'}` })
 			.setTimestamp()
 			.setThumbnail(this._discordAvatar)
 			.addFields(
-				{ name: 'User', value: `<@${this._discordId}>`, inline: true },
+				{ name: 'User', value: this.getDiscordMention(), inline: true },
 				{ name: 'MLE ID', value: this._mleId ?? 'N/A', inline: true },
 				{
 					name: 'Current Points',

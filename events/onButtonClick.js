@@ -49,7 +49,10 @@ module.exports = {
 
 		if (buttonId.startsWith('openUserReportModalButton')) {
 			await handleOpenUserReportModalButtonClick(interaction);
-		} else if (buttonId.startsWith('confirmReportSubmissionButton')) {
+		} else if (
+			buttonId.startsWith('confirmReportSubmissionButton') ||
+			buttonId.startsWith('confirmUnmatchedReportButton')
+		) {
 			await handleConfirmReportSubmissionButtonClick(interaction);
 		} else if (buttonId.startsWith('reportAcknowledgeButton')) {
 			await handleAcknowledgeReportButtonClick(interaction);

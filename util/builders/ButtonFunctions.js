@@ -114,6 +114,18 @@ function generateReportConfirmationButtons(subjectId, reporterId) {
 	return [new ActionRowBuilder().addComponents(confirmButton, cancelButton)];
 }
 
+function generateUnmatchedReportConfirmationButtons(reporterId) {
+	const confirmButton = new ButtonBuilder()
+		.setCustomId(`confirmUnmatchedReportButton:${reporterId}`)
+		.setLabel('Submit Anyway')
+		.setStyle(ButtonStyle.Primary);
+	const cancelButton = new ButtonBuilder()
+		.setCustomId(`wardenCancelButton`)
+		.setLabel('Cancel')
+		.setStyle(ButtonStyle.Danger);
+	return [new ActionRowBuilder().addComponents(confirmButton, cancelButton)];
+}
+
 function generateCloseCaseConfirmationButtons(caseId, userId) {
 	const confirmButton = new ButtonBuilder()
 		.setCustomId(`confirmCloseCaseButton:${caseId}:${userId}`)
@@ -330,6 +342,7 @@ module.exports = {
 	generateReportReplyConfirmationButtons,
 	generateUserSummaryButtons,
 	generateReportConfirmationButtons,
+	generateUnmatchedReportConfirmationButtons,
 	generateReportModButtons,
 	generateCaseReportButtons,
 	generateWarnConfirmationButtons,

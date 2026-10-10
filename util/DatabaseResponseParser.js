@@ -17,6 +17,8 @@ function buildUserFromPrefix(row, prefix) {
 	u.setDiscordId(row[`${prefix}_discord_id`]);
 	u.setDiscordAvatar(row[`${prefix}_avatar`]);
 	u.setUserName(row[`${prefix}_name`]);
+	u.setDiscordUsername(row[`${prefix}_discord_username`]);
+	u.setAlternateIdentifier(row[`${prefix}_alternate_identifier`]);
 	u.setMleId(row[`${prefix}_mle_id`]);
 	return u;
 }
@@ -55,6 +57,8 @@ class DatabaseResponseParser {
 			u.setDiscordId(row['discord_id']);
 			u.setDiscordAvatar(row['discord_avatar']);
 			u.setUserName(row['user_name']);
+			u.setDiscordUsername(row['discord_username']);
+			u.setAlternateIdentifier(row['alternate_identifier']);
 			u.setMleId(row['mle_id']);
 			users.push(u);
 		}

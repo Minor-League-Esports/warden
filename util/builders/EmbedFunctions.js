@@ -41,20 +41,27 @@ function generateFailedUserReportEmbed(subjectInput) {
 		.setTimestamp();
 }
 
-function generateUserReportConfirmationEmbed(dbUser, reason, evidence) {
+function generateUserReportConfirmationEmbed(dbUser, reason, evidence, unmatchedInput = null) {
 	const embed = new EmbedBuilder()
 		.setColor('#ff761b')
 		.setTitle(`${dbUser.getUserName()} | Report Confirmation`)
-		.setFooter({ text: `ID: ${dbUser.getDiscordId()}` })
+		.setFooter({ text: `ID: ${dbUser.getDiscordId() ?? 'N/A'}` })
 		.setTimestamp()
 		.setThumbnail(dbUser.getDiscordAvatar())
 		.setDescription(
 			'Please confirm the details of your report. After submission, you will have the opportunity to attach any relevant files or screenshots.',
 		)
 		.addFields(
-			{ name: 'User', value: `<@${dbUser.getDiscordId()}>`, inline: true },
+			{ name: 'User', value: dbUser.getDiscordMention(), inline: true },
 			{ name: 'MLE ID', value: dbUser.getMleId() ?? 'N/A', inline: true },
 		);
+
+	if (unmatchedInput) {
+		embed.setDescription(
+			`I couldn't find a user matching "${unmatchedInput}". Please double check the spelling, Discord ID, or MLE ID. If it is correct, you can submit anyway and moderators will identify the user. Otherwise, cancel and try again.`,
+		);
+		embed.addFields({ name: 'Unmatched Subject', value: unmatchedInput });
+	}
 
 	// Report Reason (may be long)
 	const reasonChunks = chunkTextPreserveNewlines(reason, 1024);
@@ -80,16 +87,16 @@ function generateWarnConfirmationEmbed(
 	newPointsTotal,
 	moderatorNotes,
 	recommendedAction,
-	caseId,
+	caseObj,
 ) {
 	return new EmbedBuilder()
 		.setColor('#ff761b')
 		.setTitle(`${dbUser.getUserName()} | Warning Proposed`)
-		.setFooter({ text: `ID: ${dbUser.getDiscordId()}` })
+		.setFooter({ text: `ID: ${dbUser.getDiscordId() ?? 'N/A'}` })
 		.setTimestamp()
 		.setThumbnail(dbUser.getDiscordAvatar())
 		.addFields(
-			{ name: 'User', value: `<@${dbUser.getDiscordId()}>`, inline: true },
+			{ name: 'User', value: dbUser.getDiscordMention(), inline: true },
 			{ name: 'MLE ID', value: dbUser.getMleId() ?? 'N/A', inline: true },
 			{ name: 'On Probation', value: String(probationStatus), inline: true },
 			{ name: 'Rule(s) Broken', value: String(rulesBroken ?? 'None') },
@@ -112,7 +119,11 @@ function generateWarnConfirmationEmbed(
 				name: 'Recommended Action',
 				value: String(generateRecommendedActionDescription(recommendedAction)),
 			},
-			{ name: 'Case', value: caseId ? `#${caseId}` : 'None', inline: true },
+			{
+				name: 'Case',
+				value: caseObj ? `[#${caseObj.getCaseId()}](${caseObj.getCaseThreadLink()})` : '**No case, please verify!**',
+				inline: true,
+			},
 		);
 }
 
