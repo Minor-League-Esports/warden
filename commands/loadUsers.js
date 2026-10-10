@@ -82,7 +82,7 @@ module.exports = {
 		const duration = ((endTime - startTime) / 1000).toFixed(2);
 		logger.info(`LoadUsersCommand completed in ${duration} seconds.`);
 		const message = `Created: ${created} users\nUpdated: ${updated} users\nUnchanged: ${unchanged} users\nFailed: ${failed} users\nUpdate avatars: ${fetchAvatars}`;
-
+		logger.info(message);
 		if (!fetchAvatars) {
 			// Fetching 5000+ avatars can cause timeout, so only edit reply if not fetching avatars
 			await interaction.editReply(message);
