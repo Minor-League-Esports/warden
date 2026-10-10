@@ -87,7 +87,7 @@ module.exports = {
 			// Fetching 5000+ avatars can cause timeout, so only edit reply if not fetching avatars
 			await interaction.editReply(message);
 		} else {
-			globalThis.discordLogger.logMessage('LoadUsersCommand', message);
+			globalThis.discordLogger.logMessage(message);
 		}
 	},
 };
