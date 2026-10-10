@@ -1,6 +1,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
-const { Client, Collection, GatewayIntentBits } = require('discord.js');
+const { Client, Collection, GatewayIntentBits, Partials } = require('discord.js');
 const { token, logLevel } = require('./config.json');
 const log4js = require('log4js');
 const eventLogger = log4js.getLogger('EventWrapper');
@@ -11,7 +11,13 @@ const { SprocketDatasetParser } = require('./util/SprocketDatasetParser.js');
 const { DatabaseResponseParser } = require('./util/DatabaseResponseParser.js');
 
 const client = new Client({
-	intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
+	intents: [
+		GatewayIntentBits.Guilds,
+		GatewayIntentBits.GuildMessages,
+		GatewayIntentBits.DirectMessages,
+		GatewayIntentBits.MessageContent,
+	],
+	partials: [Partials.Channel, Partials.Message],
 });
 
 client.commands = new Collection();
